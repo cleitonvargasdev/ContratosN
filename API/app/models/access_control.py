@@ -3,13 +3,22 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.user import User
+
+
+user_profiles_table = Table(
+    "usuarios_perfis",
+    Base.metadata,
+    Column("user_id", ForeignKey("usuarios.id", ondelete="CASCADE"), primary_key=True),
+    Column("perfil_id", ForeignKey("perfis.id", ondelete="CASCADE"), primary_key=True),
+    Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+)
 
 
 class Profile(Base):
@@ -30,7 +39,7 @@ class Profile(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
-    users: Mapped[list[User]] = relationship("User", back_populates="profile")
+    users: Mapped[list[User]] = relationship("User", secondary=user_profiles_table, back_populates="profiles", lazy="selectin")
 
 
 class ProfilePermission(Base):

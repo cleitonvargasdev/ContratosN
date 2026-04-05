@@ -16,7 +16,7 @@ class UserRepository:
     @staticmethod
     def _load_options() -> tuple:
         return (
-            selectinload(User.profile).selectinload(Profile.permissions),
+            selectinload(User.profiles).selectinload(Profile.permissions),
             selectinload(User.api_key),
         )
 

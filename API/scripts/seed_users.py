@@ -39,17 +39,21 @@ async def main() -> None:
         existing_emails = set(result.scalars().all())
 
         users = [
-            User(
-                **payload,
-                perfil_id=profile_ids.get("Administrador") if payload["funcao"] == "Administrador" else profile_ids.get("Operacional"),
-                senha_hash=hash_password(DEFAULT_PASSWORD),
-            )
+            User(**payload, senha_hash=hash_password(DEFAULT_PASSWORD))
             for payload in TEST_USERS
             if payload["email"] not in existing_emails
         ]
         if not users:
             print("No new users to insert.")
             return
+
+        for user in users:
+            profile_name = "Administrador" if user.funcao == "Administrador" else "Operacional"
+            profile_id = profile_ids.get(profile_name)
+            if profile_id is not None:
+                profile = await session.get(Profile, profile_id)
+                if profile is not None:
+                    user.profiles.append(profile)
 
         session.add_all(users)
         await session.commit()

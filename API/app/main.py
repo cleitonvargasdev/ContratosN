@@ -22,6 +22,7 @@ app = FastAPI(
         {"name": "health", "description": "Verificacao de disponibilidade da API."},
         {"name": "auth", "description": "Autenticacao com JWT e consulta do usuario autenticado."},
         {"name": "acesso", "description": "Perfis, permissoes parametrizadas e controle de acesso."},
+        {"name": "chat", "description": "Chat interno com conversas entre usuarios e notificacoes em tempo real."},
         {"name": "localidades", "description": "Consultas de UF, cidade, bairro e resolucao de CEP/endereco."},
         {"name": "usuarios", "description": "Operacoes de cadastro, consulta, atualizacao e remocao de usuarios."},
     ],

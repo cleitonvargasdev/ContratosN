@@ -90,7 +90,8 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
 
 def require_profile_names(*profile_names: str) -> Callable[[User], User]:
     async def dependency(current_user: User = Depends(get_current_active_user)) -> User:
-        if current_user.perfil_nome not in profile_names:
+        active_profile_names = {profile.nome for profile in current_user.profiles if profile.ativo}
+        if not active_profile_names.intersection(profile_names):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permissao insuficiente")
         return current_user
 

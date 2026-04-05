@@ -2,6 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
+from app.models.access_control import Profile
 from app.repositories.access_control_repository import AccessControlRepository
 from app.models.user import User
 from app.realtime.user_events import user_event_broker
@@ -41,11 +42,12 @@ class UserService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Login ja cadastrado")
         if await self.repository.get_by_email(str(payload.email)):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email ja cadastrado")
-        await self._validate_profile(payload.perfil_id)
+        profiles = await self._resolve_profiles(payload.resolve_profile_ids() or [])
 
-        payload_data = payload.model_dump(exclude={"senha"})
+        payload_data = payload.model_dump(exclude={"senha", "perfil_id", "perfil_ids"})
         payload_data = await self.location_service.normalize_user_location_fields(payload_data)
         user = User(**payload_data, senha_hash=hash_password(payload.senha))
+        user.profiles = profiles
         created_user = await self.repository.create(user)
         await user_event_broker.broadcast("created", user_id=created_user.id, changed_fields=payload_data.keys())
         return created_user
@@ -65,9 +67,11 @@ class UserService:
             if existing_email is not None:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email ja cadastrado")
 
-        await self._validate_profile(payload.perfil_id)
+        profile_ids = payload.resolve_profile_ids()
+        if profile_ids is not None:
+            user.profiles = await self._resolve_profiles(profile_ids)
 
-        update_data = payload.model_dump(exclude_unset=True, exclude={"senha"})
+        update_data = payload.model_dump(exclude_unset=True, exclude={"senha", "perfil_id", "perfil_ids"})
         update_data = await self.location_service.normalize_user_location_fields(update_data)
         changed_fields = [field for field in update_data if field in USER_LIST_VISIBLE_FIELDS]
         if payload.senha:
@@ -86,8 +90,15 @@ class UserService:
         await user_event_broker.broadcast("deleted", user_id=user_id)
         return True
 
-    async def _validate_profile(self, profile_id: int | None) -> None:
-        if profile_id is None:
-            return
-        if await self.access_repository.get_profile_by_id(profile_id) is None:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Perfil informado nao existe")
+    async def _resolve_profiles(self, profile_ids: list[int]) -> list[Profile]:
+        if not profile_ids:
+            return []
+
+        profiles = list(await self.access_repository.get_profiles_by_ids(profile_ids))
+        profiles_by_id = {profile.id: profile for profile in profiles}
+        missing = [profile_id for profile_id in profile_ids if profile_id not in profiles_by_id]
+
+        if missing:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Um ou mais perfis informados nao existem")
+
+        return [profiles_by_id[profile_id] for profile_id in profile_ids]

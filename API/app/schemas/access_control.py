@@ -40,7 +40,7 @@ class ProfilePermissionWrite(ProfilePermissionBase):
 
 
 class ProfilePermissionRead(ProfilePermissionBase):
-    id: int
+    id: int | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

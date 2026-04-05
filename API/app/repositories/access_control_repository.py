@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.access_control import Profile, ProfilePermission, UserApiKey
+from app.models.access_control import Profile, ProfilePermission, UserApiKey, user_profiles_table
 from app.models.user import User
 
 
@@ -32,6 +32,14 @@ class AccessControlRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_profiles_by_ids(self, profile_ids: list[int]) -> Sequence[Profile]:
+        if not profile_ids:
+            return []
+
+        stmt = select(Profile).options(selectinload(Profile.permissions)).where(Profile.id.in_(profile_ids))
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
     async def create_profile(self, profile: Profile) -> Profile:
         self.session.add(profile)
         await self.session.commit()
@@ -48,7 +56,7 @@ class AccessControlRepository:
         await self.session.commit()
 
     async def count_users_by_profile(self, profile_id: int) -> int:
-        stmt = select(func.count()).select_from(User).where(User.perfil_id == profile_id)
+        stmt = select(func.count()).select_from(user_profiles_table).where(user_profiles_table.c.perfil_id == profile_id)
         total = await self.session.scalar(stmt)
         return int(total or 0)
 
@@ -57,7 +65,7 @@ class AccessControlRepository:
             select(UserApiKey)
             .options(
                 selectinload(UserApiKey.user)
-                .selectinload(User.profile)
+                .selectinload(User.profiles)
                 .selectinload(Profile.permissions),
                 selectinload(UserApiKey.user).selectinload(User.api_key),
             )

@@ -61,7 +61,50 @@ class UserBase(UserAddressFields):
     email: EmailStr
     funcao: str = "Operador"
     perfil_id: int | None = None
+    perfil_ids: list[int] = Field(default_factory=list)
     ativo: bool = True
+
+    @field_validator("perfil_id", mode="before")
+    @classmethod
+    def normalize_profile_id(cls, value: object) -> int | None:
+        if value in (None, ""):
+            return None
+        profile_id = int(value)
+        if profile_id <= 0:
+            raise ValueError("Perfil invalido")
+        return profile_id
+
+    @field_validator("perfil_ids", mode="before")
+    @classmethod
+    def normalize_profile_ids(cls, value: object) -> list[int]:
+        if value in (None, ""):
+            return []
+
+        raw_items = value if isinstance(value, (list, tuple, set)) else [value]
+        normalized: list[int] = []
+        seen: set[int] = set()
+
+        for item in raw_items:
+            if item in (None, ""):
+                continue
+
+            profile_id = int(item)
+            if profile_id <= 0:
+                raise ValueError("Perfil invalido")
+            if profile_id in seen:
+                continue
+
+            seen.add(profile_id)
+            normalized.append(profile_id)
+
+        return normalized
+
+    def resolve_profile_ids(self) -> list[int] | None:
+        if "perfil_ids" in self.model_fields_set:
+            return list(self.perfil_ids)
+        if "perfil_id" in self.model_fields_set:
+            return [] if self.perfil_id is None else [self.perfil_id]
+        return None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -71,7 +114,7 @@ class UserBase(UserAddressFields):
                     "login": "maria.oliveira",
                     "email": "maria.oliveira@example.com",
                     "funcao": "Operador",
-                    "perfil_id": 2,
+                    "perfil_ids": [2],
                     "telefone": "11998887766",
                     "celular": "11997776655",
                     "flag_whatsapp": True,
@@ -103,7 +146,7 @@ class UserCreate(UserBase):
                 "email": "maria.oliveira@example.com",
                 "senha": "123456",
                 "funcao": "Operador",
-                "perfil_id": 2,
+                "perfil_ids": [2],
                 "telefone": "11998887766",
                 "celular": "11997776655",
                 "flag_whatsapp": True,
@@ -130,7 +173,30 @@ class UserUpdate(UserAddressFields):
     senha: str | None = None
     funcao: str | None = None
     perfil_id: int | None = None
+    perfil_ids: list[int] = Field(default_factory=list)
     ativo: bool | None = None
+
+    @field_validator("perfil_id", mode="before")
+    @classmethod
+    def normalize_optional_profile_id(cls, value: object) -> int | None:
+        if value in (None, ""):
+            return None
+        profile_id = int(value)
+        if profile_id <= 0:
+            raise ValueError("Perfil invalido")
+        return profile_id
+
+    @field_validator("perfil_ids", mode="before")
+    @classmethod
+    def normalize_optional_profile_ids(cls, value: object) -> list[int]:
+        return UserBase.normalize_profile_ids(value)
+
+    def resolve_profile_ids(self) -> list[int] | None:
+        if "perfil_ids" in self.model_fields_set:
+            return list(self.perfil_ids)
+        if "perfil_id" in self.model_fields_set:
+            return [] if self.perfil_id is None else [self.perfil_id]
+        return None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -139,7 +205,7 @@ class UserUpdate(UserAddressFields):
                 "login": "maria.oliveira.atualizada",
                 "senha": "654321",
                 "funcao": "Administrador",
-                "perfil_id": 1,
+                "perfil_ids": [1, 2],
                 "telefone": "11990001122",
                 "celular": "11995554433",
                 "flag_whatsapp": False,
@@ -162,6 +228,7 @@ class UserUpdate(UserAddressFields):
 class UserRead(UserBase):
     id: int
     perfil_nome: str | None = None
+    perfil_nomes: list[str] = Field(default_factory=list)
     api_key_info: UserApiKeyInfo | None = None
     created_at: datetime
     updated_at: datetime
@@ -176,7 +243,9 @@ class UserRead(UserBase):
                 "email": "maria.oliveira@example.com",
                 "funcao": "Operador",
                 "perfil_id": 2,
+                "perfil_ids": [2, 5],
                 "perfil_nome": "Operacional",
+                "perfil_nomes": ["Operacional", "Vendedor"],
                 "telefone": "11998887766",
                 "celular": "11997776655",
                 "flag_whatsapp": True,
@@ -227,7 +296,9 @@ class UserListResponse(PaginatedResponse[UserRead]):
                         "email": "ana.souza@example.com",
                         "funcao": "Administrador",
                         "perfil_id": 1,
+                        "perfil_ids": [1],
                         "perfil_nome": "Administrador",
+                        "perfil_nomes": ["Administrador"],
                         "telefone": "11990000001",
                         "celular": "11990000001",
                         "flag_whatsapp": True,

@@ -9,6 +9,19 @@ $env:PYTHONPATH='d:/PROJETOINI/API'
 d:/PROJETOINI/API/.venv/Scripts/python.exe -m uvicorn app.main:app --reload --port 8005
 ```
 
+## Frontend
+
+O frontend deste projeto fica fora desta pasta da API, em `D:\PROJETOINI\FRONTEND`.
+
+```powershell
+Set-Location D:\PROJETOINI\FRONTEND
+npm install
+npm run dev -- --host=127.0.0.1 --port=5174
+```
+
+- Frontend: `http://127.0.0.1:5174/`
+- API usada pelo frontend: `http://127.0.0.1:8005/api/v1`
+
 ## Swagger
 
 - Swagger UI: `http://127.0.0.1:8005/swagger`
