@@ -12,6 +12,7 @@
     @change-page-size="handlePageSize"
     @edit="handleEdit"
     @delete="handleDelete"
+    @message="handleMessage"
   />
 </template>
 
@@ -21,12 +22,14 @@ import { useRouter } from 'vue-router'
 
 import UserTable from '@/components/users/UserTable.vue'
 import { useAuthController } from '@/controllers/useAuthController'
+import { useChatController } from '@/controllers/useChatController'
 import { useUsersController } from '@/controllers/useUsersController'
 import { confirmDeleteAlert, errorAlert, successAlert } from '@/services/alertService'
 import { connectUsersUpdates, type UserRealtimeEvent } from '@/services/userService'
 
 const users = useUsersController()
 const auth = useAuthController()
+const chat = useChatController()
 const router = useRouter()
 let reconnectTimer: number | null = null
 let updatesSocket: WebSocket | null = null
@@ -62,6 +65,16 @@ function handlePageSize(pageSize: number) {
 
 function handleEdit(userId: number) {
   void router.push({ name: 'users-edit', params: { id: userId } })
+}
+
+async function handleMessage(userId: number) {
+  try {
+    await chat.openDrawer(userId)
+  } catch {
+    if (chat.state.error) {
+      await errorAlert(chat.state.error)
+    }
+  }
 }
 
 async function handleDelete(userId: number) {

@@ -25,7 +25,9 @@ export interface User extends UserAddressFields {
   email: string
   funcao: UserFunction
   perfil_id: number | null
+  perfil_ids: readonly number[]
   perfil_nome: string | null
+  perfil_nomes: readonly string[]
   api_key_info: UserApiKeyInfo | null
   ativo: boolean
   created_at: string
@@ -42,7 +44,7 @@ export interface UserCreateInput extends UserAddressFields {
   email: string
   senha: string
   funcao: UserFunction
-  perfil_id: number | null
+  perfil_ids: number[]
   ativo: boolean
 }
 
@@ -52,7 +54,7 @@ export interface UserUpdateInput extends UserAddressFields {
   email: string
   senha?: string
   funcao: UserFunction
-  perfil_id: number | null
+  perfil_ids: number[]
   ativo: boolean
 }
 

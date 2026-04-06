@@ -88,7 +88,23 @@ const emit = defineEmits<{
 
 const auth = useAuthController()
 
-const userFunction = computed(() => auth.state.currentUser?.funcao ?? auth.state.currentUser?.perfil_nome ?? 'Operador')
+const userFunction = computed(() => {
+  const profileNames = auth.state.currentUser?.perfil_nomes ?? []
+  const joinedProfiles = profileNames.join(' / ')
+  if (auth.state.currentUser?.funcao) {
+    return auth.state.currentUser.funcao
+  }
+
+  if (joinedProfiles) {
+    return joinedProfiles
+  }
+
+  if (auth.state.currentUser?.perfil_nome) {
+    return auth.state.currentUser.perfil_nome
+  }
+
+  return 'Operador'
+})
 
 const userIdentity = computed(() => {
   const userName = auth.state.currentUser?.nome ?? 'Usuário logado'
@@ -136,7 +152,7 @@ const baseSections: Array<{ title: string; links: SidebarLink[] }> = [
       { label: 'Contas Bancárias', to: '/modulos/cadastros/contas-bancarias?titulo=Contas%20Banc%C3%A1rias&grupo=Cadastros', icon: 'bank' },
       { label: 'Plano de contas', to: '/modulos/cadastros/plano-de-contas?titulo=Plano%20de%20contas&grupo=Cadastros', icon: 'ledger' },
       { label: 'Planos de Pagamento', to: '/planos-pagamentos', resource: 'planos_pagamentos', action: 'read', icon: 'card' },
-      { label: 'Clientes/Fornecedores', to: '/modulos/cadastros/clientes-fornecedores?titulo=Clientes%2FFornecedores&grupo=Cadastros', icon: 'contacts' },
+      { label: 'Clientes', to: '/clientes', resource: 'clientes', action: 'read', icon: 'contacts' },
       { label: 'Feriados', to: '/feriados', resource: 'localidades_feriados', action: 'read', icon: 'calendar' },
       { label: 'Contas à Pagar', to: '/modulos/cadastros/contas-a-pagar?titulo=Contas%20%C3%A0%20Pagar&grupo=Cadastros', icon: 'wallet' },
       { label: 'Contas à Receber', to: '/modulos/cadastros/contas-a-receber?titulo=Contas%20%C3%A0%20Receber&grupo=Cadastros', icon: 'receipt' },

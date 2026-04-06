@@ -2,6 +2,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import { useAuthController } from '@/controllers/useAuthController'
 import MainLayout from '@/components/layout/MainLayout.vue'
+import ClientsCreateView from '@/views/clients/ClientsCreateView.vue'
+import ClientsEditView from '@/views/clients/ClientsEditView.vue'
+import ClientsListView from '@/views/clients/ClientsListView.vue'
 import DashboardHomeView from '@/views/dashboard/DashboardHomeView.vue'
 import LoginView from '@/views/auth/LoginView.vue'
 import PaymentPlansFormView from '@/views/payment-plans/PaymentPlansFormView.vue'
@@ -56,6 +59,24 @@ const routes = [
         name: 'users-edit',
         component: UsersEditView,
         meta: { resource: 'usuarios', action: 'update' },
+      },
+      {
+        path: 'clientes',
+        name: 'clients-list',
+        component: ClientsListView,
+        meta: { resource: 'clientes', action: 'read' },
+      },
+      {
+        path: 'clientes/novo',
+        name: 'clients-create',
+        component: ClientsCreateView,
+        meta: { resource: 'clientes', action: 'create' },
+      },
+      {
+        path: 'clientes/:id/editar',
+        name: 'clients-edit',
+        component: ClientsEditView,
+        meta: { resource: 'clientes', action: 'update' },
       },
       {
         path: 'planos-pagamentos',

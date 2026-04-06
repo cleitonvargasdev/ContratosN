@@ -287,6 +287,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  gap: 10px;
   flex: 1 1 auto;
   height: 76px;
   padding: 14px 18px;
@@ -324,16 +325,56 @@ select {
   transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
 
-.topbar__logout-button:hover {
-  background: rgba(216, 75, 98, 0.18);
-  border-color: rgba(216, 75, 98, 0.28);
+.topbar__action-button {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(249, 115, 22, 0.18);
+  border-radius: 8px;
+  background: rgba(249, 115, 22, 0.1);
+  color: rgba(216, 90, 4, 0.9);
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.topbar__action-button:hover {
+  background: rgba(249, 115, 22, 0.18);
+  border-color: rgba(249, 115, 22, 0.28);
   transform: translateY(-1px);
 }
 
+.topbar__action-button svg,
 .topbar__logout-button svg {
   width: 18px;
   height: 18px;
   fill: currentColor;
+}
+
+.topbar__action-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #f97316;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.topbar__logout-button:hover {
+  background: rgba(216, 75, 98, 0.18);
+  border-color: rgba(216, 75, 98, 0.28);
+  transform: translateY(-1px);
 }
 
 .eyebrow {
@@ -729,6 +770,11 @@ select {
   text-align: center;
 }
 
+.msg-column {
+  width: 54px;
+  text-align: center;
+}
+
 .actions-cell {
   text-align: center;
 }
@@ -782,10 +828,22 @@ select {
   color: #ef9aa2;
 }
 
+.icon-action--message {
+  color: rgba(216, 90, 4, 0.72);
+  border-color: rgba(249, 115, 22, 0.12);
+  background: rgba(249, 115, 22, 0.05);
+}
+
 .icon-action:hover {
   color: var(--accent-strong);
   border-color: rgba(249, 115, 22, 0.18);
   background: rgba(249, 115, 22, 0.06);
+}
+
+.icon-action--message:hover {
+  color: var(--accent-strong);
+  border-color: rgba(249, 115, 22, 0.2);
+  background: rgba(249, 115, 22, 0.1);
 }
 
 .icon-action--danger:hover {

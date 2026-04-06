@@ -79,7 +79,7 @@ export function useAuthController() {
   return {
     state: readonly(state),
     isAuthenticated: computed(() => Boolean(state.currentUser && getAccessToken())),
-    isAdmin: computed(() => state.currentUser?.perfil_nome === 'Administrador'),
+    isAdmin: computed(() => Boolean(state.currentUser?.perfil_nomes.includes('Administrador') || state.currentUser?.perfil_nome === 'Administrador')),
     initializeAuth,
     login,
     logout,

@@ -43,13 +43,28 @@
         </select>
       </label>
 
-      <label class="field-group">
-        <span>Perfil parametrizado</span>
-        <select v-model.number="form.perfil_id" class="field">
-          <option :value="null">Selecione</option>
-          <option v-for="profile in profiles" :key="profile.id" :value="profile.id">{{ profile.nome }}</option>
-        </select>
-      </label>
+      <div class="field-group">
+        <span>Perfis parametrizados</span>
+        <div class="profile-picker">
+          <div class="profile-picker__tokens">
+            <span v-if="selectedProfiles.length === 0" class="profile-picker__placeholder">Nenhum perfil selecionado.</span>
+            <span v-for="profile in selectedProfiles" :key="profile.id" class="profile-picker__token">
+              <span>{{ profile.nome }}</span>
+              <button type="button" class="profile-picker__remove" :disabled="saving" @click="removeProfile(profile.id)">x</button>
+            </span>
+          </div>
+          <button
+            type="button"
+            class="profile-picker__add"
+            :disabled="saving"
+            aria-label="Adicionar perfil"
+            title="Adicionar perfil"
+            @click="openProfileModal"
+          >
+              <span class="profile-picker__add-main">+</span>
+          </button>
+        </div>
+      </div>
 
       <label class="field-group">
         <span>Telefone</span>
@@ -152,6 +167,39 @@
       </div>
 
       <Teleport to="body">
+        <div v-if="profileModal.open" class="modal-backdrop" @click.self="closeProfileModal">
+          <section class="modal-card modal-card--compact modal-card--profiles">
+            <header class="panel__header panel__header--stacked">
+              <div>
+                <h3 class="panel__title">Selecionar perfis</h3>
+              </div>
+              <p class="modal-context">Escolha um ou mais perfis para compor as permissões do usuário.</p>
+            </header>
+
+            <div class="modal-form">
+              <label class="field-group">
+                <span>Buscar perfil</span>
+                <input v-model="profileModal.term" class="field" type="text" placeholder="Digite parte do nome" />
+              </label>
+
+              <div class="profile-modal-list">
+                <label v-for="profile in filteredProfiles" :key="profile.id" class="profile-modal-list__item">
+                  <input :checked="form.perfil_ids.includes(profile.id)" type="checkbox" @change="toggleProfile(profile.id)" />
+                  <div>
+                    <strong>{{ profile.nome }}</strong>
+                    <p v-if="profile.descricao" class="profile-modal-list__description">{{ profile.descricao }}</p>
+                  </div>
+                </label>
+                <p v-if="filteredProfiles.length === 0" class="profile-modal-list__empty">Nenhum perfil encontrado.</p>
+              </div>
+
+              <div class="form-actions">
+                <button class="ghost-button" type="button" @click="closeProfileModal">Fechar</button>
+              </div>
+            </div>
+          </section>
+        </div>
+
         <div v-if="bairroModal.open" class="modal-backdrop" @click.self="closeBairroModal">
           <section class="modal-card modal-card--compact">
             <header class="panel__header panel__header--stacked">
@@ -220,6 +268,7 @@ const lookupLoading = ref(false)
 const lookupMessage = ref('')
 let syncingForm = false
 const bairroModal = reactive({ open: false, nome: '', saving: false, error: '' })
+const profileModal = reactive({ open: false, term: '' })
 const functionOptions = ['Administrador', 'Cobrador', 'Operador', 'Vendedor'] as const
 
 const form = reactive({
@@ -228,7 +277,7 @@ const form = reactive({
   email: '',
   senha: '',
   funcao: 'Operador' as User['funcao'],
-  perfil_id: null as number | null,
+  perfil_ids: [] as number[],
   telefone: '',
   celular: '',
   flag_whatsapp: false,
@@ -247,6 +296,20 @@ const form = reactive({
 
 const bairroSelectValue = computed(() => (form.bairro_id === null ? '' : String(form.bairro_id)))
 const selectedCityLabel = computed(() => cities.value.find((item) => item.cidade_id === form.cidade_id)?.cidade ?? 'Nao selecionada')
+const selectedProfiles = computed(() =>
+  form.perfil_ids.map((profileId) => profiles.value.find((profile) => profile.id === profileId)).filter((profile): profile is Profile => Boolean(profile)),
+)
+const filteredProfiles = computed(() => {
+  const term = profileModal.term.trim().toLowerCase()
+  if (!term) {
+    return profiles.value
+  }
+
+  return profiles.value.filter((profile) => {
+    const haystack = `${profile.nome} ${profile.descricao ?? ''}`.toLowerCase()
+    return haystack.includes(term)
+  })
+})
 
 onMounted(() => {
   void loadUfsOptions()
@@ -358,7 +421,7 @@ async function syncUserIntoForm(user?: User | null) {
   form.email = user.email
   form.senha = ''
   form.funcao = normalizeFunctionValue(user.funcao)
-  form.perfil_id = user.perfil_id ?? null
+  form.perfil_ids = user.perfil_ids.length > 0 ? [...user.perfil_ids] : user.perfil_id ? [user.perfil_id] : []
   form.telefone = user.telefone ?? ''
   form.celular = user.celular ?? ''
   form.flag_whatsapp = user.flag_whatsapp
@@ -513,7 +576,7 @@ function buildBasePayload() {
     login: form.login,
     email: form.email,
     funcao: normalizeFunctionValue(form.funcao),
-    perfil_id: form.perfil_id,
+    perfil_ids: [...form.perfil_ids],
     telefone: emptyToNull(form.telefone),
     celular: emptyToNull(form.celular),
     flag_whatsapp: form.flag_whatsapp,
@@ -552,7 +615,7 @@ function resetForm() {
   form.email = ''
   form.senha = ''
   form.funcao = 'Operador'
-  form.perfil_id = null
+  form.perfil_ids = []
   form.telefone = ''
   form.celular = ''
   form.flag_whatsapp = false
@@ -650,6 +713,29 @@ function handleBairroSelectChange(event: Event) {
   form.bairro_id = target.value ? Number(target.value) : null
 }
 
+function openProfileModal() {
+  profileModal.open = true
+  profileModal.term = ''
+}
+
+function closeProfileModal() {
+  profileModal.open = false
+  profileModal.term = ''
+}
+
+function toggleProfile(profileId: number) {
+  if (form.perfil_ids.includes(profileId)) {
+    removeProfile(profileId)
+    return
+  }
+
+  form.perfil_ids = [...form.perfil_ids, profileId]
+}
+
+function removeProfile(profileId: number) {
+  form.perfil_ids = form.perfil_ids.filter((item) => item !== profileId)
+}
+
 function openBairroModal() {
   bairroModal.open = true
   bairroModal.nome = ''
@@ -684,3 +770,126 @@ async function submitBairroModal() {
   }
 }
 </script>
+
+<style scoped>
+.profile-picker {
+  display: flex;
+  align-items: stretch;
+  min-height: 34px;
+  height: 34px;
+  border: 1px solid rgba(85, 103, 122, 0.14);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.92);
+  overflow: hidden;
+}
+
+.profile-picker__tokens {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 3px 6px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.profile-picker__placeholder {
+  color: rgba(15, 23, 42, 0.55);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.profile-picker__token {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.18rem 0.42rem;
+  border-radius: 3px;
+  background: #e8f3ea;
+  color: #123524;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.profile-picker__remove {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+}
+
+.profile-picker__add {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-left: 1px solid rgba(249, 115, 22, 0.16);
+  background: rgba(249, 115, 22, 0.12);
+  color: rgba(216, 90, 4, 0.92);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.profile-picker__add:hover {
+  background: rgba(249, 115, 22, 0.18);
+}
+
+.profile-picker__add-main {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.profile-picker__add:disabled,
+.profile-picker__remove:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+select.field {
+  height: 34px;
+}
+
+.modal-card--profiles {
+  max-width: 34rem;
+}
+
+.profile-modal-list {
+  display: grid;
+  gap: 0.65rem;
+  max-height: 20rem;
+  overflow-y: auto;
+}
+
+.profile-modal-list__item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.8rem;
+  align-items: start;
+  padding: 0.8rem 0.9rem;
+  border-radius: 0.9rem;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.profile-modal-list__description {
+  margin: 0.2rem 0 0;
+  color: rgba(15, 23, 42, 0.62);
+  font-size: 0.92rem;
+}
+
+.profile-modal-list__empty {
+  margin: 0;
+  text-align: center;
+  color: rgba(15, 23, 42, 0.55);
+}
+</style>

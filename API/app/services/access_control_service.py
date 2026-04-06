@@ -15,6 +15,7 @@ RESOURCE_CATALOG: tuple[PermissionResourceRead, ...] = (
     PermissionResourceRead(resource_key="acesso_web", resource_label="Acesso Web", resource_group="Sistema", supported_actions=["read"]),
     PermissionResourceRead(resource_key="dashboard", resource_label="Dashboard", resource_group="Sistema", supported_actions=["read"]),
     PermissionResourceRead(resource_key="usuarios", resource_label="Usuarios", resource_group="Cadastros", supported_actions=["create", "read", "update", "delete"]),
+    PermissionResourceRead(resource_key="clientes", resource_label="Clientes", resource_group="Cadastros", supported_actions=["create", "read", "update", "delete"]),
     PermissionResourceRead(resource_key="usuarios_api_keys", resource_label="Chaves de API dos usuarios", resource_group="Seguranca", supported_actions=["read", "update"]),
     PermissionResourceRead(resource_key="perfis", resource_label="Perfis e permissoes", resource_group="Seguranca", supported_actions=["create", "read", "update", "delete"]),
     PermissionResourceRead(resource_key="planos_pagamentos", resource_label="Planos de Pagamento", resource_group="Cadastros", supported_actions=["create", "read", "update", "delete"]),

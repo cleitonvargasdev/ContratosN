@@ -64,3 +64,30 @@ export async function errorAlert(message: string): Promise<void> {
     color: '#b63f52',
   })
 }
+
+export async function infoAlert(message: string): Promise<void> {
+  await Swal.fire({
+    title: 'Chat interno',
+    text: message,
+    icon: 'info',
+    confirmButtonText: 'Fechar',
+    buttonsStyling: false,
+    customClass: sharedClasses,
+    background: '#fffaf5',
+    color: '#c86718',
+  })
+}
+
+export async function chatMessageToast(senderName: string, message: string): Promise<void> {
+  await Swal.fire({
+    title: senderName,
+    text: message,
+    toast: true,
+    position: 'top-end',
+    timer: 3200,
+    showConfirmButton: false,
+    icon: 'info',
+    background: '#fffaf5',
+    color: '#c86718',
+  })
+}

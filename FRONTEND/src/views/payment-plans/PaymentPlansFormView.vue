@@ -153,7 +153,7 @@ function applyCalculationRules() {
   const valorParcela = form.valor_parcela
 
   if (qtdeDias > 0 && valorBase != null && valorParcela != null) {
-    const valorFinal = form.valor_parcela * qtdeDias
+    const valorFinal = valorParcela * qtdeDias
     form.valor_final = roundCurrency(valorFinal)
     form.percent_juros = roundInterest(calculateMonthlyInterestFromFinal(valorBase, valorFinal, qtdeDias))
   } else if (qtdeDias > 0 && form.valor_parcela != null) {

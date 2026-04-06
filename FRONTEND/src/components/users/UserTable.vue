@@ -40,14 +40,15 @@
             <th>Função</th>
             <th>Status</th>
             <th class="actions-column">Ações</th>
+            <th class="msg-column">MSG</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="props.loading">
-            <td colspan="8">Carregando usuarios...</td>
+            <td colspan="9">Carregando usuarios...</td>
           </tr>
           <tr v-else-if="props.result.items.length === 0">
-            <td colspan="8">Nenhum usuario encontrado.</td>
+            <td colspan="9">Nenhum usuario encontrado.</td>
           </tr>
           <tr v-for="user in props.result.items" :key="user.id" class="data-table__row">
             <td>{{ user.id }}</td>
@@ -86,6 +87,13 @@
                   </svg>
                 </button>
               </template>
+            </td>
+            <td class="actions-cell">
+              <button class="icon-action icon-action--message" type="button" title="Chat interno" aria-label="Chat interno" @click="$emit('message', user.id)">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.6 3.45A.75.75 0 0 1 4 18.85V16A2.5 2.5 0 0 1 2 13.5v-8A.5.5 0 0 1 4 5.5Zm3 3.25a.75.75 0 0 0 0 1.5h10a.75.75 0 0 0 0-1.5H7Zm0 3.5a.75.75 0 0 0 0 1.5h6a.75.75 0 0 0 0-1.5H7Z" fill="currentColor"/>
+                </svg>
+              </button>
             </td>
           </tr>
         </tbody>
@@ -164,6 +172,7 @@ const emit = defineEmits<{
   'change-page-size': [pageSize: number]
   edit: [userId: number]
   delete: [userId: number]
+  message: [userId: number]
 }>()
 
 const draft = reactive({
