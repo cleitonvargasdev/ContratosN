@@ -1,4 +1,4 @@
-import type { CobradorOption, Client, ClientInput, ClientListFilters, ClientListResponse, RegraJurosOption } from '@/models/client'
+import type { CobradorOption, Client, ClientInput, ClientListFilters, ClientListResponse, RegraComissaoOption, RegraJurosOption } from '@/models/client'
 import { apiFetch } from '@/services/http'
 
 export async function listClients(filters: ClientListFilters): Promise<ClientListResponse> {
@@ -39,6 +39,10 @@ export async function deleteClient(clientId: number): Promise<void> {
 
 export async function listRegraJurosOptions(): Promise<RegraJurosOption[]> {
   return apiFetch<RegraJurosOption[]>('/clientes/opcoes/regras-juros')
+}
+
+export async function listRegraComissaoOptions(): Promise<RegraComissaoOption[]> {
+  return apiFetch<RegraComissaoOption[]>('/clientes/opcoes/regras-comissao')
 }
 
 export async function listCobradorOptions(): Promise<CobradorOption[]> {

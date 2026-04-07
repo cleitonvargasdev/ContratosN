@@ -1,6 +1,6 @@
 # Frontend Contratos
 
-Frontend em Vue 3 + TypeScript consumindo a API FastAPI em `http://127.0.0.1:8005/api/v1`.
+Frontend em Vue 3 + TypeScript consumindo a API FastAPI em `http://127.0.0.1:8006/api/v1`.
 
 ## Estrutura
 

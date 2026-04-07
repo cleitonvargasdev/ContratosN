@@ -5,6 +5,9 @@ import MainLayout from '@/components/layout/MainLayout.vue'
 import ClientsCreateView from '@/views/clients/ClientsCreateView.vue'
 import ClientsEditView from '@/views/clients/ClientsEditView.vue'
 import ClientsListView from '@/views/clients/ClientsListView.vue'
+import ContractsCreateView from '@/views/contracts/ContractsCreateView.vue'
+import ContractsEditView from '@/views/contracts/ContractsEditView.vue'
+import ContractsListView from '@/views/contracts/ContractsListView.vue'
 import DashboardHomeView from '@/views/dashboard/DashboardHomeView.vue'
 import LoginView from '@/views/auth/LoginView.vue'
 import PaymentPlansFormView from '@/views/payment-plans/PaymentPlansFormView.vue'
@@ -77,6 +80,24 @@ const routes = [
         name: 'clients-edit',
         component: ClientsEditView,
         meta: { resource: 'clientes', action: 'update' },
+      },
+      {
+        path: 'contratos',
+        name: 'contracts-list',
+        component: ContractsListView,
+        meta: { resource: 'contratos', action: 'read' },
+      },
+      {
+        path: 'contratos/novo',
+        name: 'contracts-create',
+        component: ContractsCreateView,
+        meta: { resource: 'contratos', action: 'create' },
+      },
+      {
+        path: 'contratos/:id/editar',
+        name: 'contracts-edit',
+        component: ContractsEditView,
+        meta: { resource: 'contratos', action: 'update' },
       },
       {
         path: 'planos-pagamentos',

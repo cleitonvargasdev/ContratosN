@@ -117,6 +117,15 @@ export interface RegraJurosOption {
   ativo: boolean | null
 }
 
+export interface RegraComissaoOption {
+  regra_comissao_id: number
+  descricao: string | null
+  percentual_comissao: number | null
+  com_quitacao: boolean | null
+  a_partir_perc_total: number | null
+  ativo: boolean | null
+}
+
 export interface CobradorOption {
   id: number
   nome: string

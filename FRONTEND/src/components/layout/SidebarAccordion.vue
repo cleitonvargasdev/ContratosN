@@ -27,7 +27,14 @@
     <nav v-if="!props.collapsed" class="sidebar__nav">
       <div v-for="section in menuSections" :key="section.title" class="sidebar__group">
         <button class="sidebar__group-button" type="button" @click="toggle(section.title)">
-          <span>{{ section.title }}</span>
+          <span class="sidebar__group-title">
+            <span class="sidebar__group-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path :d="iconPaths[section.icon]" fill="currentColor" />
+              </svg>
+            </span>
+            <span>{{ section.title }}</span>
+          </span>
           <span class="sidebar__group-chevron" :class="{ 'sidebar__group-chevron--open': opened.has(section.title) }" aria-hidden="true">
             ›
           </span>
@@ -53,27 +60,45 @@
     </nav>
 
     <nav v-else class="sidebar__nav sidebar__nav--collapsed">
-      <RouterLink
-        v-for="link in collapsedLinks"
-        :key="link.to"
-        :to="link.to"
-        class="sidebar__link sidebar__link--icon-only"
-        active-class="sidebar__link--active"
-        :title="link.label"
-        :aria-label="link.label"
-      >
-        <span class="sidebar__link-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24">
-            <path :d="iconPaths[link.icon]" fill="currentColor" />
-          </svg>
-        </span>
-      </RouterLink>
+      <div v-for="section in menuSections" :key="section.title" class="sidebar__collapsed-group">
+        <button
+          class="sidebar__group-button sidebar__group-button--icon-only"
+          type="button"
+          :title="section.title"
+          :aria-label="section.title"
+          @click="toggleCollapsedSection(section.title)"
+        >
+          <span class="sidebar__group-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path :d="iconPaths[section.icon]" fill="currentColor" />
+            </svg>
+          </span>
+        </button>
+
+        <div v-if="collapsedSection === section.title" class="sidebar__collapsed-links">
+          <RouterLink
+            v-for="link in section.links"
+            :key="link.to"
+            :to="link.to"
+            class="sidebar__link sidebar__link--icon-only"
+            active-class="sidebar__link--active"
+            :title="link.label"
+            :aria-label="link.label"
+          >
+            <span class="sidebar__link-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path :d="iconPaths[link.icon]" fill="currentColor" />
+              </svg>
+            </span>
+          </RouterLink>
+        </div>
+      </div>
     </nav>
   </aside>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import { useAuthController } from '@/controllers/useAuthController'
@@ -142,9 +167,16 @@ type SidebarLink = {
   action?: 'create' | 'read' | 'update' | 'delete'
 }
 
-const baseSections: Array<{ title: string; links: SidebarLink[] }> = [
+type SidebarSection = {
+  title: string
+  icon: SidebarIcon
+  links: SidebarLink[]
+}
+
+const baseSections: SidebarSection[] = [
   {
     title: 'Cadastros',
+    icon: 'contacts',
     links: [
       { label: 'Usuários', to: '/usuarios', resource: 'usuarios', action: 'read', icon: 'users' },
       { label: 'Perfil de usuários', to: '/perfis', resource: 'perfis', action: 'read', icon: 'contacts' },
@@ -163,8 +195,9 @@ const baseSections: Array<{ title: string; links: SidebarLink[] }> = [
   },
   {
     title: 'Movimentações',
+    icon: 'contract',
     links: [
-      { label: 'Contratos', to: '/modulos/movimentacoes/contratos?titulo=Contratos&grupo=Movimenta%C3%A7%C3%B5es', icon: 'contract' },
+      { label: 'Contratos', to: '/contratos', resource: 'contratos', action: 'read', icon: 'contract' },
       { label: 'Mapa de Ocorrências', to: '/modulos/movimentacoes/mapa-de-ocorrencias?titulo=Mapa%20de%20Ocorr%C3%AAncias&grupo=Movimenta%C3%A7%C3%B5es', icon: 'map' },
       { label: 'Desbloqueio', to: '/modulos/movimentacoes/desbloqueio?titulo=Desbloqueio&grupo=Movimenta%C3%A7%C3%B5es', icon: 'unlock' },
       { label: 'Recebimento Lote', to: '/modulos/movimentacoes/recebimento-lote?titulo=Recebimento%20Lote&grupo=Movimenta%C3%A7%C3%B5es', icon: 'layers' },
@@ -173,6 +206,7 @@ const baseSections: Array<{ title: string; links: SidebarLink[] }> = [
   },
   {
     title: 'Relatórios',
+    icon: 'report',
     links: [
       { label: 'Contas à Receber', to: '/modulos/relatorios/contas-a-receber?titulo=Contas%20%C3%A0%20Receber&grupo=Relat%C3%B3rios', icon: 'receipt' },
       { label: 'Contas à Pagar', to: '/modulos/relatorios/contas-a-pagar?titulo=Contas%20%C3%A0%20Pagar&grupo=Relat%C3%B3rios', icon: 'wallet' },
@@ -183,6 +217,7 @@ const baseSections: Array<{ title: string; links: SidebarLink[] }> = [
   },
   {
     title: 'Consultas',
+    icon: 'history',
     links: [
       { label: 'Log de Operações', to: '/modulos/consultas/log-de-operacoes?titulo=Log%20de%20Opera%C3%A7%C3%B5es&grupo=Consultas', icon: 'history' },
     ],
@@ -198,9 +233,25 @@ const menuSections = computed(() =>
     .filter((section) => section.links.length > 0),
 )
 
-  const collapsedLinks = computed(() => menuSections.value.flatMap((section) => section.links))
+const collapsedSection = ref<string | null>(null)
 
 const opened = reactive(new Set(['Cadastros', 'Movimentações']))
+
+watch(
+  () => props.collapsed,
+  (collapsed) => {
+    if (collapsed) {
+      opened.clear()
+      collapsedSection.value = null
+      return
+    }
+
+    opened.clear()
+    opened.add('Cadastros')
+    opened.add('Movimentações')
+    collapsedSection.value = null
+  },
+)
 
 function toggle(section: string) {
   if (opened.has(section)) {
@@ -209,5 +260,9 @@ function toggle(section: string) {
   }
 
   opened.add(section)
+}
+
+function toggleCollapsedSection(section: string) {
+  collapsedSection.value = collapsedSection.value === section ? null : section
 }
 </script>

@@ -2,7 +2,7 @@ import type { LoginForm, TokenPair } from '@/models/auth'
 import type { AuthenticatedUser } from '@/models/user'
 import { apiFetch, clearTokens, saveTokens } from '@/services/http'
 
-const API_URL = import.meta.env.VITE_API_URL
+const API_URL = (import.meta.env.VITE_API_URL?.trim() || 'http://127.0.0.1:8006/api/v1').replace(/\/$/, '')
 
 export async function loginRequest(credentials: LoginForm): Promise<TokenPair> {
   const body = new URLSearchParams({

@@ -53,15 +53,7 @@ function handleEdit(clientId: number) {
 }
 
 function handleContract(clientId: number) {
-  void router.push({
-    name: 'module-placeholder',
-    params: { group: 'financeiro', slug: 'contratos' },
-    query: {
-      grupo: 'Financeiro',
-      titulo: `Novo contrato para cliente ${clientId}`,
-      cliente_id: String(clientId),
-    },
-  })
+  void router.push({ name: 'contracts-create', query: { cliente_id: String(clientId) } })
 }
 
 async function handleDelete(clientId: number) {
