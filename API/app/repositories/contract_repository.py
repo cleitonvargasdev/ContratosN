@@ -1,0 +1,77 @@
+from collections.abc import Sequence
+
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.client import Cliente
+from app.models.contract import Contrato
+from app.schemas.contract import ContractListParams
+
+
+class ContractRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def list_all(self, params: ContractListParams) -> tuple[Sequence[Contrato], int]:
+        filters = []
+
+        if params.contratos_id is not None:
+            filters.append(Contrato.contratos_id == params.contratos_id)
+        if params.cliente_id is not None:
+            filters.append(Contrato.cliente_id == params.cliente_id)
+        if params.contrato_status is not None:
+            filters.append(Contrato.contrato_status == params.contrato_status)
+        if params.quitado is not None:
+            filters.append(Contrato.quitado == params.quitado)
+
+        stmt = select(Contrato, Cliente.nome, Cliente.celular01, Cliente.telefone).outerjoin(Cliente, Cliente.clientes_id == Contrato.cliente_id)
+        count_stmt = select(func.count()).select_from(Contrato)
+
+        if filters:
+            stmt = stmt.where(*filters)
+            count_stmt = count_stmt.where(*filters)
+
+        stmt = stmt.order_by(Contrato.contratos_id.desc()).offset((params.page - 1) * params.page_size).limit(params.page_size)
+
+        result = await self.session.execute(stmt)
+        total = await self.session.scalar(count_stmt)
+        rows = result.all()
+        contracts: list[Contrato] = []
+        for contract, client_name, client_mobile, client_phone in rows:
+            setattr(contract, "cliente_nome", client_name)
+            setattr(contract, "cliente_telefone", client_mobile or client_phone)
+            contracts.append(contract)
+
+        return contracts, int(total or 0)
+
+    async def get_by_id(self, contract_id: int) -> Contrato | None:
+        result = await self.session.execute(
+            select(Contrato, Cliente.nome, Cliente.celular01, Cliente.telefone)
+            .outerjoin(Cliente, Cliente.clientes_id == Contrato.cliente_id)
+            .where(Contrato.contratos_id == contract_id)
+        )
+        row = result.one_or_none()
+        if row is None:
+            return None
+
+        contract, client_name, client_mobile, client_phone = row
+        setattr(contract, "cliente_nome", client_name)
+        setattr(contract, "cliente_telefone", client_mobile or client_phone)
+        return contract
+
+    async def create(self, contract: Contrato) -> Contrato:
+        self.session.add(contract)
+        await self.session.commit()
+        await self.session.refresh(contract)
+        return contract
+
+    async def update_fields(self, contract: Contrato, values: dict[str, object]) -> Contrato:
+        for field, value in values.items():
+            setattr(contract, field, value)
+        await self.session.commit()
+        await self.session.refresh(contract)
+        return contract
+
+    async def delete(self, contract: Contrato) -> None:
+        await self.session.delete(contract)
+        await self.session.commit()

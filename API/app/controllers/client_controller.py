@@ -7,7 +7,7 @@ from app.api.dependencies import get_current_active_user, get_db_session, get_pa
 from app.models.user import User
 from app.schemas.client import ClientCobradorOptionRead, ClientCreate, ClientListParams, ClientListResponse, ClientRead, ClientUpdate
 from app.schemas.pagination import PaginationParams
-from app.schemas.rules import RegraJurosOptionRead
+from app.schemas.rules import RegraComissaoOptionRead, RegraJurosOptionRead
 from app.services.client_service import ClientService
 from app.services.rules_service import RulesService
 
@@ -29,6 +29,14 @@ async def list_active_regra_juros(
     service: RulesService = Depends(get_rules_service),
 ) -> list[RegraJurosOptionRead]:
     return await service.list_active_regra_juros()
+
+
+@router.get("/opcoes/regras-comissao", response_model=list[RegraComissaoOptionRead], summary="Listar regras de comissao ativas")
+async def list_active_regra_comissao(
+    _: User = Depends(require_permission("clientes", "read")),
+    service: RulesService = Depends(get_rules_service),
+) -> list[RegraComissaoOptionRead]:
+    return await service.list_active_regra_comissao()
 
 
 @router.get("/opcoes/cobradores", response_model=list[ClientCobradorOptionRead], summary="Listar usuarios ativos para cobrador")

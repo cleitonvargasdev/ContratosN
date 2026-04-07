@@ -6,7 +6,7 @@ Projeto teste com FastAPI assíncrona, SQLAlchemy 2, PostgreSQL e Alembic.
 
 ```powershell
 $env:PYTHONPATH='d:/PROJETOINI/API'
-d:/PROJETOINI/API/.venv/Scripts/python.exe -m uvicorn app.main:app --reload --port 8005
+d:/PROJETOINI/API/.venv/Scripts/python.exe -m uvicorn app.main:app --reload --port 8006
 ```
 
 ## Frontend
@@ -20,13 +20,13 @@ npm run dev -- --host=127.0.0.1 --port=5174
 ```
 
 - Frontend: `http://127.0.0.1:5174/`
-- API usada pelo frontend: `http://127.0.0.1:8005/api/v1`
+- API usada pelo frontend: `http://127.0.0.1:8006/api/v1`
 
 ## Swagger
 
-- Swagger UI: `http://127.0.0.1:8005/swagger`
-- OpenAPI JSON: `http://127.0.0.1:8005/openapi.json`
-- ReDoc: `http://127.0.0.1:8005/redoc`
+- Swagger UI: `http://127.0.0.1:8006/swagger`
+- OpenAPI JSON: `http://127.0.0.1:8006/openapi.json`
+- ReDoc: `http://127.0.0.1:8006/redoc`
 
 ## Autenticacao JWT
 
