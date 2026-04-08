@@ -32,7 +32,7 @@ onMounted(() => {
   void contracts.fetchContracts()
 })
 
-function handleApply(payload: { contratos_id?: number; cliente_id?: number; contrato_status?: number; quitado?: boolean }) {
+function handleApply(payload: { contratos_id?: number; cliente_nome?: string; cobrador_nome?: string; quitado?: boolean }) {
   contracts.patchFilters({ ...payload, page: 1 })
   void contracts.fetchContracts()
 }

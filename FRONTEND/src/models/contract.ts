@@ -5,6 +5,7 @@ export interface Contract {
   cliente_id: number | null
   cliente_nome: string | null
   cliente_telefone: string | null
+  cobrador_nome: string | null
   plano_id: number | null
   qtde_dias: number | null
   percent_juros: number | null
@@ -64,8 +65,8 @@ export interface ContractListFilters {
   page: number
   page_size: number
   contratos_id?: number
-  cliente_id?: number
-  contrato_status?: number
+  cliente_nome?: string
+  cobrador_nome?: string
   quitado?: boolean
 }
 
@@ -112,6 +113,14 @@ export interface InstallmentPaymentPayload {
 
 export interface InstallmentSettlePayload {
   data_recebimento: string | null
+}
+
+export interface InstallmentUpdatePayload {
+  parcela_nro: number
+  vencimento: string
+  valor_base: number
+  valor_juros: number
+  valor_total: number
 }
 
 export interface ContractReceipt {

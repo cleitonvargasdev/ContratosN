@@ -5,7 +5,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_active_user, get_db_session, get_pagination_params, require_permission
 from app.models.user import User
-from app.schemas.accounts_receivable import ContractInstallmentGenerateRequest, ContractInstallmentRead, ContractReceiptRead, InstallmentPaymentCreate, InstallmentSettleRequest
+from app.schemas.accounts_receivable import (
+    ContractInstallmentGenerateRequest,
+    ContractInstallmentRead,
+    ContractReceiptRead,
+    InstallmentPaymentCreate,
+    InstallmentSettleRequest,
+    InstallmentUpdateRequest,
+)
 from app.schemas.contract import ContractCreate, ContractListParams, ContractListResponse, ContractRead, ContractUpdate
 from app.schemas.pagination import PaginationParams
 from app.services.accounts_receivable_service import AccountsReceivableService
@@ -27,8 +34,8 @@ def get_accounts_receivable_service(session: AsyncSession = Depends(get_db_sessi
 async def list_contracts(
     pagination: PaginationParams = Depends(get_pagination_params),
     contratos_id: Annotated[int | None, Query(description="Filtra pelo ID do contrato.")] = None,
-    cliente_id: Annotated[int | None, Query(description="Filtra pelo ID do cliente.")] = None,
-    contrato_status: Annotated[int | None, Query(description="Filtra pelo status do contrato.")] = None,
+    cliente_nome: Annotated[str | None, Query(description="Filtra pelo nome do cliente ou empresa.")] = None,
+    cobrador_nome: Annotated[str | None, Query(description="Filtra pelo nome do cobrador.")] = None,
     quitado: Annotated[bool | None, Query(description="Filtra contratos quitados ou em aberto.")] = None,
     _: User = Depends(require_permission("contratos", "read")),
     service: ContractService = Depends(get_contract_service),
@@ -37,8 +44,8 @@ async def list_contracts(
         page=pagination.page,
         page_size=pagination.page_size,
         contratos_id=contratos_id,
-        cliente_id=cliente_id,
-        contrato_status=contrato_status,
+        cliente_nome=cliente_nome,
+        cobrador_nome=cobrador_nome,
         quitado=quitado,
     )
     return await service.list_contracts(params)
@@ -85,6 +92,16 @@ async def receive_installment(
     return await service.receive_installment(installment_id, payload, current_user.id)
 
 
+@router.put("/parcelas/{installment_id}", response_model=ContractInstallmentRead, summary="Alterar parcela")
+async def update_installment(
+    installment_id: int,
+    payload: InstallmentUpdateRequest,
+    _: User = Depends(require_permission("contratos", "update")),
+    service: AccountsReceivableService = Depends(get_accounts_receivable_service),
+) -> ContractInstallmentRead:
+    return await service.update_installment(installment_id, payload)
+
+
 @router.get("/parcelas/{installment_id}/pagamentos", response_model=list[ContractReceiptRead], summary="Listar pagamentos da parcela")
 async def list_installment_receipts(
     installment_id: int,
@@ -102,6 +119,15 @@ async def settle_installment(
     service: AccountsReceivableService = Depends(get_accounts_receivable_service),
 ) -> ContractInstallmentRead:
     return await service.settle_installment(installment_id, payload)
+
+
+@router.post("/parcelas/{installment_id}/reabrir", response_model=ContractInstallmentRead, summary="Reabrir parcela")
+async def reopen_installment(
+    installment_id: int,
+    _: User = Depends(require_permission("contratos", "update")),
+    service: AccountsReceivableService = Depends(get_accounts_receivable_service),
+) -> ContractInstallmentRead:
+    return await service.reopen_installment(installment_id)
 
 
 @router.delete("/parcelas/{installment_id}/pagamento", response_model=ContractInstallmentRead, summary="Excluir pagamento da parcela")

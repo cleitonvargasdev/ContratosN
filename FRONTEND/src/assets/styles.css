@@ -847,6 +847,7 @@ select {
   color: var(--danger);
 }
 
+
 .actions-column {
   width: 108px;
   text-align: center;
@@ -1105,9 +1106,30 @@ select {
   min-height: 34px;
 }
 
-.contract-status-switch {
-  justify-content: center;
+.contract-status-caption {
+  width: 132px;
+  min-height: 34px;
+}
+
+.contract-status-caption {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-left: auto;
   padding: 0 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.contract-status-caption--paid {
+  color: rgba(31, 157, 104, 0.78);
+}
+
+.contract-status-caption--open {
+  color: rgba(216, 75, 98, 0.78);
 }
 
 .status-switch--on {
@@ -1707,6 +1729,28 @@ select {
 
 .contract-client-picker {
   grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.contract-client-picker__field {
+  min-width: 0;
+  min-height: 34px;
+}
+
+.contract-client-picker__button {
+  width: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.contract-client-picker__icon {
+  width: 20px;
+  height: 20px;
+  color: rgba(249, 115, 22, 0.72);
 }
 
 .contract-field-toggle {
@@ -1759,6 +1803,14 @@ select {
   line-height: 1.1;
 }
 
+.contract-installments__action-cell {
+  width: 30px;
+  min-width: 30px;
+  padding-left: 2px;
+  padding-right: 2px;
+  text-align: center;
+}
+
 .contract-installments__table tbody tr:nth-child(odd) td {
   background: rgba(118, 170, 215, 0.08);
 }
@@ -1769,6 +1821,48 @@ select {
 
 .contract-installments__table tbody tr.contract-installments__row--paid:nth-child(odd) td {
   background: rgba(31, 157, 104, 0.14);
+}
+
+.contract-installments__table tbody tr td:first-child {
+  position: relative;
+  padding-left: 14px;
+}
+
+.contract-installments__table tbody tr td:first-child::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0);
+  transition: background-color 140ms ease;
+}
+
+.contract-installments__table tbody tr.contract-installments__row--paid td:first-child::before {
+  background: rgba(31, 157, 104, 0);
+}
+
+.contract-installments__table tbody tr:not(.contract-installments__row--paid):hover td {
+  background: rgba(36, 48, 59, 0.05);
+}
+
+.contract-installments__table tbody tr:not(.contract-installments__row--paid):hover td:first-child::before {
+  background: rgba(249, 115, 22, 0.9);
+}
+
+.contract-installments__due-date {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+.contract-installments__due-date--overdue {
+  background: rgba(216, 75, 98, 0.12);
+  color: #b13951;
 }
 
 .contract-installments__action {
@@ -1814,6 +1908,12 @@ select {
   color: #2f6fec;
   border-color: rgba(47, 111, 236, 0.22);
   background: rgba(47, 111, 236, 0.08);
+}
+
+.contract-installments__action--edit {
+  color: #4d7edc;
+  border-color: rgba(77, 126, 220, 0.22);
+  background: rgba(77, 126, 220, 0.08);
 }
 
 .contract-installments__action--delete {
@@ -1894,6 +1994,15 @@ select {
   color: #24303b;
 }
 
+.contract-days-picker__item--recorrente {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.contract-days-picker__label--recorrente {
+  white-space: nowrap;
+}
+
 .contract-days-picker__item input {
   margin: 0;
   width: 14px;
@@ -1937,6 +2046,52 @@ select {
   width: min(100%, 720px);
 }
 
+.modal-card--installment-edit {
+  width: min(100%, 560px);
+}
+
+.modal-card--installment-settle {
+  width: min(100%, 480px);
+}
+
+.installment-edit-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.installment-edit-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.installment-modal__header {
+  align-items: center;
+  text-align: center;
+}
+
+.installment-modal__header .modal-context {
+  text-align: center;
+}
+
+.installment-modal__divider {
+  width: 100%;
+  height: 1px;
+  margin: 4px 0 14px;
+  background: linear-gradient(90deg, rgba(36, 48, 59, 0.04), rgba(36, 48, 59, 0.14), rgba(36, 48, 59, 0.04));
+}
+
+.installment-edit-actions__button {
+  min-width: 128px;
+}
+
+.installment-modal__title {
+  font-size: 18px;
+}
+
+.installment-modal__title--receive {
+  color: rgba(224, 122, 39, 0.88);
+}
+
 .contract-client-results {
   max-height: 360px;
   overflow: auto;
@@ -1969,6 +2124,19 @@ select {
 .contract-client-result small {
   color: var(--text-muted);
   font-size: 11px;
+}
+
+.contract-client-result__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 2px;
+}
+
+.contract-client-result__meta small {
+  color: #51606d;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .contract-client-result:hover {

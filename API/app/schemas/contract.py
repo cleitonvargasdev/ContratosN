@@ -42,6 +42,7 @@ class ContractRead(ContractBase):
     contratos_id: int
     cliente_nome: str | None = None
     cliente_telefone: str | None = None
+    cobrador_nome: str | None = None
     valor_recebido: float = 0
     valor_em_aberto: float = 0
     valor_em_atraso: float = 0
@@ -51,8 +52,8 @@ class ContractRead(ContractBase):
 
 class ContractListParams(PaginationParams):
     contratos_id: int | None = None
-    cliente_id: int | None = None
-    contrato_status: int | None = None
+    cliente_nome: str | None = None
+    cobrador_nome: str | None = None
     quitado: bool | None = None
 
 

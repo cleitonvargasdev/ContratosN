@@ -17,11 +17,9 @@
               <div>
                 <h3 class="panel__title">Informações Gerais</h3>
               </div>
-              <label class="status-switch contract-status-switch" :class="form.quitado ? 'status-switch--on' : 'status-switch--off'">
-                <input :checked="form.quitado" class="status-switch__input" disabled type="checkbox" />
-                <span class="status-switch__track"><span class="status-switch__thumb"></span></span>
-                <span class="status-switch__label">{{ form.quitado ? 'Quitado' : 'Aberto' }}</span>
-              </label>
+              <span class="contract-status-caption" :class="form.quitado ? 'contract-status-caption--paid' : 'contract-status-caption--open'">
+                {{ form.quitado ? 'Quitado' : 'Aberto' }}
+              </span>
             </header>
 
             <div class="contract-card__grid">
@@ -61,15 +59,19 @@
               <label class="field-group field-group--span-2">
                 <span>Cliente</span>
                 <div class="field-inline contract-client-picker">
-                  <input :value="selectedClientLabel" class="field field--readonly" readonly type="text" />
+                  <input :value="selectedClientLabel" class="field field--readonly contract-client-picker__field" readonly type="text" />
                   <button
                     class="secondary-button contract-client-picker__button"
                     :aria-disabled="contractEditLocked"
                     :class="{ 'secondary-button--disabled': contractEditLocked }"
+                    title="Consultar cliente"
+                    aria-label="Consultar cliente"
                     type="button"
                     @click="openClientModal"
                   >
-                    Buscar cliente
+                    <svg class="contract-client-picker__icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M10.5 4a6.5 6.5 0 1 0 4.03 11.6l4.44 4.44 1.41-1.41-4.44-4.44A6.5 6.5 0 0 0 10.5 4Zm0 2a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z" fill="currentColor" />
+                    </svg>
                   </button>
                 </div>
               </label>
@@ -134,23 +136,23 @@
 
                 <label class="field-group">
                   <span>Dias</span>
-                  <input v-model="form.qtde_dias" :readonly="contractEditLocked" class="field" inputmode="numeric" type="text" />
+                  <input v-model="form.qtde_dias" :readonly="contractEditLocked" class="field" inputmode="numeric" type="text" @input="handleDaysInput" />
                 </label>
 
                 <label class="field-group">
-                  <span>Juros %</span>
-                  <input v-model="form.percent_juros" :readonly="contractEditLocked" class="field" inputmode="decimal" type="text" @blur="formatDecimalField('percent_juros')" />
-                </label>
+                  <span>Valor Parcela</span>
+                <input v-model="form.valor_parcela" :readonly="contractEditLocked" class="field" inputmode="decimal" type="text" @input="handleInstallmentValueInput" @blur="formatDecimalField('valor_parcela')" />
+              </label>
               </div>
 
               <label class="field-group">
                 <span>Valor Final</span>
-                <input v-model="form.valor_final" :readonly="contractEditLocked" class="field" inputmode="decimal" type="text" @blur="formatDecimalField('valor_final')" />
+                <input v-model="form.valor_final" :readonly="contractEditLocked" class="field" inputmode="decimal" type="text" @input="handleFinalValueInput" @blur="formatDecimalField('valor_final')" />
               </label>
 
               <label class="field-group">
-                <span>Valor Parcela</span>
-                <input v-model="form.valor_parcela" :readonly="contractEditLocked" class="field" inputmode="decimal" type="text" @blur="formatDecimalField('valor_parcela')" />
+                <span>Juros % a.m</span>
+                <input v-model="form.percent_juros" :readonly="contractEditLocked" class="field" inputmode="decimal" type="text" @blur="formatDecimalField('percent_juros')" />
               </label>
 
               <label class="field-group field-group--span-2">
@@ -189,11 +191,11 @@
                     <span>Feriado</span>
                   </label>
                   <label class="contract-days-picker__item">
-                    <input v-model="billingDays.mensal" :disabled="contractEditLocked" type="checkbox" />
+                    <input v-model="billingDays.mensal" :disabled="contractEditLocked" type="checkbox" @change="handleMonthlyBillingChange" />
                     <span>Mensal</span>
                   </label>
                   <label class="contract-days-picker__item">
-                    <input v-model="billingDays.quinzenal" :disabled="contractEditLocked" type="checkbox" />
+                    <input v-model="billingDays.quinzenal" :disabled="contractEditLocked" type="checkbox" @change="handleBiweeklyBillingChange" />
                     <span>Quinzenal</span>
                   </label>
                   <label class="contract-days-picker__item">
@@ -216,6 +218,10 @@
                     <input v-model="billingDays.sexta" :disabled="contractEditLocked" type="checkbox" />
                     <span>Sexta</span>
                   </label>
+                  <label class="contract-days-picker__item contract-days-picker__item--recorrente">
+                    <input v-model="form.recorrencia" :disabled="contractEditLocked" type="checkbox" />
+                    <span class="contract-days-picker__label--recorrente">Recorrente - valor dos juros se repete</span>
+                  </label>
                 </div>
               </div>
             </div>
@@ -234,10 +240,6 @@
             </header>
 
             <div class="contract-installments__tools">
-              <label class="toggle-row">
-                <input v-model="form.recorrencia" type="checkbox" />
-                <span>Contrato recorrente</span>
-              </label>
               <span v-if="installmentsLoading" class="feedback feedback--info contract-installments__status">Atualizando parcelas...</span>
             </div>
 
@@ -255,21 +257,25 @@
                     <th>Pgto</th>
                     <th>Quitar</th>
                     <th>Del</th>
+                    <th>ALT</th>
+                    <th>Msg</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-if="!installmentsLoading && installmentRows.length === 0">
-                    <td colspan="10">Nenhuma parcela gerada.</td>
+                    <td colspan="12">Nenhuma parcela gerada.</td>
                   </tr>
                   <tr v-for="row in installmentRows" :key="row.key" :class="{ 'contract-installments__row--paid': row.isPaid }">
                     <td>{{ row.label }}</td>
-                    <td>{{ row.dueDate }}</td>
+                    <td class="contract-installments__action-cell">
+                      <span class="contract-installments__due-date" :class="{ 'contract-installments__due-date--overdue': row.isOverdue }">{{ row.dueDate }}</span>
+                    </td>
                     <td>{{ row.weekday }}</td>
                     <td>{{ row.baseValue }}</td>
                     <td>{{ row.interestValue }}</td>
                     <td>{{ row.value }}</td>
                     <td>{{ row.receivedValue }}</td>
-                    <td>
+                    <td class="contract-installments__action-cell">
                       <button class="contract-installments__action contract-installments__action--pay" :disabled="!row.canPay || installmentsSaving" type="button" title="Receber parcela" aria-label="Receber parcela" @click="handleReceiveInstallment(row.id)">
                         <span class="contract-installments__action-icon" aria-hidden="true">
                           <svg viewBox="0 0 24 24">
@@ -278,8 +284,8 @@
                         </span>
                       </button>
                     </td>
-                    <td>
-                      <button class="contract-installments__action contract-installments__action--settle" :disabled="!row.canSettle || installmentsSaving" type="button" title="Quitar parcela" aria-label="Quitar parcela" @click="handleSettleInstallment(row.id)">
+                    <td class="contract-installments__action-cell">
+                      <button class="contract-installments__action contract-installments__action--settle" :disabled="!row.canSettle || installmentsSaving" type="button" :title="row.settleTitle" :aria-label="row.settleTitle" @click="handleSettleInstallment(row.id)">
                         <span class="contract-installments__action-icon" aria-hidden="true">
                           <svg viewBox="0 0 24 24">
                             <path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor" />
@@ -287,13 +293,37 @@
                         </span>
                       </button>
                     </td>
-                    <td>
+                    <td class="contract-installments__action-cell">
                       <button class="contract-installments__action contract-installments__action--delete" :disabled="!row.canDeletePayment || installmentsSaving" type="button" title="Excluir pagamento" aria-label="Excluir pagamento" @click="handleDeleteInstallmentPayment(row.id)">
                         <span class="contract-installments__action-icon" aria-hidden="true">
                           <svg viewBox="0 0 24 24">
                             <path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7zm3 3v8h2v-8H9zm4 0v8h2v-8h-2zM9 2h6l1 2h4v2H4V4h4l1-2z" fill="currentColor" />
                           </svg>
                         </span>
+                      </button>
+                    </td>
+                    <td class="contract-installments__action-cell">
+                      <button class="contract-installments__action contract-installments__action--edit" :disabled="!row.canEdit || installmentsSaving" type="button" title="Alterar parcela" aria-label="Alterar parcela" @click="openInstallmentEditModal(row.id)">
+                        <span class="contract-installments__action-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92L5.92 19.58zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.13 1.13 3.75 3.75 1.14-1.12z" fill="currentColor" />
+                          </svg>
+                        </span>
+                      </button>
+                    </td>
+                    <td>
+                      <button
+                        class="icon-action icon-action--message"
+                        :disabled="!currentClientPhone"
+                        type="button"
+                        title="Enviar mensagem no WhatsApp"
+                        aria-label="Enviar mensagem no WhatsApp"
+                        @click="openWhatsApp(currentClientPhone)"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M17.47 14.38c-.27-.13-1.59-.78-1.84-.87-.25-.09-.43-.13-.61.13-.18.27-.7.87-.86 1.05-.16.18-.31.2-.58.07-.27-.13-1.12-.41-2.14-1.3-.79-.7-1.33-1.56-1.48-1.83-.16-.27-.02-.41.11-.54.12-.12.27-.31.4-.47.13-.16.18-.27.27-.45.09-.18.04-.34-.02-.47-.07-.13-.61-1.47-.84-2.02-.22-.53-.44-.46-.61-.47h-.52c-.18 0-.47.07-.72.34-.25.27-.95.93-.95 2.26s.97 2.62 1.11 2.8c.13.18 1.91 2.91 4.62 4.08.65.28 1.15.45 1.54.58.65.2 1.24.17 1.7.1.52-.08 1.59-.65 1.82-1.27.22-.62.22-1.15.16-1.27-.07-.12-.25-.2-.52-.34Z" fill="currentColor"/>
+                          <path d="M20.52 3.48A11.8 11.8 0 0 0 12.12 0C5.6 0 .29 5.3.29 11.82c0 2.08.54 4.1 1.57 5.88L0 24l6.48-1.7a11.8 11.8 0 0 0 5.64 1.44h.01c6.52 0 11.82-5.3 11.82-11.82 0-3.16-1.23-6.13-3.43-8.44Zm-8.4 18.26h-.01a9.84 9.84 0 0 1-5.01-1.37l-.36-.21-3.85 1.01 1.03-3.75-.23-.38a9.8 9.8 0 0 1-1.5-5.22c0-5.41 4.4-9.82 9.82-9.82 2.62 0 5.08 1.02 6.93 2.88a9.74 9.74 0 0 1 2.87 6.94c0 5.41-4.41 9.82-9.82 9.82Z" fill="currentColor"/>
+                        </svg>
                       </button>
                     </td>
                   </tr>
@@ -306,19 +336,35 @@
 
       <div class="form-actions form-actions--contract">
         <button class="primary-button primary-button--success form-actions__button contract-action-button" :disabled="props.saving" type="button" @click="handleNew">
-          <span class="contract-action-button__icon">+</span>
+          <span class="contract-action-button__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M19 11H13V5h-2v6H5v2h6v6h2v-6h6z" fill="currentColor" />
+            </svg>
+          </span>
           <span>Novo</span>
         </button>
         <button class="primary-button primary-button--success form-actions__button contract-action-button" :disabled="props.saving" type="submit">
-          <span class="contract-action-button__icon">✓</span>
+          <span class="contract-action-button__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6m3-10H5V5h10z" fill="currentColor" />
+            </svg>
+          </span>
           <span>{{ props.saving ? 'Salvando...' : 'Salvar' }}</span>
         </button>
         <button class="ghost-button form-actions__button contract-action-button" :disabled="props.saving" type="button" @click="emit('cancel')">
-          <span class="contract-action-button__icon">×</span>
+          <span class="contract-action-button__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="currentColor" />
+            </svg>
+          </span>
           <span>Fechar</span>
         </button>
         <button class="ghost-button ghost-button--danger form-actions__button contract-action-button" :disabled="props.saving || props.mode === 'create' || !props.canDelete" type="button" @click="emit('delete')">
-          <span class="contract-action-button__icon">⌫</span>
+          <span class="contract-action-button__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7zm3 3v8h2v-8H9zm4 0v8h2v-8h-2zM9 2h6l1 2h4v2H4V4h4l1-2z" fill="currentColor" />
+            </svg>
+          </span>
           <span>Excluir</span>
         </button>
         <button
@@ -368,12 +414,111 @@
                 <strong>{{ client.nome || 'Sem nome' }}</strong>
                 <span>{{ formatDocument(client.cpf_cnpj) }}</span>
                 <small>{{ formatClientAddress(client) }}</small>
+                <div class="contract-client-result__meta">
+                  <small>Score: {{ formatScore(client.score) }}</small>
+                  <small>Limite: {{ formatCurrency(client.limite_credito) }}</small>
+                </div>
               </button>
               <p v-if="filteredClients.length === 0" class="profile-modal-list__empty">Nenhum cliente encontrado.</p>
             </div>
 
             <div class="form-actions">
               <button class="ghost-button" type="button" @click="closeClientModal">Fechar</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div v-if="installmentEditModal.open" class="modal-backdrop" @click.self="closeInstallmentEditModal">
+        <section class="modal-card modal-card--installment-edit">
+          <header class="panel__header panel__header--stacked installment-modal__header">
+            <p class="modal-context">Atualize os dados desta parcela e confirme em salvar.</p>
+          </header>
+
+          <div class="modal-form installment-edit-grid">
+            <label class="field-group">
+              <span>Parcela</span>
+              <input v-model="installmentEditModal.parcelaNro" class="field field--readonly field--no-spin" readonly inputmode="numeric" type="number" min="1" />
+            </label>
+
+            <label class="field-group">
+              <span>Vencimento</span>
+              <input v-model="installmentEditModal.vencimento" class="field" type="datetime-local" />
+            </label>
+
+            <label class="field-group">
+              <span>Valor</span>
+              <input v-model="installmentEditModal.valorBase" class="field" inputmode="decimal" type="text" @input="syncInstallmentEditTotal" @blur="formatInstallmentEditField('valorBase')" />
+            </label>
+
+            <label class="field-group">
+              <span>Juros</span>
+              <input v-model="installmentEditModal.valorJuros" class="field" inputmode="decimal" type="text" @input="syncInstallmentEditTotal" @blur="formatInstallmentEditField('valorJuros')" />
+            </label>
+
+            <label class="field-group field-group--span-2">
+              <span>Valor Total</span>
+              <input :value="installmentEditModal.valorTotal" class="field field--readonly" readonly type="text" />
+            </label>
+
+            <div class="form-actions installment-edit-actions field-group--span-2">
+              <button class="primary-button primary-button--success installment-edit-actions__button" :disabled="installmentsSaving" type="button" @click="saveInstallmentEdit">
+                {{ installmentsSaving ? 'Salvando...' : 'Salvar' }}
+              </button>
+              <button class="ghost-button installment-edit-actions__button" :disabled="installmentsSaving" type="button" @click="closeInstallmentEditModal">Cancelar</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div v-if="installmentReceiveModal.open" class="modal-backdrop" @click.self="closeInstallmentReceiveModal">
+        <section class="modal-card modal-card--installment-edit">
+          <header class="panel__header panel__header--stacked">
+            <div>
+                <h3 class="panel__title installment-modal__title installment-modal__title--receive">Receber parcela</h3>
+            </div>
+          </header>
+
+          <div class="modal-form installment-edit-grid">
+            <label class="field-group field-group--span-2">
+              <span>Valor recebido</span>
+              <input v-model="installmentReceiveModal.valorRecebido" class="field" inputmode="decimal" type="text" @input="syncInstallmentReceiveInterest" @blur="formatInstallmentReceiveField('valorRecebido')" />
+            </label>
+
+            <label class="field-group field-group--span-2">
+              <span>Valor Juros</span>
+              <input :value="installmentReceiveModal.juros" class="field field--readonly" readonly type="text" />
+            </label>
+
+            <div class="form-actions installment-edit-actions field-group--span-2">
+              <button class="primary-button primary-button--success" :disabled="installmentsSaving" type="button" @click="saveInstallmentReceive">
+                {{ installmentsSaving ? 'Recebendo...' : 'Receber' }}
+              </button>
+              <button class="ghost-button" :disabled="installmentsSaving" type="button" @click="closeInstallmentReceiveModal">Cancelar</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div v-if="installmentSettleModal.open" class="modal-backdrop" @click.self="closeInstallmentSettleModal">
+        <section class="modal-card modal-card--installment-edit modal-card--installment-settle">
+          <header class="panel__header panel__header--stacked installment-modal__header">
+            <p class="modal-context">{{ installmentSettleModal.reopen ? 'Deseja reabrir esta parcela?' : 'Deseja realizar quitacao desta parcela?' }}</p>
+          </header>
+
+          <div class="modal-form">
+            <div class="installment-modal__divider" aria-hidden="true"></div>
+            <div class="form-actions installment-edit-actions">
+              <button class="primary-button primary-button--success installment-edit-actions__button" :disabled="installmentsSaving" type="button" @click="saveInstallmentSettle">
+                {{ installmentsSaving ? 'Confirmando...' : 'Sim' }}
+              </button>
+              <button class="ghost-button installment-edit-actions__button" :disabled="installmentsSaving" type="button" @click="closeInstallmentSettleModal">Não</button>
             </div>
           </div>
         </section>
@@ -391,6 +536,7 @@ import type {
   ContractCreateInput,
   ContractInstallment,
   ContractInstallmentGeneratePayload,
+  InstallmentUpdatePayload,
   ContractUpdateInput,
 } from '@/models/contract'
 import type { CidadeOption } from '@/models/location'
@@ -403,9 +549,11 @@ import {
   listInstallmentReceipts,
   listContractInstallments,
   receiveContractInstallment,
+  reopenContractInstallment,
   settleContractInstallment,
+  updateContractInstallment,
 } from '@/services/contractService'
-import { chooseReceiptToDeletePrompt, confirmActionAlert, errorAlert, infoAlert, receivePaymentPrompt, successAlert } from '@/services/alertService'
+import { chooseReceiptToDeletePrompt, errorAlert, infoAlert, successAlert } from '@/services/alertService'
 import { listClients, listRegraComissaoOptions, listRegraJurosOptions } from '@/services/clientService'
 import { listCitiesByUf, listFeriados } from '@/services/locationService'
 import { listPaymentPlans } from '@/services/paymentPlanService'
@@ -439,9 +587,31 @@ const installmentsLoading = ref(false)
 const installmentsSaving = ref(false)
 const holidayCache = reactive<Record<string, FeriadoOption[]>>({})
 const previewInstallmentsPayload = ref<ContractInstallmentGeneratePayload | null>(null)
-const generatedInstallments = ref<Array<{ key: string; id: number | null; label: string; dueDate: string; weekday: string; baseValue: string; interestValue: string; value: string; receivedValue: string; canPay: boolean; canSettle: boolean; canDeletePayment: boolean; isPaid: boolean }>>([])
+const generatedInstallments = ref<Array<{ key: string; id: number | null; label: string; dueDate: string; weekday: string; baseValue: string; interestValue: string; value: string; receivedValue: string; canPay: boolean; canSettle: boolean; canDeletePayment: boolean; canEdit: boolean; isOverdue: boolean; settleTitle: string; isPaid: boolean }>>([])
 const clientModal = reactive({ open: false, term: '' })
+const installmentEditModal = reactive({
+  open: false,
+  installmentId: null as number | null,
+  parcelaNro: '',
+  vencimento: '',
+  valorBase: '',
+  valorJuros: '',
+  valorTotal: '',
+})
+const installmentReceiveModal = reactive({
+  open: false,
+  installmentId: null as number | null,
+  saldoRestante: 0,
+  valorRecebido: '',
+  juros: '',
+})
+const installmentSettleModal = reactive({
+  open: false,
+  installmentId: null as number | null,
+  reopen: false,
+})
 const cityLabels = reactive<Record<number, string>>({})
+const financialFieldSyncLocked = ref(false)
 const billingDays = reactive({
   sabado: false,
   domingo: false,
@@ -505,6 +675,16 @@ const selectedClientLabel = computed(() => {
   return `${client.clientes_id} - ${client.nome || 'Sem nome'}`
 })
 
+const currentClientPhone = computed(() => {
+  const persistedPhone = props.initialContract?.cliente_telefone?.trim()
+  if (persistedPhone) {
+    return persistedPhone
+  }
+
+  const selectedClient = clientOptions.value.find((item) => item.clientes_id === form.cliente_id)
+  return selectedClient?.celular01?.trim() || null
+})
+
 const hasNegotiatedContracts = computed(() => Boolean(toNumberOrNull(form.negociacao_id)))
 const currentContractId = computed(() => props.initialContract?.contratos_id ?? null)
 const contractEditLocked = computed(() => {
@@ -554,8 +734,11 @@ const installmentRows = computed(() => {
       value: formatCurrency(item.valor_total),
       receivedValue: formatCurrency(item.valor_recebido),
       canPay: true,
-      canSettle: !item.quitado,
+      canSettle: !item.quitado || canReopenInstallment(item),
       canDeletePayment: Boolean(item.possui_pagamento),
+      canEdit: !item.quitado && !Boolean(item.possui_pagamento),
+      isOverdue: isInstallmentOverdue(item.vencimentol ?? item.vencimento_original, item.quitado, item.valor_total, item.valor_recebido),
+      settleTitle: canReopenInstallment(item) ? 'Reabrir parcela' : 'Quitar parcela',
       isPaid: Boolean(item.quitado),
     }))
   }
@@ -719,6 +902,75 @@ function syncPlanDefaults() {
   }
 }
 
+function handleInstallmentValueInput() {
+  if (financialFieldSyncLocked.value || contractEditLocked.value) {
+    return
+  }
+
+  const installmentValue = toLocaleNumberOrNull(form.valor_parcela)
+  const periods = toIntegerOrNull(form.qtde_dias)
+
+  financialFieldSyncLocked.value = true
+  if (installmentValue === null || periods === null || periods <= 0) {
+    form.valor_final = ''
+  } else {
+    form.valor_final = formatDecimalValue(installmentValue * periods)
+  }
+  financialFieldSyncLocked.value = false
+}
+
+function handleFinalValueInput() {
+  if (financialFieldSyncLocked.value || contractEditLocked.value) {
+    return
+  }
+
+  const finalValue = toLocaleNumberOrNull(form.valor_final)
+  const periods = toIntegerOrNull(form.qtde_dias)
+
+  if (form.valor_parcela.trim()) {
+    return
+  }
+
+  financialFieldSyncLocked.value = true
+  if (finalValue === null || periods === null || periods <= 0) {
+    form.valor_parcela = ''
+  } else {
+    form.valor_parcela = formatDecimalValue(finalValue / periods)
+  }
+  financialFieldSyncLocked.value = false
+}
+
+function handleDaysInput() {
+  if (financialFieldSyncLocked.value || contractEditLocked.value) {
+    return
+  }
+
+  if (form.valor_parcela.trim()) {
+    handleInstallmentValueInput()
+    return
+  }
+
+  if (form.valor_final.trim()) {
+    handleFinalValueInput()
+  }
+}
+
+function handleMonthlyBillingChange() {
+  if (contractEditLocked.value || !billingDays.mensal) {
+    return
+  }
+
+  billingDays.quinzenal = false
+}
+
+function handleBiweeklyBillingChange() {
+  if (contractEditLocked.value || !billingDays.quinzenal) {
+    return
+  }
+
+  billingDays.mensal = false
+}
+
 async function calculateInstallments() {
   if (!form.cliente_id) {
     await infoAlert('Selecione o cliente antes de calcular os dias.')
@@ -751,6 +1003,16 @@ async function calculateInstallments() {
   const dueDates = buildDueDates(startDate, qtdDias, holidaySet)
   const endDate = dueDates.at(-1) ?? null
   form.data_final = endDate ? toDateTimeLocal(endDate.toISOString()) : ''
+
+  const principalValue = toLocaleNumberOrNull(form.valor_empretismo)
+  const calculatedFinalValue = dueDates.length > 0 ? dueDates.length * installmentValue : null
+  const monthlyInterestRate =
+    endDate && principalValue !== null && principalValue > 0 && calculatedFinalValue !== null
+      ? calculateMonthlyInterestRate(startDate, endDate, principalValue, calculatedFinalValue)
+      : null
+
+  form.valor_final = calculatedFinalValue === null ? '' : formatDecimalValue(calculatedFinalValue)
+  form.percent_juros = monthlyInterestRate === null ? '' : formatDecimalValue(monthlyInterestRate)
 
   if (dueDates.length === 0) {
     previewInstallmentsPayload.value = null
@@ -788,6 +1050,9 @@ async function calculateInstallments() {
       canPay: false,
       canSettle: false,
       canDeletePayment: false,
+      canEdit: false,
+      isOverdue: isInstallmentOverdue(item.vencimento, false, item.valor_total, 0),
+      settleTitle: 'Quitar parcela',
       isPaid: false,
     }))
     activeTab.value = 'parcelas'
@@ -836,22 +1101,60 @@ async function handleReceiveInstallment(installmentId: number | null) {
   }
 
   const remainingValue = row ? Math.max((row.valor_total ?? 0) - (row.valor_recebido ?? 0), 0) : null
-  const payment = await receivePaymentPrompt(remainingValue)
-  if (!payment) {
+  installmentReceiveModal.open = true
+  installmentReceiveModal.installmentId = installmentId
+  installmentReceiveModal.saldoRestante = remainingValue ?? 0
+  installmentReceiveModal.valorRecebido = formatDecimalValue(remainingValue ?? 0) || formatDecimalValue(0)
+  installmentReceiveModal.juros = formatDecimalValue(0) || formatDecimalValue(0)
+  syncInstallmentReceiveInterest()
+}
+
+function closeInstallmentReceiveModal() {
+  installmentReceiveModal.open = false
+  installmentReceiveModal.installmentId = null
+  installmentReceiveModal.saldoRestante = 0
+  installmentReceiveModal.valorRecebido = ''
+  installmentReceiveModal.juros = ''
+}
+
+function syncInstallmentReceiveInterest() {
+  const paidValue = toLocaleNumberOrNull(installmentReceiveModal.valorRecebido) ?? 0
+  const interestValue = Math.max(paidValue - installmentReceiveModal.saldoRestante, 0)
+  installmentReceiveModal.juros = formatDecimalValue(interestValue) || formatDecimalValue(0)
+}
+
+function formatInstallmentReceiveField(field: 'valorRecebido') {
+  const parsed = toLocaleNumberOrNull(installmentReceiveModal[field])
+  installmentReceiveModal[field] = parsed === null ? '' : formatDecimalValue(parsed)
+  syncInstallmentReceiveInterest()
+}
+
+async function saveInstallmentReceive() {
+  if (!installmentReceiveModal.installmentId) {
+    return
+  }
+
+  const valorRecebido = toLocaleNumberOrNull(installmentReceiveModal.valorRecebido)
+  const juros = toLocaleNumberOrNull(installmentReceiveModal.juros)
+  if (valorRecebido === null || valorRecebido <= 0) {
+    await infoAlert('Informe um valor recebido maior que zero.')
     return
   }
 
   installmentsSaving.value = true
   try {
-    const updated = await receiveContractInstallment(installmentId, {
-      valor_recebido: payment.valorRecebido,
+    await receiveContractInstallment(installmentReceiveModal.installmentId, {
+      valor_recebido: valorRecebido,
       data_recebimento: currentDateTimeLocal(),
       desconto: null,
-      juros: payment.juros,
+      juros,
     })
-    updateInstallmentInState(updated)
+    if (currentContractId.value) {
+      persistedInstallments.value = await listContractInstallments(currentContractId.value)
+    }
     syncQuitadoFromInstallments()
     syncFinancialTotalsFromInstallments()
+    closeInstallmentReceiveModal()
     void successAlert('Recebimento lançado com sucesso.', 'update')
   } catch (error) {
     await errorAlert(error instanceof Error ? error.message : 'Falha ao registrar recebimento')
@@ -865,19 +1168,124 @@ async function handleSettleInstallment(installmentId: number | null) {
     return
   }
 
-  if (!(await confirmActionAlert('Quitar parcela?', 'A parcela será marcada como quitada mesmo com pagamento inferior ao valor total.', 'Quitar'))) {
+  const installment = persistedInstallments.value.find((item) => item.id === installmentId)
+  installmentSettleModal.open = true
+  installmentSettleModal.installmentId = installmentId
+  installmentSettleModal.reopen = installment ? canReopenInstallment(installment) : false
+}
+
+function closeInstallmentSettleModal() {
+  installmentSettleModal.open = false
+  installmentSettleModal.installmentId = null
+  installmentSettleModal.reopen = false
+}
+
+async function saveInstallmentSettle() {
+  if (!installmentSettleModal.installmentId) {
+    return
+  }
+
+  const reopening = installmentSettleModal.reopen
+  installmentsSaving.value = true
+  try {
+    const updated = reopening
+      ? await reopenContractInstallment(installmentSettleModal.installmentId)
+      : await settleContractInstallment(installmentSettleModal.installmentId, {
+          data_recebimento: currentDateTimeLocal(),
+        })
+    updateInstallmentInState(updated)
+    syncQuitadoFromInstallments()
+    syncFinancialTotalsFromInstallments()
+    closeInstallmentSettleModal()
+    void successAlert(reopening ? 'Parcela reaberta com sucesso.' : 'Parcela quitada com sucesso.', 'update')
+  } catch (error) {
+    await errorAlert(error instanceof Error ? error.message : reopening ? 'Falha ao reabrir parcela' : 'Falha ao quitar parcela')
+  } finally {
+    installmentsSaving.value = false
+  }
+}
+
+function canReopenInstallment(installment: ContractInstallment) {
+  if (!installment.quitado) {
+    return false
+  }
+
+  return (installment.valor_recebido ?? 0) < (installment.valor_total ?? 0)
+}
+
+function openInstallmentEditModal(installmentId: number | null) {
+  if (!installmentId) {
+    return
+  }
+
+  const installment = persistedInstallments.value.find((item) => item.id === installmentId)
+  if (!installment || installment.quitado || installment.possui_pagamento) {
+    return
+  }
+
+  installmentEditModal.open = true
+  installmentEditModal.installmentId = installment.id
+  installmentEditModal.parcelaNro = String(installment.parcela_nro ?? '')
+  installmentEditModal.vencimento = toDateTimeLocal(installment.vencimentol ?? installment.vencimento_original)
+  installmentEditModal.valorBase = formatDecimalValue(installment.valor_base) || formatDecimalValue(0)
+  installmentEditModal.valorJuros = formatDecimalValue(installment.valor_juros) || formatDecimalValue(0)
+  installmentEditModal.valorTotal = formatDecimalValue(installment.valor_total) || formatDecimalValue(0)
+}
+
+function closeInstallmentEditModal() {
+  installmentEditModal.open = false
+  installmentEditModal.installmentId = null
+  installmentEditModal.parcelaNro = ''
+  installmentEditModal.vencimento = ''
+  installmentEditModal.valorBase = ''
+  installmentEditModal.valorJuros = ''
+  installmentEditModal.valorTotal = ''
+}
+
+function syncInstallmentEditTotal() {
+  const baseValue = toLocaleNumberOrNull(installmentEditModal.valorBase) ?? 0
+  const interestValue = toLocaleNumberOrNull(installmentEditModal.valorJuros) ?? 0
+  installmentEditModal.valorTotal = formatDecimalValue(baseValue + interestValue) || formatDecimalValue(0)
+}
+
+function formatInstallmentEditField(field: 'valorBase' | 'valorJuros') {
+  const parsed = toLocaleNumberOrNull(installmentEditModal[field])
+  installmentEditModal[field] = parsed === null ? '' : formatDecimalValue(parsed)
+  syncInstallmentEditTotal()
+}
+
+async function saveInstallmentEdit() {
+  if (!installmentEditModal.installmentId) {
+    return
+  }
+
+  const parcelaNro = toIntegerOrNull(installmentEditModal.parcelaNro)
+  const valorBase = toLocaleNumberOrNull(installmentEditModal.valorBase)
+  const valorJuros = toLocaleNumberOrNull(installmentEditModal.valorJuros) ?? 0
+
+  if (parcelaNro === null || parcelaNro <= 0 || !installmentEditModal.vencimento || valorBase === null) {
+    await infoAlert('Preencha numero da parcela, vencimento e valor antes de salvar.')
     return
   }
 
   installmentsSaving.value = true
   try {
-    const updated = await settleContractInstallment(installmentId, { data_recebimento: currentDateTimeLocal() })
+    const payload: InstallmentUpdatePayload = {
+      parcela_nro: parcelaNro,
+      vencimento: installmentEditModal.vencimento,
+      valor_base: valorBase,
+      valor_juros: valorJuros,
+      valor_total: valorBase + valorJuros,
+    }
+
+    const updated = await updateContractInstallment(installmentEditModal.installmentId, payload)
     updateInstallmentInState(updated)
     syncQuitadoFromInstallments()
     syncFinancialTotalsFromInstallments()
-    void successAlert('Parcela quitada com sucesso.', 'update')
+    closeInstallmentEditModal()
+    void successAlert('Parcela alterada com sucesso.', 'update')
   } catch (error) {
-    await errorAlert(error instanceof Error ? error.message : 'Falha ao quitar parcela')
+    await errorAlert(error instanceof Error ? error.message : 'Falha ao alterar parcela')
   } finally {
     installmentsSaving.value = false
   }
@@ -1153,6 +1561,28 @@ function toApiDateTimeLocal(date: Date) {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
 }
 
+function calculateMonthlyInterestRate(startDate: Date, endDate: Date, principalValue: number, finalValue: number) {
+  const totalInterest = finalValue - principalValue
+  if (totalInterest <= 0) {
+    return 0
+  }
+
+  const monthSpan = calculateMonthSpan(startDate, endDate)
+  return (totalInterest / principalValue / monthSpan) * 100
+}
+
+function calculateMonthSpan(startDate: Date, endDate: Date) {
+  const millisecondsPerDay = 24 * 60 * 60 * 1000
+  const diffInMilliseconds = endDate.getTime() - startDate.getTime()
+  const diffInDays = diffInMilliseconds / millisecondsPerDay
+
+  if (diffInDays <= 0) {
+    return 1
+  }
+
+  return Math.max(diffInDays / 30, 1)
+}
+
 function toDateTimeLocal(value: string | null) {
   if (!value) {
     return ''
@@ -1276,15 +1706,47 @@ function buildMonthlyDueDates(startDate: Date, qtdDias: number, holidaySet: Set<
   let generated = 0
 
   while (generated < qtdDias) {
-    const candidate = new Date(cursor)
-    if (shouldIncludeDate(candidate, holidaySet)) {
-      dates.push(candidate)
-      generated += 1
-    }
+    const candidate = resolveMonthlyDueDate(cursor, holidaySet)
+    dates.push(candidate)
+    generated += 1
     cursor.setMonth(cursor.getMonth() + 1)
   }
 
   return dates
+}
+
+function resolveMonthlyDueDate(baseDate: Date, holidaySet: Set<string>) {
+  const candidate = new Date(baseDate)
+  let safety = 0
+
+  while (!shouldAllowMonthlyDueDate(candidate, holidaySet)) {
+    candidate.setDate(candidate.getDate() + 1)
+    safety += 1
+
+    if (safety > 370) {
+      break
+    }
+  }
+
+  return candidate
+}
+
+function shouldAllowMonthlyDueDate(date: Date, holidaySet: Set<string>) {
+  const weekday = date.getDay()
+
+  if (!billingDays.domingo && weekday === 0) {
+    return false
+  }
+
+  if (!billingDays.sabado && weekday === 6) {
+    return false
+  }
+
+  if (!billingDays.feriado && holidaySet.has(formatDateKey(date))) {
+    return false
+  }
+
+  return true
 }
 
 function buildBiweeklyDueDates(startDate: Date, qtdDias: number, holidaySet: Set<string>) {
@@ -1293,11 +1755,9 @@ function buildBiweeklyDueDates(startDate: Date, qtdDias: number, holidaySet: Set
   let generated = 0
 
   while (generated < qtdDias) {
-    const candidate = new Date(cursor)
-    if (shouldIncludeDate(candidate, holidaySet)) {
-      dates.push(candidate)
-      generated += 1
-    }
+    const candidate = resolveMonthlyDueDate(cursor, holidaySet)
+    dates.push(candidate)
+    generated += 1
     cursor.setDate(cursor.getDate() + 15)
   }
 
@@ -1421,6 +1881,32 @@ function parseCalendarDate(value: string) {
   }
 }
 
+function isInstallmentOverdue(
+  dueDateValue: string | Date | null,
+  quitado: boolean | null | undefined,
+  totalValue: number | null | undefined,
+  receivedValue: number | null | undefined,
+) {
+  if (quitado) {
+    return false
+  }
+
+  const dueDate = dueDateValue ? new Date(dueDateValue) : null
+  if (!dueDate || Number.isNaN(dueDate.getTime())) {
+    return false
+  }
+
+  const remainingValue = Math.max((totalValue ?? 0) - (receivedValue ?? 0), 0)
+  if (remainingValue <= 0) {
+    return false
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  dueDate.setHours(0, 0, 0, 0)
+  return dueDate < today
+}
+
 function formatCurrency(value: number | null) {
   if (typeof value !== 'number') {
     return '-'
@@ -1429,6 +1915,25 @@ function formatCurrency(value: number | null) {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
+  }).format(value)
+}
+
+function openWhatsApp(phone: string | null) {
+  const digits = (phone ?? '').replace(/\D/g, '')
+  if (!digits) {
+    return
+  }
+
+  window.open(`https://wa.me/55${digits}`, '_blank', 'noopener,noreferrer')
+}
+
+function formatScore(value: number | null) {
+  if (typeof value !== 'number') {
+    return '-'
+  }
+
+  return new Intl.NumberFormat('pt-BR', {
+    maximumFractionDigits: 0,
   }).format(value)
 }
 

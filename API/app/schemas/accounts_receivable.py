@@ -53,6 +53,21 @@ class InstallmentSettleRequest(BaseModel):
     data_recebimento: datetime | None = None
 
 
+class InstallmentUpdateRequest(BaseModel):
+    parcela_nro: int
+    vencimento: datetime
+    valor_base: float
+    valor_juros: float | None = None
+    valor_total: float | None = None
+
+    @field_validator("valor_base", "valor_juros", "valor_total", mode="before")
+    @classmethod
+    def normalize_update_float_fields(cls, value: object) -> float | None:
+        if value is None or value == "":
+            return None
+        return float(value)
+
+
 class ContractReceiptRead(BaseModel):
     recebimento_id: int
     contrato_id: int | None = None

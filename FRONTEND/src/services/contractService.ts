@@ -9,6 +9,7 @@ import type {
   ContractUpdateInput,
   InstallmentPaymentPayload,
   InstallmentSettlePayload,
+  InstallmentUpdatePayload,
 } from '@/models/contract'
 import { apiFetch } from '@/services/http'
 
@@ -18,8 +19,8 @@ export async function listContracts(filters: ContractListFilters): Promise<Contr
   params.set('page_size', String(filters.page_size))
 
   if (typeof filters.contratos_id === 'number') params.set('contratos_id', String(filters.contratos_id))
-  if (typeof filters.cliente_id === 'number') params.set('cliente_id', String(filters.cliente_id))
-  if (typeof filters.contrato_status === 'number') params.set('contrato_status', String(filters.contrato_status))
+  if (filters.cliente_nome) params.set('cliente_nome', filters.cliente_nome)
+  if (filters.cobrador_nome) params.set('cobrador_nome', filters.cobrador_nome)
   if (typeof filters.quitado === 'boolean') params.set('quitado', String(filters.quitado))
 
   return apiFetch<ContractListResponse>(`/contratos/?${params.toString()}`)
@@ -69,11 +70,25 @@ export async function receiveContractInstallment(installmentId: number, payload:
   })
 }
 
+export async function updateContractInstallment(installmentId: number, payload: InstallmentUpdatePayload): Promise<ContractInstallment> {
+  return apiFetch<ContractInstallment>(`/contratos/parcelas/${installmentId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function settleContractInstallment(installmentId: number, payload: InstallmentSettlePayload): Promise<ContractInstallment> {
   return apiFetch<ContractInstallment>(`/contratos/parcelas/${installmentId}/quitar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+  })
+}
+
+export async function reopenContractInstallment(installmentId: number): Promise<ContractInstallment> {
+  return apiFetch<ContractInstallment>(`/contratos/parcelas/${installmentId}/reabrir`, {
+    method: 'POST',
   })
 }
 

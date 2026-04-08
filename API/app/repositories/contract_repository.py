@@ -1,10 +1,12 @@
 from collections.abc import Sequence
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.client import Cliente
 from app.models.contract import Contrato
+from app.models.user import User
 from app.schemas.contract import ContractListParams
 
 
@@ -14,18 +16,28 @@ class ContractRepository:
 
     async def list_all(self, params: ContractListParams) -> tuple[Sequence[Contrato], int]:
         filters = []
+        cobrador = aliased(User)
 
         if params.contratos_id is not None:
             filters.append(Contrato.contratos_id == params.contratos_id)
-        if params.cliente_id is not None:
-            filters.append(Contrato.cliente_id == params.cliente_id)
-        if params.contrato_status is not None:
-            filters.append(Contrato.contrato_status == params.contrato_status)
-        if params.quitado is not None:
+        elif params.cliente_nome:
+            filters.append(Cliente.nome.ilike(f"%{params.cliente_nome}%"))
+        if params.contratos_id is None and params.cobrador_nome:
+            filters.append(cobrador.nome.ilike(f"%{params.cobrador_nome}%"))
+        if params.contratos_id is None and params.quitado is not None:
             filters.append(Contrato.quitado == params.quitado)
 
-        stmt = select(Contrato, Cliente.nome, Cliente.celular01, Cliente.telefone).outerjoin(Cliente, Cliente.clientes_id == Contrato.cliente_id)
-        count_stmt = select(func.count()).select_from(Contrato)
+        stmt = (
+            select(Contrato, Cliente.nome, Cliente.celular01, Cliente.telefone, cobrador.nome)
+            .outerjoin(Cliente, Cliente.clientes_id == Contrato.cliente_id)
+            .outerjoin(cobrador, cobrador.id == Contrato.usuario_id_vendedor)
+        )
+        count_stmt = (
+            select(func.count())
+            .select_from(Contrato)
+            .outerjoin(Cliente, Cliente.clientes_id == Contrato.cliente_id)
+            .outerjoin(cobrador, cobrador.id == Contrato.usuario_id_vendedor)
+        )
 
         if filters:
             stmt = stmt.where(*filters)
@@ -37,26 +49,30 @@ class ContractRepository:
         total = await self.session.scalar(count_stmt)
         rows = result.all()
         contracts: list[Contrato] = []
-        for contract, client_name, client_mobile, client_phone in rows:
+        for contract, client_name, client_mobile, client_phone, cobrador_nome in rows:
             setattr(contract, "cliente_nome", client_name)
             setattr(contract, "cliente_telefone", client_mobile or client_phone)
+            setattr(contract, "cobrador_nome", cobrador_nome)
             contracts.append(contract)
 
         return contracts, int(total or 0)
 
     async def get_by_id(self, contract_id: int) -> Contrato | None:
+        cobrador = aliased(User)
         result = await self.session.execute(
-            select(Contrato, Cliente.nome, Cliente.celular01, Cliente.telefone)
+            select(Contrato, Cliente.nome, Cliente.celular01, Cliente.telefone, cobrador.nome)
             .outerjoin(Cliente, Cliente.clientes_id == Contrato.cliente_id)
+            .outerjoin(cobrador, cobrador.id == Contrato.usuario_id_vendedor)
             .where(Contrato.contratos_id == contract_id)
         )
         row = result.one_or_none()
         if row is None:
             return None
 
-        contract, client_name, client_mobile, client_phone = row
+        contract, client_name, client_mobile, client_phone, cobrador_nome = row
         setattr(contract, "cliente_nome", client_name)
         setattr(contract, "cliente_telefone", client_mobile or client_phone)
+        setattr(contract, "cobrador_nome", cobrador_nome)
         return contract
 
     async def create(self, contract: Contrato) -> Contrato:

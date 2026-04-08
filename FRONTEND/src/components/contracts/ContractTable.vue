@@ -9,10 +9,10 @@
     </header>
 
     <div class="filters-grid filters-grid--contracts">
-      <input v-model="draft.contratos_id" class="field" placeholder="Nº contrato" type="number" />
-      <input v-model="draft.cliente_id" class="field" placeholder="ID cliente" type="number" />
-      <input v-model="draft.contrato_status" class="field" placeholder="Status" type="number" />
-      <select v-model="quitadoFilter" class="field">
+      <input v-model="draft.contratos_id" class="field" placeholder="ID contrato" type="number" @input="handleContractIdInput" @keydown.enter.prevent="applyFilters" />
+      <input v-model="draft.cliente_nome" class="field" placeholder="Cliente / empresa" type="text" @keydown.enter.prevent="applyFilters" />
+      <input v-model="draft.cobrador_nome" class="field" placeholder="Cobrador" type="text" @keydown.enter.prevent="applyFilters" />
+      <select v-model="quitadoFilter" class="field" @keydown.enter.prevent="applyFilters">
         <option value="">Todos</option>
         <option value="false">Aberto</option>
         <option value="true">Quitado</option>
@@ -35,7 +35,8 @@
           <tr>
             <th>Nº</th>
             <th>Data contrato</th>
-            <th>Cliente</th>
+            <th>Cliente / Empresa</th>
+            <th>Cobrador</th>
             <th>Valor</th>
             <th>Vl. Parcela</th>
             <th>Quitado</th>
@@ -48,15 +49,16 @@
         </thead>
         <tbody>
           <tr v-if="props.loading">
-            <td colspan="10">Carregando contratos...</td>
+            <td colspan="11">Carregando contratos...</td>
           </tr>
           <tr v-else-if="props.result.items.length === 0">
-            <td colspan="10">Nenhum contrato encontrado.</td>
+            <td colspan="11">Nenhum contrato encontrado.</td>
           </tr>
-          <tr v-for="contract in props.result.items" :key="contract.contratos_id" class="data-table__row">
+          <tr v-for="contract in props.result.items" :key="contract.contratos_id" class="data-table__row" @dblclick="handleRowDoubleClick(contract.contratos_id)">
             <td>{{ contract.contratos_id }}</td>
             <td>{{ formatDate(contract.data_contrato) }}</td>
             <td>{{ contract.cliente_nome || '-' }}</td>
+            <td>{{ contract.cobrador_nome || '-' }}</td>
             <td>{{ formatCurrency(contract.valor_final) }}</td>
             <td>{{ formatCurrency(contract.valor_parcela) }}</td>
             <td>
@@ -139,14 +141,14 @@ const props = defineProps<{
   canDelete: boolean
   filters: {
     contratos_id?: number
-    cliente_id?: number
-    contrato_status?: number
+    cliente_nome?: string
+    cobrador_nome?: string
     quitado?: boolean
   }
 }>()
 
 const emit = defineEmits<{
-  apply: [payload: { contratos_id?: number; cliente_id?: number; contrato_status?: number; quitado?: boolean }]
+  apply: [payload: { contratos_id?: number; cliente_nome?: string; cobrador_nome?: string; quitado?: boolean }]
   'change-page': [page: number]
   'change-page-size': [pageSize: number]
   edit: [contractId: number]
@@ -155,8 +157,8 @@ const emit = defineEmits<{
 
 const draft = reactive({
   contratos_id: props.filters.contratos_id ? String(props.filters.contratos_id) : '',
-  cliente_id: props.filters.cliente_id ? String(props.filters.cliente_id) : '',
-  contrato_status: props.filters.contrato_status ? String(props.filters.contrato_status) : '',
+  cliente_nome: props.filters.cliente_nome ?? '',
+  cobrador_nome: props.filters.cobrador_nome ?? '',
 })
 
 const quitadoFilter = ref('')
@@ -186,30 +188,69 @@ watch(
   () => props.filters,
   (filters) => {
     draft.contratos_id = typeof filters.contratos_id === 'number' ? String(filters.contratos_id) : ''
-    draft.cliente_id = typeof filters.cliente_id === 'number' ? String(filters.cliente_id) : ''
-    draft.contrato_status = typeof filters.contrato_status === 'number' ? String(filters.contrato_status) : ''
+    draft.cliente_nome = filters.cliente_nome ?? ''
+    draft.cobrador_nome = filters.cobrador_nome ?? ''
     quitadoFilter.value = typeof filters.quitado === 'boolean' ? String(filters.quitado) : ''
   },
   { deep: true, immediate: true },
 )
 
 function applyFilters() {
+  const contratosId = toNumberOrUndefined(draft.contratos_id)
+
+  if (typeof contratosId === 'number') {
+    emit('apply', {
+      contratos_id: contratosId,
+      cliente_nome: undefined,
+      cobrador_nome: undefined,
+      quitado: undefined,
+    })
+    return
+  }
+
   const quitado = quitadoFilter.value === '' ? undefined : quitadoFilter.value === 'true'
   emit('apply', {
-    contratos_id: toNumberOrUndefined(draft.contratos_id),
-    cliente_id: toNumberOrUndefined(draft.cliente_id),
-    contrato_status: toNumberOrUndefined(draft.contrato_status),
+    contratos_id: contratosId,
+    cliente_nome: toStringOrUndefined(draft.cliente_nome),
+    cobrador_nome: toStringOrUndefined(draft.cobrador_nome),
     quitado,
   })
+}
+
+function handleContractIdInput() {
+  const contratosId = toNumberOrUndefined(draft.contratos_id)
+
+  if (typeof contratosId === 'number') {
+    emit('apply', {
+      contratos_id: contratosId,
+      cliente_nome: undefined,
+      cobrador_nome: undefined,
+      quitado: undefined,
+    })
+    return
+  }
+
+  if (!draft.contratos_id.trim()) {
+    applyFilters()
+  }
 }
 
 function changePageSize() {
   emit('change-page-size', Number(pageSizeValue.value))
 }
 
-function toNumberOrUndefined(value: string) {
-  const trimmed = value.trim()
+function toNumberOrUndefined(value: string | number | null | undefined) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : undefined
+  }
+
+  const trimmed = String(value ?? '').trim()
   return trimmed ? Number(trimmed) : undefined
+}
+
+function toStringOrUndefined(value: string) {
+  const trimmed = value.trim()
+  return trimmed || undefined
 }
 
 function formatDate(value: string | null) {
@@ -238,5 +279,13 @@ function openWhatsApp(phone: string | null) {
   }
 
   window.open(`https://wa.me/55${digits}`, '_blank', 'noopener,noreferrer')
+}
+
+function handleRowDoubleClick(contractId: number) {
+  if (!props.canUpdate) {
+    return
+  }
+
+  emit('edit', contractId)
 }
 </script>
