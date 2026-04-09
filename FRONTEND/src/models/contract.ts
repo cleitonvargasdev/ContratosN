@@ -123,6 +123,14 @@ export interface InstallmentUpdatePayload {
   valor_total: number
 }
 
+export interface InstallmentCreatePayload {
+  parcela_nro: number
+  vencimento: string
+  valor_base: number
+  valor_juros: number
+  valor_total: number
+}
+
 export interface ContractReceipt {
   recebimento_id: number
   contrato_id: number | null

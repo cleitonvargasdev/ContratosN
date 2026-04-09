@@ -6,6 +6,7 @@ import type {
   ContractReceipt,
   ContractListFilters,
   ContractListResponse,
+  InstallmentCreatePayload,
   ContractUpdateInput,
   InstallmentPaymentPayload,
   InstallmentSettlePayload,
@@ -56,6 +57,14 @@ export async function listContractInstallments(contractId: number): Promise<Cont
 
 export async function generateContractInstallments(contractId: number, payload: ContractInstallmentGeneratePayload): Promise<ContractInstallment[]> {
   return apiFetch<ContractInstallment[]>(`/contratos/${contractId}/parcelas/gerar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function createContractInstallment(contractId: number, payload: InstallmentCreatePayload): Promise<ContractInstallment> {
+  return apiFetch<ContractInstallment>(`/contratos/${contractId}/parcelas`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

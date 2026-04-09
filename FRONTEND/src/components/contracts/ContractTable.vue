@@ -36,7 +36,6 @@
             <th>Nº</th>
             <th>Data contrato</th>
             <th>Cliente / Empresa</th>
-            <th>Cobrador</th>
             <th>Valor</th>
             <th>Vl. Parcela</th>
             <th>Quitado</th>
@@ -49,26 +48,25 @@
         </thead>
         <tbody>
           <tr v-if="props.loading">
-            <td colspan="11">Carregando contratos...</td>
+            <td colspan="10">Carregando contratos...</td>
           </tr>
           <tr v-else-if="props.result.items.length === 0">
-            <td colspan="11">Nenhum contrato encontrado.</td>
+            <td colspan="10">Nenhum contrato encontrado.</td>
           </tr>
           <tr v-for="contract in props.result.items" :key="contract.contratos_id" class="data-table__row" @dblclick="handleRowDoubleClick(contract.contratos_id)">
             <td>{{ contract.contratos_id }}</td>
             <td>{{ formatDate(contract.data_contrato) }}</td>
             <td>{{ contract.cliente_nome || '-' }}</td>
-            <td>{{ contract.cobrador_nome || '-' }}</td>
             <td>{{ formatCurrency(contract.valor_final) }}</td>
             <td>{{ formatCurrency(contract.valor_parcela) }}</td>
             <td>
-              <span :class="['pill', contract.quitado ? 'pill--success' : 'pill--danger']">
+              <span :class="['pill', contract.quitado ? 'pill--success' : 'pill--warning']">
                 {{ contract.quitado ? 'QUITADO' : 'ABERTO' }}
               </span>
             </td>
             <td>{{ formatCurrency(contract.valor_recebido) }}</td>
             <td>{{ formatCurrency(contract.valor_em_aberto) }}</td>
-            <td>{{ formatCurrency(contract.valor_em_atraso) }}</td>
+            <td :class="{ 'contract-table__overdue-value': (contract.valor_em_atraso ?? 0) > 0 }">{{ formatCurrency(contract.valor_em_atraso) }}</td>
             <td class="actions-cell actions-cell--compact contract-actions-cell">
               <div class="actions-cell__content">
                 <button v-if="props.canUpdate" class="icon-action" type="button" title="Alterar contrato" aria-label="Alterar contrato" @click="$emit('edit', contract.contratos_id)">

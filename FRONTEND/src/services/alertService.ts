@@ -26,6 +26,8 @@ const confirmCancelClasses = {
   cancelButton: 'swal-button swal-button--danger-soft swal-button--with-icon',
 }
 
+const CASH_REGISTER_SOUND_PATH = '/sounds/cash.mp3'
+
 export async function confirmDeleteAlert(): Promise<boolean> {
   const result = await Swal.fire({
     title: 'Excluir cadastro?',
@@ -190,6 +192,90 @@ export async function chatMessageToast(senderName: string, message: string): Pro
     background: '#fffaf5',
     color: '#c86718',
   })
+}
+
+export function playCashRegisterSound(): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const audio = new Audio(CASH_REGISTER_SOUND_PATH)
+  audio.preload = 'auto'
+
+  const playPromise = audio.play()
+  if (playPromise) {
+    void playPromise.catch(() => {
+      playSynthCashRegisterSound()
+    })
+    return
+  }
+
+  playSynthCashRegisterSound()
+}
+
+function playSynthCashRegisterSound(): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+  if (!AudioContextCtor) {
+    return
+  }
+
+  const audioContext = new AudioContextCtor()
+  const startTime = audioContext.currentTime + 0.01
+  const masterGain = audioContext.createGain()
+  masterGain.gain.value = 0.9
+  masterGain.connect(audioContext.destination)
+
+  const playTone = (frequency: number, beginAt: number, duration: number, type: OscillatorType, peak: number) => {
+    const oscillator = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+
+    oscillator.type = type
+    oscillator.frequency.setValueAtTime(frequency, beginAt)
+    oscillator.frequency.exponentialRampToValueAtTime(Math.max(frequency * 0.92, 80), beginAt + duration)
+
+    gain.gain.setValueAtTime(0.0001, beginAt)
+    gain.gain.exponentialRampToValueAtTime(peak, beginAt + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.0001, beginAt + duration)
+
+    oscillator.connect(gain)
+    gain.connect(masterGain)
+    oscillator.start(beginAt)
+    oscillator.stop(beginAt + duration + 0.02)
+  }
+
+  const clickBuffer = audioContext.createBuffer(1, Math.max(1, Math.floor(audioContext.sampleRate * 0.02)), audioContext.sampleRate)
+  const clickChannel = clickBuffer.getChannelData(0)
+  for (let index = 0; index < clickChannel.length; index += 1) {
+    clickChannel[index] = (Math.random() * 2 - 1) * (1 - index / clickChannel.length)
+  }
+
+  const clickSource = audioContext.createBufferSource()
+  clickSource.buffer = clickBuffer
+  const clickFilter = audioContext.createBiquadFilter()
+  clickFilter.type = 'highpass'
+  clickFilter.frequency.setValueAtTime(1800, startTime)
+  const clickGain = audioContext.createGain()
+  clickGain.gain.setValueAtTime(0.0001, startTime)
+  clickGain.gain.exponentialRampToValueAtTime(0.16, startTime + 0.004)
+  clickGain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.035)
+  clickSource.connect(clickFilter)
+  clickFilter.connect(clickGain)
+  clickGain.connect(masterGain)
+
+  playTone(740, startTime + 0.03, 0.08, 'square', 0.14)
+  playTone(1110, startTime + 0.11, 0.12, 'square', 0.18)
+  playTone(1480, startTime + 0.12, 0.16, 'triangle', 0.11)
+  playTone(2220, startTime + 0.135, 0.1, 'sine', 0.07)
+  clickSource.start(startTime)
+  clickSource.stop(startTime + 0.03)
+
+  window.setTimeout(() => {
+    void audioContext.close().catch(() => undefined)
+  }, 700)
 }
 
 function parseDecimalInput(value: string | undefined): number | null {

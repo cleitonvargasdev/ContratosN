@@ -219,7 +219,7 @@
                     <span>Sexta</span>
                   </label>
                   <label class="contract-days-picker__item contract-days-picker__item--recorrente">
-                    <input v-model="form.recorrencia" :disabled="contractEditLocked" type="checkbox" />
+                    <input v-model="form.recorrencia" :disabled="contractEditLocked" type="checkbox" @change="handleRecurringChange" />
                     <span class="contract-days-picker__label--recorrente">Recorrente - valor dos juros se repete</span>
                   </label>
                 </div>
@@ -237,6 +237,15 @@
               <div>
                 <h3 class="panel__title">Parcelas</h3>
               </div>
+              <button
+                v-if="props.mode === 'edit'"
+                class="primary-button primary-button--accent-soft primary-button--compact contract-installments__add-button"
+                :disabled="installmentsSaving"
+                type="button"
+                @click="openInstallmentCreateModal"
+              >
+                Incluir Parcela +
+              </button>
             </header>
 
             <div class="contract-installments__tools">
@@ -370,7 +379,7 @@
         <button
           v-if="activeTab === 'dados'"
           class="primary-button primary-button--accent-soft form-actions__button contract-action-button contract-action-button--calculate"
-          :disabled="props.saving || !form.cliente_id"
+          :disabled="props.saving"
           type="button"
           @click="calculateInstallments"
         >
@@ -434,7 +443,7 @@
       <div v-if="installmentEditModal.open" class="modal-backdrop" @click.self="closeInstallmentEditModal">
         <section class="modal-card modal-card--installment-edit">
           <header class="panel__header panel__header--stacked installment-modal__header">
-            <p class="modal-context">Atualize os dados desta parcela e confirme em salvar.</p>
+            <p class="modal-context">{{ installmentEditModal.mode === 'create' ? 'Informe os dados da nova parcela e confirme em salvar.' : 'Atualize os dados desta parcela e confirme em salvar.' }}</p>
           </header>
 
           <div class="modal-form installment-edit-grid">
@@ -445,7 +454,7 @@
 
             <label class="field-group">
               <span>Vencimento</span>
-              <input v-model="installmentEditModal.vencimento" class="field" type="datetime-local" />
+              <input v-model="installmentEditModal.vencimento" class="field" type="date" />
             </label>
 
             <label class="field-group">
@@ -455,7 +464,7 @@
 
             <label class="field-group">
               <span>Juros</span>
-              <input v-model="installmentEditModal.valorJuros" class="field" inputmode="decimal" type="text" @input="syncInstallmentEditTotal" @blur="formatInstallmentEditField('valorJuros')" />
+              <input v-model="installmentEditModal.valorJuros" class="field field--readonly" readonly inputmode="decimal" type="text" />
             </label>
 
             <label class="field-group field-group--span-2">
@@ -465,7 +474,7 @@
 
             <div class="form-actions installment-edit-actions field-group--span-2">
               <button class="primary-button primary-button--success installment-edit-actions__button" :disabled="installmentsSaving" type="button" @click="saveInstallmentEdit">
-                {{ installmentsSaving ? 'Salvando...' : 'Salvar' }}
+                {{ installmentsSaving ? 'Salvando...' : installmentEditModal.mode === 'create' ? 'Incluir' : 'Salvar' }}
               </button>
               <button class="ghost-button installment-edit-actions__button" :disabled="installmentsSaving" type="button" @click="closeInstallmentEditModal">Cancelar</button>
             </div>
@@ -536,6 +545,7 @@ import type {
   ContractCreateInput,
   ContractInstallment,
   ContractInstallmentGeneratePayload,
+  InstallmentCreatePayload,
   InstallmentUpdatePayload,
   ContractUpdateInput,
 } from '@/models/contract'
@@ -544,6 +554,7 @@ import type { FeriadoOption } from '@/models/location'
 import type { PaymentPlanOption } from '@/models/paymentPlan'
 import type { User } from '@/models/user'
 import {
+  createContractInstallment,
   deleteReceiptPayment,
   generateContractInstallments,
   listInstallmentReceipts,
@@ -553,7 +564,7 @@ import {
   settleContractInstallment,
   updateContractInstallment,
 } from '@/services/contractService'
-import { chooseReceiptToDeletePrompt, errorAlert, infoAlert, successAlert } from '@/services/alertService'
+import { chooseReceiptToDeletePrompt, errorAlert, infoAlert, playCashRegisterSound, successAlert } from '@/services/alertService'
 import { listClients, listRegraComissaoOptions, listRegraJurosOptions } from '@/services/clientService'
 import { listCitiesByUf, listFeriados } from '@/services/locationService'
 import { listPaymentPlans } from '@/services/paymentPlanService'
@@ -591,6 +602,7 @@ const generatedInstallments = ref<Array<{ key: string; id: number | null; label:
 const clientModal = reactive({ open: false, term: '' })
 const installmentEditModal = reactive({
   open: false,
+  mode: 'edit' as 'create' | 'edit',
   installmentId: null as number | null,
   parcelaNro: '',
   vencimento: '',
@@ -721,9 +733,11 @@ const filteredClients = computed(() => {
   })
 })
 
+const sortedPersistedInstallments = computed(() => [...persistedInstallments.value].sort(compareInstallments))
+
 const installmentRows = computed(() => {
-  if (persistedInstallments.value.length > 0) {
-    return persistedInstallments.value.map((item) => ({
+  if (sortedPersistedInstallments.value.length > 0) {
+    return sortedPersistedInstallments.value.map((item) => ({
       key: `db-${item.id}`,
       id: item.id,
       label: String(item.parcela_nro ?? '').padStart(2, '0'),
@@ -815,6 +829,7 @@ function syncContractIntoForm(contract?: Contract | null) {
     return
   }
 
+  resetBillingDays()
   form.contratos_id = String(contract.contratos_id)
   form.data_lancto = toDateTimeLocal(contract.data_lancto)
   form.data_contrato = toDateTimeLocal(contract.data_contrato)
@@ -841,7 +856,10 @@ function syncContractIntoForm(contract?: Contract | null) {
   form.regra_comissao_id = contract.regra_comissao_id
   form.regra_juros_id = toStringValue(contract.regra_juros_id)
   form.recorrencia = Boolean(contract.recorrencia)
-  resetBillingDays()
+  if (form.recorrencia) {
+    billingDays.mensal = true
+    billingDays.quinzenal = false
+  }
   previewInstallmentsPayload.value = null
   generatedInstallments.value = []
 }
@@ -971,6 +989,15 @@ function handleBiweeklyBillingChange() {
   billingDays.mensal = false
 }
 
+function handleRecurringChange() {
+  if (contractEditLocked.value || !form.recorrencia) {
+    return
+  }
+
+  billingDays.mensal = true
+  billingDays.quinzenal = false
+}
+
 async function calculateInstallments() {
   if (!form.cliente_id) {
     await infoAlert('Selecione o cliente antes de calcular os dias.')
@@ -986,16 +1013,13 @@ async function calculateInstallments() {
   const installmentValue = toLocaleNumberOrNull(form.valor_parcela) ?? toLocaleNumberOrNull(form.valor_final)
   const qtdDias = toIntegerOrNull(form.qtde_dias)
 
+  if (!form.plano_id && (!form.valor_parcela.trim() || !form.qtde_dias.trim())) {
+    await infoAlert('Selecione o plano ou informe os valores antes de calcular os dias.')
+    return
+  }
+
   if (!startDate || installmentValue === null || qtdDias === null || qtdDias <= 0) {
-    previewInstallmentsPayload.value = null
-    generatedInstallments.value = []
-    form.data_final = ''
-    if (persistedInstallments.value.length > 0) {
-      syncFinancialTotalsFromInstallments()
-    } else {
-      resetFinancialTotals()
-    }
-    activeTab.value = 'parcelas'
+    await infoAlert('Selecione o plano ou informe data do contrato, dias e valor antes de calcular os dias.')
     return
   }
 
@@ -1155,6 +1179,7 @@ async function saveInstallmentReceive() {
     syncQuitadoFromInstallments()
     syncFinancialTotalsFromInstallments()
     closeInstallmentReceiveModal()
+    playCashRegisterSound()
     void successAlert('Recebimento lançado com sucesso.', 'update')
   } catch (error) {
     await errorAlert(error instanceof Error ? error.message : 'Falha ao registrar recebimento')
@@ -1197,6 +1222,9 @@ async function saveInstallmentSettle() {
     syncQuitadoFromInstallments()
     syncFinancialTotalsFromInstallments()
     closeInstallmentSettleModal()
+    if (!reopening) {
+      playCashRegisterSound()
+    }
     void successAlert(reopening ? 'Parcela reaberta com sucesso.' : 'Parcela quitada com sucesso.', 'update')
   } catch (error) {
     await errorAlert(error instanceof Error ? error.message : reopening ? 'Falha ao reabrir parcela' : 'Falha ao quitar parcela')
@@ -1224,16 +1252,41 @@ function openInstallmentEditModal(installmentId: number | null) {
   }
 
   installmentEditModal.open = true
+  installmentEditModal.mode = 'edit'
   installmentEditModal.installmentId = installment.id
   installmentEditModal.parcelaNro = String(installment.parcela_nro ?? '')
-  installmentEditModal.vencimento = toDateTimeLocal(installment.vencimentol ?? installment.vencimento_original)
+  installmentEditModal.vencimento = toDateInputValue(installment.vencimentol ?? installment.vencimento_original)
   installmentEditModal.valorBase = formatDecimalValue(installment.valor_base) || formatDecimalValue(0)
   installmentEditModal.valorJuros = formatDecimalValue(installment.valor_juros) || formatDecimalValue(0)
   installmentEditModal.valorTotal = formatDecimalValue(installment.valor_total) || formatDecimalValue(0)
 }
 
+function openInstallmentCreateModal() {
+  if (!currentContractId.value) {
+    return
+  }
+
+  if (form.quitado) {
+    void infoAlert('Este contrato nao permite incluir parcelas porque esta quitado.')
+    return
+  }
+
+  const suggestedBaseValue = props.initialContract?.valor_parcela ?? persistedInstallments.value.at(-1)?.valor_base ?? 0
+  const suggestedInterestValue = persistedInstallments.value.at(-1)?.valor_juros ?? 0
+
+  installmentEditModal.open = true
+  installmentEditModal.mode = 'create'
+  installmentEditModal.installmentId = null
+  installmentEditModal.parcelaNro = String(getNextInstallmentNumber())
+  installmentEditModal.vencimento = currentDateInputValue()
+  installmentEditModal.valorBase = formatDecimalValue(suggestedBaseValue) || formatDecimalValue(0)
+  installmentEditModal.valorJuros = formatDecimalValue(suggestedInterestValue) || formatDecimalValue(0)
+  installmentEditModal.valorTotal = formatDecimalValue((suggestedBaseValue ?? 0) + (suggestedInterestValue ?? 0)) || formatDecimalValue(0)
+}
+
 function closeInstallmentEditModal() {
   installmentEditModal.open = false
+  installmentEditModal.mode = 'edit'
   installmentEditModal.installmentId = null
   installmentEditModal.parcelaNro = ''
   installmentEditModal.vencimento = ''
@@ -1248,14 +1301,18 @@ function syncInstallmentEditTotal() {
   installmentEditModal.valorTotal = formatDecimalValue(baseValue + interestValue) || formatDecimalValue(0)
 }
 
-function formatInstallmentEditField(field: 'valorBase' | 'valorJuros') {
+function formatInstallmentEditField(field: 'valorBase') {
   const parsed = toLocaleNumberOrNull(installmentEditModal[field])
   installmentEditModal[field] = parsed === null ? '' : formatDecimalValue(parsed)
   syncInstallmentEditTotal()
 }
 
 async function saveInstallmentEdit() {
-  if (!installmentEditModal.installmentId) {
+  if (installmentEditModal.mode === 'edit' && !installmentEditModal.installmentId) {
+    return
+  }
+
+  if (installmentEditModal.mode === 'create' && !currentContractId.value) {
     return
   }
 
@@ -1270,22 +1327,26 @@ async function saveInstallmentEdit() {
 
   installmentsSaving.value = true
   try {
-    const payload: InstallmentUpdatePayload = {
+    const modalMode = installmentEditModal.mode
+    const payload: InstallmentCreatePayload | InstallmentUpdatePayload = {
       parcela_nro: parcelaNro,
-      vencimento: installmentEditModal.vencimento,
+      vencimento: toApiDueDateTime(installmentEditModal.vencimento),
       valor_base: valorBase,
       valor_juros: valorJuros,
       valor_total: valorBase + valorJuros,
     }
 
-    const updated = await updateContractInstallment(installmentEditModal.installmentId, payload)
+    const updated = modalMode === 'create'
+      ? await createContractInstallment(currentContractId.value as number, payload as InstallmentCreatePayload)
+      : await updateContractInstallment(installmentEditModal.installmentId as number, payload as InstallmentUpdatePayload)
+
     updateInstallmentInState(updated)
     syncQuitadoFromInstallments()
     syncFinancialTotalsFromInstallments()
     closeInstallmentEditModal()
-    void successAlert('Parcela alterada com sucesso.', 'update')
+    void successAlert(modalMode === 'create' ? 'Parcela incluída com sucesso.' : 'Parcela alterada com sucesso.', 'update')
   } catch (error) {
-    await errorAlert(error instanceof Error ? error.message : 'Falha ao alterar parcela')
+    await errorAlert(error instanceof Error ? error.message : installmentEditModal.mode === 'create' ? 'Falha ao incluir parcela' : 'Falha ao alterar parcela')
   } finally {
     installmentsSaving.value = false
   }
@@ -1340,10 +1401,12 @@ function updateInstallmentInState(updated: ContractInstallment) {
   const index = persistedInstallments.value.findIndex((item) => item.id === updated.id)
   if (index === -1) {
     persistedInstallments.value = [...persistedInstallments.value, updated]
+    syncContractDueDateFromInstallments()
     return
   }
 
   persistedInstallments.value = persistedInstallments.value.map((item) => (item.id === updated.id ? updated : item))
+  syncContractDueDateFromInstallments()
 }
 
 function syncQuitadoFromInstallments() {
@@ -1352,6 +1415,7 @@ function syncQuitadoFromInstallments() {
 
 function syncFinancialTotalsFromInstallments() {
   syncContractFinalValueFromInstallments()
+  syncContractDueDateFromInstallments()
   applyFinancialTotals(
     summarizeInstallmentTotals(
       persistedInstallments.value.map((item) => ({
@@ -1387,6 +1451,15 @@ function syncContractFinalValueFromInstallments() {
   form.valor_final = formatDecimalValue(totalValue)
 }
 
+function syncContractDueDateFromInstallments() {
+  if (persistedInstallments.value.length === 0) {
+    return
+  }
+
+  const latestInstallment = [...persistedInstallments.value].sort(compareInstallments).at(-1)
+  form.data_final = latestInstallment ? toDateTimeLocal(latestInstallment.vencimentol ?? latestInstallment.vencimento_original) : ''
+}
+
 function summarizeInstallmentTotals(
   installments: Array<{ dueDate: string | null; totalValue: number | null; receivedValue: number | null; quitado: boolean | null }>,
 ) {
@@ -1406,8 +1479,11 @@ function summarizeInstallmentTotals(
     totalOpen += remainingValue
 
     if (remainingValue > 0 && installment.dueDate) {
-      const dueDate = new Date(installment.dueDate)
-      dueDate.setHours(0, 0, 0, 0)
+      const dueDate = toCalendarDate(installment.dueDate)
+      if (!dueDate) {
+        continue
+      }
+
       if (dueDate < today) {
         totalOverdue += remainingValue
       }
@@ -1551,6 +1627,19 @@ function currentDateTimeLocal() {
   return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16)
 }
 
+function currentDateInputValue() {
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getNextInstallmentNumber() {
+  const highestInstallmentNumber = persistedInstallments.value.reduce((highest, item) => Math.max(highest, item.parcela_nro ?? 0), 0)
+  return highestInstallmentNumber + 1
+}
+
 function toApiDateTimeLocal(date: Date) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -1595,6 +1684,19 @@ function toDateTimeLocal(value: string | null) {
 
   const timezoneOffset = date.getTimezoneOffset() * 60000
   return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16)
+}
+
+function toDateInputValue(value: string | null) {
+  const calendarDate = value ? parseCalendarDate(value) : null
+  if (!calendarDate) {
+    return ''
+  }
+
+  return `${calendarDate.year}-${String(calendarDate.month).padStart(2, '0')}-${String(calendarDate.day).padStart(2, '0')}`
+}
+
+function toApiDueDateTime(value: string) {
+  return `${value}T12:00:00`
 }
 
 function parseLocalDateTime(value: string) {
@@ -1840,6 +1942,29 @@ function formatDateKey(value: Date | string) {
   return `${year}-${month}-${day}`
 }
 
+function compareInstallments(left: ContractInstallment, right: ContractInstallment) {
+  const dueDateDiff = getInstallmentSortTime(left) - getInstallmentSortTime(right)
+  if (dueDateDiff !== 0) {
+    return dueDateDiff
+  }
+
+  const parcelaDiff = (left.parcela_nro ?? Number.MAX_SAFE_INTEGER) - (right.parcela_nro ?? Number.MAX_SAFE_INTEGER)
+  if (parcelaDiff !== 0) {
+    return parcelaDiff
+  }
+
+  return left.id - right.id
+}
+
+function getInstallmentSortTime(installment: ContractInstallment) {
+  const calendarDate = parseCalendarDate(installment.vencimentol ?? installment.vencimento_original ?? '')
+  if (!calendarDate) {
+    return Number.MAX_SAFE_INTEGER
+  }
+
+  return new Date(calendarDate.year, calendarDate.month - 1, calendarDate.day).getTime()
+}
+
 function formatDateLabel(value: string | null) {
   if (!value) {
     return '-'
@@ -1891,8 +2016,8 @@ function isInstallmentOverdue(
     return false
   }
 
-  const dueDate = dueDateValue ? new Date(dueDateValue) : null
-  if (!dueDate || Number.isNaN(dueDate.getTime())) {
+  const dueDate = toCalendarDate(dueDateValue)
+  if (!dueDate) {
     return false
   }
 
@@ -1903,8 +2028,25 @@ function isInstallmentOverdue(
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  dueDate.setHours(0, 0, 0, 0)
   return dueDate < today
+}
+
+function toCalendarDate(value: string | Date | null) {
+  if (!value) {
+    return null
+  }
+
+  if (value instanceof Date) {
+    const calendarDate = parseCalendarDate(value.toISOString())
+    return calendarDate ? new Date(calendarDate.year, calendarDate.month - 1, calendarDate.day) : null
+  }
+
+  const calendarDate = parseCalendarDate(value)
+  if (!calendarDate) {
+    return null
+  }
+
+  return new Date(calendarDate.year, calendarDate.month - 1, calendarDate.day)
 }
 
 function formatCurrency(value: number | null) {

@@ -9,6 +9,7 @@ from app.schemas.accounts_receivable import (
     ContractInstallmentGenerateRequest,
     ContractInstallmentRead,
     ContractReceiptRead,
+    InstallmentCreateRequest,
     InstallmentPaymentCreate,
     InstallmentSettleRequest,
     InstallmentUpdateRequest,
@@ -80,6 +81,16 @@ async def generate_contract_installments(
     service: AccountsReceivableService = Depends(get_accounts_receivable_service),
 ) -> list[ContractInstallmentRead]:
     return await service.generate_contract_installments(contract_id, payload, current_user.id)
+
+
+@router.post("/{contract_id}/parcelas", response_model=ContractInstallmentRead, summary="Incluir parcela do contrato")
+async def create_contract_installment(
+    contract_id: int,
+    payload: InstallmentCreateRequest,
+    current_user: User = Depends(require_permission("contratos", "update")),
+    service: AccountsReceivableService = Depends(get_accounts_receivable_service),
+) -> ContractInstallmentRead:
+    return await service.create_installment(contract_id, payload, current_user.id)
 
 
 @router.post("/parcelas/{installment_id}/receber", response_model=ContractInstallmentRead, summary="Receber parcela")

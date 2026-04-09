@@ -44,9 +44,8 @@ onMounted(async () => {
 async function handleSubmit(payload: { contract: ContractCreateInput | ContractUpdateInput; installments: ContractInstallmentGeneratePayload | null }) {
   try {
     await contracts.submitContractUpdate(Number(route.params.id), payload.contract as ContractUpdateInput)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
     void successAlert('Contrato alterado com sucesso.', 'update')
-    await new Promise((resolve) => window.setTimeout(resolve, 1000))
-    await router.push({ name: 'contracts-list' })
   } catch {
     if (contracts.state.error) {
       await errorAlert(contracts.state.error)

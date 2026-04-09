@@ -838,13 +838,23 @@ select {
 }
 
 .pill--success {
-  background: rgba(31, 157, 104, 0.12);
-  color: var(--success);
+  background: rgba(24, 133, 86, 0.18);
+  color: #188556;
+}
+
+.pill--warning {
+  background: rgba(249, 115, 22, 0.14);
+  color: var(--accent-strong);
 }
 
 .pill--danger {
   background: rgba(216, 75, 98, 0.12);
   color: var(--danger);
+}
+
+.contract-table__overdue-value {
+  color: var(--danger);
+  font-weight: 800;
 }
 
 
@@ -1125,7 +1135,7 @@ select {
 }
 
 .contract-status-caption--paid {
-  color: rgba(31, 157, 104, 0.78);
+  color: rgba(24, 133, 86, 0.96);
 }
 
 .contract-status-caption--open {
@@ -1241,6 +1251,23 @@ select {
 .feedback--info {
   background: rgba(36, 48, 59, 0.08);
   color: #516170;
+}
+
+.contract-installments__tools {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.contract-installments__status {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.contract-installments__add-button {
+  margin-left: auto;
 }
 
 .modal-backdrop {
@@ -1799,7 +1826,8 @@ select {
 
 .contract-installments__table th,
 .contract-installments__table td {
-  padding: 4px 6px;
+  padding: 3px 6px;
+  border-bottom: 1px solid rgba(36, 48, 59, 0.16);
   line-height: 1.1;
 }
 
@@ -1816,11 +1844,11 @@ select {
 }
 
 .contract-installments__table tbody tr.contract-installments__row--paid td {
-  background: rgba(31, 157, 104, 0.10);
+  background: rgba(24, 133, 86, 0.27);
 }
 
 .contract-installments__table tbody tr.contract-installments__row--paid:nth-child(odd) td {
-  background: rgba(31, 157, 104, 0.14);
+  background: rgba(24, 133, 86, 0.35);
 }
 
 .contract-installments__table tbody tr td:first-child {
@@ -1855,7 +1883,7 @@ select {
 .contract-installments__due-date {
   display: inline-flex;
   align-items: center;
-  min-height: 18px;
+  min-height: 16px;
   padding: 0 4px;
   border-radius: 4px;
 }
@@ -1868,8 +1896,8 @@ select {
 .contract-installments__action {
   width: 26px;
   min-width: 26px;
-  height: 22px;
-  min-height: 22px;
+  height: 19px;
+  min-height: 19px;
   padding: 0;
   display: inline-flex;
   align-items: center;
@@ -1889,6 +1917,20 @@ select {
 }
 
 .contract-installments__action-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.contract-installments__table .icon-action {
+  width: 26px;
+  min-width: 26px;
+  height: 19px;
+  min-height: 19px;
+  padding: 0;
+  border-radius: 5px;
+}
+
+.contract-installments__table .icon-action svg {
   width: 13px;
   height: 13px;
 }

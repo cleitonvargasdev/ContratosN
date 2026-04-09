@@ -235,22 +235,15 @@ const menuSections = computed(() =>
 
 const collapsedSection = ref<string | null>(null)
 
-const opened = reactive(new Set(['Cadastros', 'Movimentações']))
+const opened = reactive(new Set<string>())
 
 watch(
   () => props.collapsed,
   (collapsed) => {
-    if (collapsed) {
-      opened.clear()
-      collapsedSection.value = null
-      return
-    }
-
     opened.clear()
-    opened.add('Cadastros')
-    opened.add('Movimentações')
     collapsedSection.value = null
   },
+  { immediate: true },
 )
 
 function toggle(section: string) {
@@ -259,6 +252,7 @@ function toggle(section: string) {
     return
   }
 
+  opened.clear()
   opened.add(section)
 }
 

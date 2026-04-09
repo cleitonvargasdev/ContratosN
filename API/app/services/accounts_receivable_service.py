@@ -11,6 +11,7 @@ from app.repositories.accounts_receivable_repository import AccountsReceivableRe
 from app.repositories.client_repository import ClientRepository
 from app.repositories.location_repository import LocationRepository
 from app.schemas.accounts_receivable import (
+    InstallmentCreateRequest,
     ContractReceiptRead,
     ContractInstallmentGenerateRequest,
     ContractInstallmentRead,
@@ -130,6 +131,56 @@ class AccountsReceivableService:
         installment.data_recebimento = payment_date
         installment.quitado = float(installment.valor_recebido or 0) >= float(installment.valor_total or 0)
         await self._sync_contract_by_id(installment.contratos_id)
+        await self.repository.commit()
+        await self.repository.refresh(installment)
+        return self._build_installment_read(installment)
+
+    async def create_installment(
+        self,
+        contract_id: int,
+        payload: InstallmentCreateRequest,
+        current_user_id: int | None,
+    ) -> ContractInstallmentRead:
+        contract = await self.repository.get_contract_by_id(contract_id)
+        if contract is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contrato nao encontrado")
+
+        if contract.quitado:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Contrato quitado nao permite incluir novas parcelas.",
+            )
+
+        if payload.parcela_nro <= 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Numero da parcela deve ser maior que zero")
+
+        existing_installment = await self.repository.get_by_contract_and_parcela(contract_id, payload.parcela_nro)
+        if existing_installment is not None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ja existe parcela com este numero para o contrato")
+
+        base_value = float(payload.valor_base or 0)
+        interest_value = float(payload.valor_juros or 0)
+        total_value = round(base_value + interest_value, 4)
+
+        if base_value < 0 or interest_value < 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Valores da parcela nao podem ser negativos")
+
+        installment = ContaReceber(
+            contratos_id=contract_id,
+            vencimento_original=payload.vencimento,
+            vencimentol=payload.vencimento,
+            valor_base=round(base_value, 4),
+            valor_total=total_value,
+            valor_recebido=0,
+            quitado=False,
+            usuarios_id=current_user_id,
+            parcela_nro=payload.parcela_nro,
+            desconto=0,
+            valor_juros=round(interest_value, 4),
+        )
+
+        await self.repository.add_installments([installment])
+        await self._sync_contract_by_id(contract_id)
         await self.repository.commit()
         await self.repository.refresh(installment)
         return self._build_installment_read(installment)
