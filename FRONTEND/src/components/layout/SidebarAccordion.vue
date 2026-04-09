@@ -190,7 +190,7 @@ const baseSections: SidebarSection[] = [
       { label: 'Contas à Receber', to: '/modulos/cadastros/contas-a-receber?titulo=Contas%20%C3%A0%20Receber&grupo=Cadastros', icon: 'receipt' },
       { label: 'Rotas', to: '/modulos/cadastros/rotas?titulo=Rotas&grupo=Cadastros', icon: 'route' },
       { label: 'Produtos', to: '/modulos/cadastros/produtos?titulo=Produtos&grupo=Cadastros', icon: 'box' },
-      { label: 'Parâmetros', to: '/modulos/cadastros/parametros?titulo=Par%C3%A2metros&grupo=Cadastros', icon: 'sliders' },
+      { label: 'Parâmetros', to: '/parametros', icon: 'sliders' },
     ],
   },
   {

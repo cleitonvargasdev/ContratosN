@@ -417,6 +417,7 @@
                 v-for="client in filteredClients"
                 :key="client.clientes_id"
                 class="contract-client-result"
+                :class="clientScoreClass(client.score)"
                 type="button"
                 @click="selectClient(client.clientes_id)"
               >
@@ -2079,6 +2080,19 @@ function formatScore(value: number | null) {
   }).format(value)
 }
 
+function clientScoreClass(value: number | null) {
+  if (typeof value !== 'number') {
+    return 'contract-client-result--neutral'
+  }
+  if (value < 500) {
+    return 'contract-client-result--danger'
+  }
+  if (value > 500) {
+    return 'contract-client-result--success'
+  }
+  return 'contract-client-result--neutral'
+}
+
 function formatDocument(value: string | null | undefined) {
   const digits = (value ?? '').replace(/\D/g, '')
   if (!digits) {
@@ -2108,3 +2122,19 @@ function formatClientAddress(client: Client) {
   return `${address}${number} ${city}${uf}`.trim()
 }
 </script>
+
+<style scoped>
+.contract-client-result--danger {
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.28);
+}
+
+.contract-client-result--success {
+  background: rgba(22, 163, 74, 0.1);
+  border-color: rgba(22, 163, 74, 0.28);
+}
+
+.contract-client-result--neutral {
+  background: rgba(255, 255, 255, 0.96);
+}
+</style>

@@ -1,4 +1,6 @@
-from sqlalchemy import BigInteger, ForeignKey, Integer, String
+from datetime import datetime
+
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -30,3 +32,24 @@ class Parametro(Base):
     estado_civil: Mapped[str | None] = mapped_column(String(30), nullable=True)
     nacionalidade: Mapped[str | None] = mapped_column(String(40), nullable=True)
     endereco_responsavel: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    emitir_sons: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    score_valor_inicial: Mapped[int] = mapped_column(Integer, nullable=False, default=1000)
+    score_pontos_atraso_parcela: Mapped[int] = mapped_column(Integer, nullable=False, default=15)
+    score_pontos_atraso_quitacao_contrato: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
+    score_pontos_pagamento_em_dia: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    score_pontos_quitacao_em_dia: Mapped[int] = mapped_column(Integer, nullable=False, default=20)
+    score_atualizacao_automatica: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    score_agendamentos: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
+    score_atualizacao_ultima_execucao: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    score_atualizacao_proxima_execucao: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    score_ultima_execucao_sucesso: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    score_ultimo_erro: Mapped[str | None] = mapped_column(Text, nullable=True)
+    whatsapp_cobranca_automatica: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    whatsapp_agendamentos: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
+    whatsapp_cobranca_ultima_execucao: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    whatsapp_cobranca_proxima_execucao: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    whatsapp_ultima_execucao_sucesso: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    whatsapp_ultimo_erro: Mapped[str | None] = mapped_column(Text, nullable=True)
+    whatsapp_cobranca_dias_antes: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    whatsapp_cobranca_dias_depois: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    whatsapp_cobranca_modelo: Mapped[str | None] = mapped_column(String(500), nullable=True)

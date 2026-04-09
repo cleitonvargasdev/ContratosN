@@ -19,6 +19,7 @@ from app.schemas.accounts_receivable import (
     InstallmentSettleRequest,
     InstallmentUpdateRequest,
 )
+from app.services.client_metrics_service import ClientMetricsService
 
 
 WEEKDAY_LABELS = {
@@ -37,6 +38,7 @@ class AccountsReceivableService:
         self.repository = AccountsReceivableRepository(session)
         self.client_repository = ClientRepository(session)
         self.location_repository = LocationRepository(session)
+        self.client_metrics_service = ClientMetricsService(session)
 
     async def list_contract_installments(self, contract_id: int) -> list[ContractInstallmentRead]:
         contract = await self.repository.get_contract_by_id(contract_id)
@@ -45,6 +47,7 @@ class AccountsReceivableService:
 
         rows = await self.repository.list_by_contract(contract_id)
         if await self._sync_contract_financials(contract, rows):
+            await self.client_metrics_service.refresh_client_metrics(contract.cliente_id)
             await self.repository.commit()
         return [self._build_installment_read(item) for item in rows]
 
@@ -392,6 +395,7 @@ class AccountsReceivableService:
 
         installments = await self.repository.list_by_contract(contract_id)
         await self._sync_contract_financials(contract, installments)
+        await self.client_metrics_service.refresh_client_metrics(contract.cliente_id)
 
     async def _calculate_next_recurring_due_date(
         self,

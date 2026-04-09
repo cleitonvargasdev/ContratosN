@@ -1,9 +1,13 @@
+import asyncio
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.db.session import AsyncSessionLocal
+from app.services.parameter_service import ParameterService
 
 
 app = FastAPI(
@@ -24,6 +28,7 @@ app = FastAPI(
         {"name": "acesso", "description": "Perfis, permissoes parametrizadas e controle de acesso."},
         {"name": "chat", "description": "Chat interno com conversas entre usuarios e notificacoes em tempo real."},
         {"name": "localidades", "description": "Consultas de UF, cidade, bairro e resolucao de CEP/endereco."},
+        {"name": "parametros", "description": "Cadastro unico da empresa, score de clientes e automacoes preparatorias."},
         {"name": "usuarios", "description": "Operacoes de cadastro, consulta, atualizacao e remocao de usuarios."},
     ],
 )
@@ -43,6 +48,33 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=settings.api_v1_prefix)
+
+
+async def _parameter_scheduler_loop() -> None:
+    while True:
+        try:
+            async with AsyncSessionLocal() as session:
+                service = ParameterService(session)
+                await service.run_due_scheduled_actions()
+        except Exception:
+            pass
+        await asyncio.sleep(60)
+
+
+@app.on_event("startup")
+async def start_parameter_scheduler() -> None:
+    app.state.parameter_scheduler_task = asyncio.create_task(_parameter_scheduler_loop())
+
+
+@app.on_event("shutdown")
+async def stop_parameter_scheduler() -> None:
+    task = getattr(app.state, "parameter_scheduler_task", None)
+    if task is not None:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 @app.get("/", include_in_schema=False)

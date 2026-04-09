@@ -66,7 +66,7 @@
             </td>
             <td>{{ client.contato_responsavel || '-' }}</td>
             <td>
-              <span class="pill pill--score">{{ client.score ?? 1000 }}</span>
+              <span :class="['pill', scorePillClass(client.score)]">{{ client.score ?? 1000 }}</span>
             </td>
             <td>
               <span :class="['pill', client.ativo ? 'pill--success' : 'pill--danger']">
@@ -240,11 +240,31 @@ function formatPhone(value: string | null | undefined) {
   }
   return digits.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2')
 }
+
+function scorePillClass(value: number | null | undefined) {
+  if (typeof value !== 'number') {
+    return 'pill--score-neutral'
+  }
+  if (value < 500) {
+    return 'pill--score-danger'
+  }
+  return 'pill--score-success'
+}
 </script>
 
 <style scoped>
-.pill--score {
+.pill--score-success {
   background: rgba(15, 118, 110, 0.12);
   color: #0f766e;
+}
+
+.pill--score-danger {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+}
+
+.pill--score-neutral {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
 }
 </style>

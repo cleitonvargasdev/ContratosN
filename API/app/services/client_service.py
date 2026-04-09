@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.client import Cliente
+from app.models.parameter import Parametro
 from app.models.user import User
 from app.repositories.client_repository import ClientRepository
 from app.schemas.client import ClientCobradorOptionRead, ClientCreate, ClientListParams, ClientListResponse, ClientUpdate
@@ -33,7 +34,7 @@ class ClientService:
 
     async def create_client(self, payload: ClientCreate, current_user_id: int | None = None) -> Cliente:
         payload_data = await self._normalize_payload(payload.model_dump())
-        payload_data.setdefault("score", 1000)
+        payload_data.setdefault("score", await self._resolve_default_score())
         payload_data.setdefault("ativo", True)
         payload_data.setdefault("bloqueado", False)
         payload_data.setdefault("data_add", datetime.now(UTC))
@@ -96,3 +97,10 @@ class ClientService:
         values["bairro_id_responsavel"] = normalized.get("bairro_id")
         values["cep_responsavel"] = normalized.get("cep")
         return values
+
+    async def _resolve_default_score(self) -> int:
+        result = await self.repository.session.execute(select(Parametro).order_by(Parametro.parametros_id.asc()).limit(1))
+        parameter = result.scalar_one_or_none()
+        if parameter is None or parameter.score_valor_inicial is None:
+            return 1000
+        return int(parameter.score_valor_inicial)

@@ -12,6 +12,7 @@ import DashboardHomeView from '@/views/dashboard/DashboardHomeView.vue'
 import LoginView from '@/views/auth/LoginView.vue'
 import PaymentPlansFormView from '@/views/payment-plans/PaymentPlansFormView.vue'
 import PaymentPlansListView from '@/views/payment-plans/PaymentPlansListView.vue'
+import ParametersView from '@/views/parameters/ParametersView.vue'
 import ModulePlaceholderView from '@/views/shared/ModulePlaceholderView.vue'
 import ProfilesFormView from '@/views/access-control/ProfilesFormView.vue'
 import ProfilesListView from '@/views/access-control/ProfilesListView.vue'
@@ -206,6 +207,11 @@ const routes = [
         name: 'feriados-edit',
         component: FeriadosFormView,
         meta: { resource: 'localidades_feriados', action: 'update' },
+      },
+      {
+        path: 'parametros',
+        name: 'parameters',
+        component: ParametersView,
       },
       {
         path: 'modulos/:group/:slug',
