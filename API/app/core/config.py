@@ -1,7 +1,12 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+ENV_FILE = ROOT_DIR / ".env"
 
 
 class Settings(BaseSettings):
@@ -20,8 +25,12 @@ class Settings(BaseSettings):
     jwt_refresh_token_expire_minutes: int = Field(default=10080, alias="JWT_REFRESH_TOKEN_EXPIRE_MINUTES")
     api_key_header_name: str = Field(default="X-API-Key", alias="API_KEY_HEADER_NAME")
     cepaberto_token: str | None = Field(default=None, alias="CEPABERTO_TOKEN")
+    quepasa_apiwpp_url: str = Field(default="https://apiwpp.vstec.net", alias="QUEPASA_APIWPP_URL")
+    quepasa_user: str | None = Field(default=None, alias="QUEPASA_USER")
+    quepasa_token: str = Field(default="CONTRATOS", alias="QUEPASA_TOKEN")
+    quepasa_timeout_seconds: float = Field(default=15.0, alias="QUEPASA_TIMEOUT_SECONDS")
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(ENV_FILE), env_file_encoding="utf-8", extra="ignore")
 
     @property
     def sqlalchemy_database_uri(self) -> str:

@@ -18,6 +18,9 @@ class ContractInstallmentRead(BaseModel):
     valor_juros: float | None = None
     dia_semana: str | None = None
     possui_pagamento: bool = False
+    msg_whatsapp: bool = False
+    dt_hora_envio: datetime | None = None
+    tipo_envio: int | None = None
 
 
 class ContractInstallmentGenerateItem(BaseModel):
@@ -98,3 +101,10 @@ class ContractReceiptRead(BaseModel):
 class InstallmentActionResult(BaseModel):
     installment: ContractInstallmentRead
     model_config = ConfigDict(from_attributes=True)
+
+
+class InstallmentWhatsAppSendResponse(BaseModel):
+    success: bool
+    message: str
+    chatid: str
+    installment_id: int

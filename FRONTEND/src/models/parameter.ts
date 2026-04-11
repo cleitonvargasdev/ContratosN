@@ -40,6 +40,16 @@ export interface Parameter {
   whatsapp_cobranca_dias_antes: number
   whatsapp_cobranca_dias_depois: number
   whatsapp_cobranca_modelo: string | null
+  usuario_api_whatsapp: string | null
+  token_api_whatsapp: string | null
+  regra_nono_dig_whats: string[]
+  sufixo_whatsapp: string | null
+  msg_renovacao: string | null
+  msg_negociacao: string | null
+  pais_whatsapp: number
+  msg_campanha: string | null
+  ligar_websocket: boolean
+  silenciar_mensagem: boolean
 }
 
 export interface ParameterInput {
@@ -70,6 +80,16 @@ export interface ParameterInput {
   whatsapp_cobranca_dias_antes: number
   whatsapp_cobranca_dias_depois: number
   whatsapp_cobranca_modelo: string | null
+  usuario_api_whatsapp: string | null
+  token_api_whatsapp: string | null
+  regra_nono_dig_whats: string[]
+  sufixo_whatsapp: string | null
+  msg_renovacao: string | null
+  msg_negociacao: string | null
+  pais_whatsapp: number
+  msg_campanha: string | null
+  ligar_websocket: boolean
+  silenciar_mensagem: boolean
 }
 
 export interface ParameterAutomationRunResult {

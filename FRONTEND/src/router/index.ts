@@ -5,6 +5,8 @@ import MainLayout from '@/components/layout/MainLayout.vue'
 import ClientsCreateView from '@/views/clients/ClientsCreateView.vue'
 import ClientsEditView from '@/views/clients/ClientsEditView.vue'
 import ClientsListView from '@/views/clients/ClientsListView.vue'
+import ApiConfigsFormView from '@/views/apis/ApiConfigsFormView.vue'
+import ApiConfigsListView from '@/views/apis/ApiConfigsListView.vue'
 import ContractsCreateView from '@/views/contracts/ContractsCreateView.vue'
 import ContractsEditView from '@/views/contracts/ContractsEditView.vue'
 import ContractsListView from '@/views/contracts/ContractsListView.vue'
@@ -27,6 +29,7 @@ import UfsListView from '@/views/localities/UfsListView.vue'
 import UsersCreateView from '@/views/users/UsersCreateView.vue'
 import UsersEditView from '@/views/users/UsersEditView.vue'
 import UsersListView from '@/views/users/UsersListView.vue'
+import WhatsAppConnectionView from '@/views/whatsapp/WhatsAppConnectionView.vue'
 
 const routes = [
   {
@@ -45,6 +48,24 @@ const routes = [
         name: 'dashboard',
         component: DashboardHomeView,
         meta: { resource: 'dashboard', action: 'read' },
+      },
+      {
+        path: 'apis',
+        name: 'api-configs-list',
+        component: ApiConfigsListView,
+        meta: { resource: 'apis', action: 'read' },
+      },
+      {
+        path: 'apis/novo',
+        name: 'api-configs-create',
+        component: ApiConfigsFormView,
+        meta: { resource: 'apis', action: 'create' },
+      },
+      {
+        path: 'apis/:id/editar',
+        name: 'api-configs-edit',
+        component: ApiConfigsFormView,
+        meta: { resource: 'apis', action: 'update' },
       },
       {
         path: 'usuarios',
@@ -212,6 +233,11 @@ const routes = [
         path: 'parametros',
         name: 'parameters',
         component: ParametersView,
+      },
+      {
+        path: 'contas-whatsapp',
+        name: 'whatsapp-connection',
+        component: WhatsAppConnectionView,
       },
       {
         path: 'modulos/:group/:slug',

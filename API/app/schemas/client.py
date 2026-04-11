@@ -36,6 +36,7 @@ class ClientBase(BaseModel):
     celular01: str | None = None
     celular02: str | None = None
     flag_whatsapp: bool = False
+    nao_enviar_whatsapp: bool = False
     email: EmailStr | None = None
     limite_credito: float | None = None
     debito_atual: float | None = None

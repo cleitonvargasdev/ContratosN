@@ -9,6 +9,7 @@ from app.schemas.accounts_receivable import (
     ContractInstallmentGenerateRequest,
     ContractInstallmentRead,
     ContractReceiptRead,
+    InstallmentWhatsAppSendResponse,
     InstallmentCreateRequest,
     InstallmentPaymentCreate,
     InstallmentSettleRequest,
@@ -157,6 +158,15 @@ async def delete_receipt_payment(
     service: AccountsReceivableService = Depends(get_accounts_receivable_service),
 ) -> ContractInstallmentRead:
     return await service.delete_receipt_payment(receipt_id)
+
+
+@router.post("/parcelas/{installment_id}/whatsapp", response_model=InstallmentWhatsAppSendResponse, summary="Enviar mensagem da parcela via WhatsApp")
+async def send_installment_whatsapp_message(
+    installment_id: int,
+    _: User = Depends(require_permission("contratos", "update")),
+    service: AccountsReceivableService = Depends(get_accounts_receivable_service),
+) -> InstallmentWhatsAppSendResponse:
+    return InstallmentWhatsAppSendResponse.model_validate(await service.send_installment_whatsapp_message(installment_id))
 
 
 @router.post("/", response_model=ContractRead, status_code=status.HTTP_201_CREATED, summary="Criar contrato")

@@ -23,6 +23,7 @@ class Cliente(Base):
     celular01: Mapped[str | None] = mapped_column(String(15), nullable=True)
     celular02: Mapped[str | None] = mapped_column(String(15), nullable=True)
     flag_whatsapp: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    nao_enviar_whatsapp: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     email: Mapped[str | None] = mapped_column(String(150), nullable=True, index=True)
     limite_credito: Mapped[float | None] = mapped_column(Numeric(24, 6, asdecimal=False), nullable=True)
     debito_atual: Mapped[float | None] = mapped_column(Numeric(24, 6, asdecimal=False), nullable=True)

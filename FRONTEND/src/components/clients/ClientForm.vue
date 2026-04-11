@@ -73,6 +73,14 @@
               <input v-model="form.celular02" class="field" type="text" @blur="formatPhoneField('celular02')" />
             </label>
 
+            <div class="field-group field-group--toggle">
+              <span>WhatsApp</span>
+              <label class="toggle-row">
+                <input v-model="form.nao_enviar_whatsapp" type="checkbox" />
+                <span>Não enviar WhatsApp</span>
+              </label>
+            </div>
+
             <label class="field-group">
               <span>CEP</span>
               <div class="field-inline">
@@ -423,6 +431,7 @@ const form = reactive({
   celular01: '',
   celular02: '',
   flag_whatsapp: false,
+  nao_enviar_whatsapp: false,
   score: 1000,
   limite_credito: '0,00',
   debito_atual: '0,00',
@@ -608,6 +617,7 @@ async function syncClientIntoForm(client?: Client | null) {
     form.celular01 = formatPhone(client.celular01)
     form.celular02 = formatPhone(client.celular02)
     form.flag_whatsapp = client.flag_whatsapp
+    form.nao_enviar_whatsapp = client.nao_enviar_whatsapp
     form.score = client.score ?? 1000
     form.limite_credito = formatMoney(client.limite_credito)
     form.debito_atual = formatMoney(client.debito_atual)
@@ -869,6 +879,7 @@ function buildPayload(): ClientInput {
     celular01: emptyToNull(cleanDigits(form.celular01)),
     celular02: emptyToNull(cleanDigits(form.celular02)),
     flag_whatsapp: form.flag_whatsapp,
+    nao_enviar_whatsapp: form.nao_enviar_whatsapp,
     email: emptyToNull(form.email),
     limite_credito: parseMoney(form.limite_credito),
     debito_atual: parseMoney(form.debito_atual),
@@ -918,6 +929,7 @@ function resetForm() {
   form.celular01 = ''
   form.celular02 = ''
   form.flag_whatsapp = false
+  form.nao_enviar_whatsapp = false
   form.score = 1000
   form.limite_credito = '0,00'
   form.debito_atual = '0,00'

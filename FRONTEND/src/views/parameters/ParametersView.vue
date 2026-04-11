@@ -1,6 +1,6 @@
 <template>
   <ParameterForm
-    :initial-parameters="parameters.state.current"
+    :initial-parameters="initialParameters"
     :loading="parameters.state.loading"
     :saving="parameters.state.saving"
     :running-automations="parameters.state.running"
@@ -13,16 +13,19 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 import ParameterForm from '@/components/parameters/ParameterForm.vue'
 import { useParametersController } from '@/controllers/useParametersController'
-import type { ParameterInput } from '@/models/parameter'
+import type { Parameter, ParameterInput } from '@/models/parameter'
 import { errorAlert, successAlert } from '@/services/alertService'
 
 const parameters = useParametersController()
 const router = useRouter()
+const initialParameters = computed(() => {
+  return parameters.state.current as Parameter | null
+})
 
 onMounted(() => {
   void parameters.loadParameters().catch(async () => {

@@ -1,6 +1,6 @@
 import type { RefreshTokenRequest, TokenPair } from '@/models/auth'
 
-const API_URL = (import.meta.env.VITE_API_URL?.trim() || 'http://127.0.0.1:8006/api/v1').replace(/\/$/, '')
+const API_URL = (import.meta.env.VITE_API_URL?.trim() || 'http://127.0.0.1:8007/api/v1').replace(/\/$/, '')
 const ACCESS_TOKEN_KEY = 'contratos.accessToken'
 const REFRESH_TOKEN_KEY = 'contratos.refreshToken'
 

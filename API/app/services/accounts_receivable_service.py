@@ -20,6 +20,7 @@ from app.schemas.accounts_receivable import (
     InstallmentUpdateRequest,
 )
 from app.services.client_metrics_service import ClientMetricsService
+from app.services.whatsapp_service import WhatsAppService
 
 
 WEEKDAY_LABELS = {
@@ -39,6 +40,42 @@ class AccountsReceivableService:
         self.client_repository = ClientRepository(session)
         self.location_repository = LocationRepository(session)
         self.client_metrics_service = ClientMetricsService(session)
+        self.whatsapp_service = WhatsAppService(session)
+
+    async def send_installment_whatsapp_message(self, installment_id: int) -> dict[str, object]:
+        installment = await self.repository.get_by_id(installment_id)
+        if installment is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parcela nao encontrada")
+
+        if installment.contratos_id is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Parcela sem contrato vinculado")
+
+        contract = await self.repository.get_contract_by_id(installment.contratos_id)
+        if contract is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contrato nao encontrado")
+
+        if contract.cliente_id is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Contrato sem cliente vinculado")
+
+        client = await self.client_repository.get_by_id(contract.cliente_id)
+        if client is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
+
+        if not client.flag_whatsapp:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente sem flag WhatsApp no celular principal")
+
+        phone_number = (client.celular01 or "").strip()
+        if not phone_number:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente sem celular principal cadastrado")
+
+        text = self._build_installment_whatsapp_message(client.nome, contract.contratos_id, installment)
+        provider_result = await self.whatsapp_service.send_text_message(phone_number, text)
+        return {
+            "success": bool(provider_result.get("success")),
+            "message": str(provider_result.get("message") or "Mensagem enviada com sucesso."),
+            "chatid": str(provider_result.get("chatid") or ""),
+            "installment_id": installment_id,
+        }
 
     async def list_contract_installments(self, contract_id: int) -> list[ContractInstallmentRead]:
         contract = await self.repository.get_contract_by_id(contract_id)
@@ -317,6 +354,28 @@ class AccountsReceivableService:
         await self.repository.commit()
         await self.repository.refresh(installment)
         return self._build_installment_read(installment)
+
+    @staticmethod
+    def _build_installment_whatsapp_message(client_name: str | None, contract_id: int, installment: ContaReceber) -> str:
+        due_date = installment.vencimentol or installment.vencimento_original
+        client_label = (client_name or "cliente").strip() or "cliente"
+        parcela_label = installment.parcela_nro or 0
+        return (
+            f"Ola {client_label}, sua parcela do contrato N{chr(186)} {contract_id}, "
+            f"parcela {parcela_label}, vence em {AccountsReceivableService._format_message_date(due_date)}, "
+            f"no valor de {AccountsReceivableService._format_message_currency(float(installment.valor_total or 0))}."
+        )
+
+    @staticmethod
+    def _format_message_date(value: datetime | None) -> str:
+        if value is None:
+            return "data nao informada"
+        return value.strftime("%d/%m/%Y")
+
+    @staticmethod
+    def _format_message_currency(value: float) -> str:
+        formatted = f"{value:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
+        return f"R$ {formatted}"
 
     async def reopen_installment(self, installment_id: int) -> ContractInstallmentRead:
         installment = await self.repository.get_by_id(installment_id)

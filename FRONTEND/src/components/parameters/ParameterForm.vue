@@ -280,6 +280,16 @@ const form = reactive({
   whatsapp_cobranca_dias_antes: 1,
   whatsapp_cobranca_dias_depois: 1,
   whatsapp_cobranca_modelo: '',
+  usuario_api_whatsapp: '',
+  token_api_whatsapp: '',
+  regra_nono_dig_whats: [] as string[],
+  sufixo_whatsapp: '',
+  msg_renovacao: '',
+  msg_negociacao: '',
+  pais_whatsapp: 55,
+  msg_campanha: '',
+  ligar_websocket: false,
+  silenciar_mensagem: false,
 })
 
 onMounted(() => {
@@ -404,6 +414,16 @@ async function syncParametersIntoForm(parameters?: Parameter | null) {
   form.whatsapp_cobranca_dias_antes = parameters.whatsapp_cobranca_dias_antes
   form.whatsapp_cobranca_dias_depois = parameters.whatsapp_cobranca_dias_depois
   form.whatsapp_cobranca_modelo = parameters.whatsapp_cobranca_modelo ?? ''
+  form.usuario_api_whatsapp = parameters.usuario_api_whatsapp ?? ''
+  form.token_api_whatsapp = parameters.token_api_whatsapp ?? ''
+  form.regra_nono_dig_whats = [...parameters.regra_nono_dig_whats]
+  form.sufixo_whatsapp = parameters.sufixo_whatsapp ?? ''
+  form.msg_renovacao = parameters.msg_renovacao ?? ''
+  form.msg_negociacao = parameters.msg_negociacao ?? ''
+  form.pais_whatsapp = parameters.pais_whatsapp
+  form.msg_campanha = parameters.msg_campanha ?? ''
+  form.ligar_websocket = parameters.ligar_websocket
+  form.silenciar_mensagem = parameters.silenciar_mensagem
 
   if (form.uf) {
     await loadCitiesOptions(form.uf)
@@ -564,6 +584,16 @@ function buildPayload(): ParameterInput {
     whatsapp_cobranca_dias_antes: Number(form.whatsapp_cobranca_dias_antes || 0),
     whatsapp_cobranca_dias_depois: Number(form.whatsapp_cobranca_dias_depois || 0),
     whatsapp_cobranca_modelo: emptyToNull(form.whatsapp_cobranca_modelo),
+    usuario_api_whatsapp: emptyToNull(form.usuario_api_whatsapp),
+    token_api_whatsapp: emptyToNull(form.token_api_whatsapp),
+    regra_nono_dig_whats: [...form.regra_nono_dig_whats],
+    sufixo_whatsapp: emptyToNull(form.sufixo_whatsapp),
+    msg_renovacao: emptyToNull(form.msg_renovacao),
+    msg_negociacao: emptyToNull(form.msg_negociacao),
+    pais_whatsapp: Number(form.pais_whatsapp || 0),
+    msg_campanha: emptyToNull(form.msg_campanha),
+    ligar_websocket: form.ligar_websocket,
+    silenciar_mensagem: form.silenciar_mensagem,
   }
 }
 

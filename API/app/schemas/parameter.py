@@ -84,6 +84,16 @@ class ParameterBase(BaseModel):
     whatsapp_cobranca_dias_antes: int = Field(default=1)
     whatsapp_cobranca_dias_depois: int = Field(default=1)
     whatsapp_cobranca_modelo: str | None = None
+    usuario_api_whatsapp: str | None = None
+    token_api_whatsapp: str | None = None
+    regra_nono_dig_whats: list[str] = Field(default_factory=list)
+    sufixo_whatsapp: str | None = None
+    msg_renovacao: str | None = None
+    msg_negociacao: str | None = None
+    pais_whatsapp: int = Field(default=55)
+    msg_campanha: str | None = None
+    ligar_websocket: bool = False
+    silenciar_mensagem: bool = False
 
     @field_validator(
         "nome_fantasia",
@@ -94,6 +104,12 @@ class ParameterBase(BaseModel):
         "score_ultimo_erro",
         "whatsapp_ultimo_erro",
         "whatsapp_cobranca_modelo",
+        "usuario_api_whatsapp",
+        "token_api_whatsapp",
+        "sufixo_whatsapp",
+        "msg_renovacao",
+        "msg_negociacao",
+        "msg_campanha",
         mode="before",
     )
     @classmethod
@@ -127,6 +143,7 @@ class ParameterBase(BaseModel):
         "score_pontos_quitacao_em_dia",
         "whatsapp_cobranca_dias_antes",
         "whatsapp_cobranca_dias_depois",
+        "pais_whatsapp",
         mode="before",
     )
     @classmethod
@@ -134,6 +151,16 @@ class ParameterBase(BaseModel):
         if value in (None, ""):
             return None
         return int(value)
+
+    @field_validator("regra_nono_dig_whats", mode="before")
+    @classmethod
+    def normalize_list_fields(cls, value: object) -> list[str]:
+        if value in (None, ""):
+            return []
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+        normalized = _strip_to_none(value)
+        return [normalized] if normalized else []
 
 
 class ParameterUpdate(ParameterBase):

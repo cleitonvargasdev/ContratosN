@@ -40,6 +40,10 @@ class ParameterService:
             whatsapp_agendamentos=[],
             whatsapp_cobranca_dias_antes=1,
             whatsapp_cobranca_dias_depois=1,
+            regra_nono_dig_whats=[],
+            pais_whatsapp=55,
+            ligar_websocket=False,
+            silenciar_mensagem=False,
             whatsapp_cobranca_modelo=(
                 "Olá, {cliente_nome}. Identificamos parcelas próximas do vencimento ou em atraso. "
                 "Entre em contato para regularização."

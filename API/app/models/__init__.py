@@ -1,4 +1,5 @@
 from app.models.access_control import Profile, ProfilePermission, UserApiKey
+from app.models.api_config import ApiConfig
 from app.models.accounts_receivable import ContaReceber
 from app.models.chat import ChatMessage, ChatThread, ChatThreadPreference
 from app.models.client import Cliente
@@ -22,6 +23,7 @@ __all__ = [
 	"Profile",
 	"ProfilePermission",
 	"UserApiKey",
+	"ApiConfig",
 	"ChatThread",
 	"ChatThreadPreference",
 	"ChatMessage",

@@ -13,6 +13,7 @@ export interface Client {
   celular01: string | null
   celular02: string | null
   flag_whatsapp: boolean
+  nao_enviar_whatsapp: boolean
   email: string | null
   limite_credito: number | null
   debito_atual: number | null
@@ -70,6 +71,7 @@ export interface ClientInput {
   celular01: string | null
   celular02: string | null
   flag_whatsapp: boolean
+  nao_enviar_whatsapp: boolean
   email: string | null
   limite_credito: number | null
   debito_atual: number | null

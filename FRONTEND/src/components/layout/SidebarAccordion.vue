@@ -180,7 +180,8 @@ const baseSections: SidebarSection[] = [
     links: [
       { label: 'Usuários', to: '/usuarios', resource: 'usuarios', action: 'read', icon: 'users' },
       { label: 'Perfil de usuários', to: '/perfis', resource: 'perfis', action: 'read', icon: 'contacts' },
-      { label: 'Contas WhatsApp', to: '/modulos/cadastros/contas-whatsapp?titulo=Contas%20WhatsApp&grupo=Cadastros', icon: 'whatsapp' },
+      { label: 'Contas WhatsApp', to: '/contas-whatsapp', icon: 'whatsapp' },
+      { label: 'APIs', to: '/apis', resource: 'apis', action: 'read', icon: 'sliders' },
       { label: 'Contas Bancárias', to: '/modulos/cadastros/contas-bancarias?titulo=Contas%20Banc%C3%A1rias&grupo=Cadastros', icon: 'bank' },
       { label: 'Plano de contas', to: '/modulos/cadastros/plano-de-contas?titulo=Plano%20de%20contas&grupo=Cadastros', icon: 'ledger' },
       { label: 'Planos de Pagamento', to: '/planos-pagamentos', resource: 'planos_pagamentos', action: 'read', icon: 'card' },
@@ -239,7 +240,7 @@ const opened = reactive(new Set<string>())
 
 watch(
   () => props.collapsed,
-  (collapsed) => {
+  () => {
     opened.clear()
     collapsedSection.value = null
   },

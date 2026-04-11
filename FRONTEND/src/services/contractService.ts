@@ -112,3 +112,9 @@ export async function listInstallmentReceipts(installmentId: number): Promise<Co
 export async function deleteReceiptPayment(receiptId: number): Promise<ContractInstallment> {
   return apiFetch<ContractInstallment>(`/contratos/pagamentos/${receiptId}`, { method: 'DELETE' })
 }
+
+export async function sendInstallmentWhatsAppMessage(installmentId: number): Promise<{ success: boolean; message: string; chatid: string; installment_id: number }> {
+  return apiFetch<{ success: boolean; message: string; chatid: string; installment_id: number }>(`/contratos/parcelas/${installmentId}/whatsapp`, {
+    method: 'POST',
+  })
+}

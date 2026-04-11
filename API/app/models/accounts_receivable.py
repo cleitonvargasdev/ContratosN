@@ -26,3 +26,6 @@ class ContaReceber(Base):
     dias_atrasado: Mapped[int | None] = mapped_column(Integer, nullable=True)
     desconto: Mapped[float | None] = mapped_column(Float, nullable=True)
     prorrogada: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    msg_whatsapp: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    dt_hora_envio: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    tipo_envio: Mapped[int | None] = mapped_column(Integer, nullable=True)
