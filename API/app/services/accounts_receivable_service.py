@@ -72,7 +72,7 @@ class AccountsReceivableService:
         provider_result = await self.whatsapp_service.send_text_message(phone_number, text)
         return {
             "success": bool(provider_result.get("success")),
-            "message": str(provider_result.get("message") or "Mensagem enviada com sucesso."),
+            "message": "Mensagem enviada com sucesso.",
             "chatid": str(provider_result.get("chatid") or ""),
             "installment_id": installment_id,
         }

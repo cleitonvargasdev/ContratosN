@@ -26,9 +26,12 @@ class Settings(BaseSettings):
     api_key_header_name: str = Field(default="X-API-Key", alias="API_KEY_HEADER_NAME")
     cepaberto_token: str | None = Field(default=None, alias="CEPABERTO_TOKEN")
     quepasa_apiwpp_url: str = Field(default="https://apiwpp.vstec.net", alias="QUEPASA_APIWPP_URL")
+    quepasa_middleware_url: str = Field(default="http://middleware.vstec.net", alias="QUEPASA_MIDDLEWARE_URL")
     quepasa_user: str | None = Field(default=None, alias="QUEPASA_USER")
     quepasa_token: str = Field(default="CONTRATOS", alias="QUEPASA_TOKEN")
+    quepasa_health_password: str = Field(alias="QUEPASA_HEALTH_PASSWORD")
     quepasa_timeout_seconds: float = Field(default=15.0, alias="QUEPASA_TIMEOUT_SECONDS")
+    secret_encryption_key: str | None = Field(default=None, alias="SECRET_ENCRYPTION_KEY")
 
     model_config = SettingsConfigDict(env_file=str(ENV_FILE), env_file_encoding="utf-8", extra="ignore")
 

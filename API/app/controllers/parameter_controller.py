@@ -19,6 +19,11 @@ async def get_parameters(service: ParameterService = Depends(get_parameter_servi
     return ParameterRead.model_validate(parameter)
 
 
+@router.get("/whatsapp-apis", response_model=list[str], summary="Listar APIs disponiveis para WhatsApp")
+async def list_whatsapp_api_names(service: ParameterService = Depends(get_parameter_service)) -> list[str]:
+    return await service.list_whatsapp_api_names()
+
+
 @router.put("/", response_model=ParameterRead, summary="Salvar parametros da empresa")
 async def update_parameters(
     payload: ParameterUpdate,

@@ -27,6 +27,7 @@ const confirmCancelClasses = {
 }
 
 const CASH_REGISTER_SOUND_PATH = '/sounds/cash.mp3'
+const SMS_SOUND_PATH = '/sounds/SMS.mp3'
 
 export async function confirmDeleteAlert(): Promise<boolean> {
   const result = await Swal.fire({
@@ -194,23 +195,31 @@ export async function chatMessageToast(senderName: string, message: string): Pro
   })
 }
 
+export function playSmsNotificationSound(): void {
+  playAudioWithFallback(SMS_SOUND_PATH, playSynthSmsNotificationSound)
+}
+
 export function playCashRegisterSound(): void {
+  playAudioWithFallback(CASH_REGISTER_SOUND_PATH, playSynthCashRegisterSound)
+}
+
+function playAudioWithFallback(audioPath: string, fallback: () => void): void {
   if (typeof window === 'undefined') {
     return
   }
 
-  const audio = new Audio(CASH_REGISTER_SOUND_PATH)
+  const audio = new Audio(audioPath)
   audio.preload = 'auto'
 
   const playPromise = audio.play()
   if (playPromise) {
     void playPromise.catch(() => {
-      playSynthCashRegisterSound()
+      fallback()
     })
     return
   }
 
-  playSynthCashRegisterSound()
+  fallback()
 }
 
 function playSynthCashRegisterSound(): void {
@@ -276,6 +285,47 @@ function playSynthCashRegisterSound(): void {
   window.setTimeout(() => {
     void audioContext.close().catch(() => undefined)
   }, 700)
+}
+
+function playSynthSmsNotificationSound(): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+  if (!AudioContextCtor) {
+    return
+  }
+
+  const audioContext = new AudioContextCtor()
+  const startTime = audioContext.currentTime + 0.01
+  const masterGain = audioContext.createGain()
+  masterGain.gain.value = 0.22
+  masterGain.connect(audioContext.destination)
+
+  const playTone = (frequency: number, beginAt: number, duration: number) => {
+    const oscillator = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+
+    oscillator.type = 'triangle'
+    oscillator.frequency.setValueAtTime(frequency, beginAt)
+
+    gain.gain.setValueAtTime(0.0001, beginAt)
+    gain.gain.exponentialRampToValueAtTime(0.12, beginAt + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.0001, beginAt + duration)
+
+    oscillator.connect(gain)
+    gain.connect(masterGain)
+    oscillator.start(beginAt)
+    oscillator.stop(beginAt + duration + 0.02)
+  }
+
+  playTone(1318, startTime, 0.12)
+  playTone(1567, startTime + 0.11, 0.16)
+
+  window.setTimeout(() => {
+    void audioContext.close().catch(() => undefined)
+  }, 500)
 }
 
 function parseDecimalInput(value: string | undefined): number | null {

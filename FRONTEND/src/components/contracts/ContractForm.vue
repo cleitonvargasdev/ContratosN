@@ -323,7 +323,7 @@
                     <td>
                       <button
                         class="icon-action icon-action--message"
-                        :disabled="!canSendCurrentClientWhatsApp || installmentsSaving"
+                        :disabled="row.isPaid || !canSendCurrentClientWhatsApp || installmentsSaving"
                         type="button"
                         title="Enviar mensagem no WhatsApp"
                         aria-label="Enviar mensagem no WhatsApp"

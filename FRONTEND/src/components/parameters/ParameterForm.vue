@@ -28,8 +28,50 @@
           <label class="field-group"><span>CNPJ</span><input v-model="form.cnpj" class="field" type="text" @blur="formatCnpj" /></label>
           <label class="field-group"><span>Responsável</span><input v-model="form.responsavel" class="field" type="text" /></label>
           <label class="field-group field-group--span-2"><span>E-mail</span><input v-model="form.e_mail" class="field" type="email" /></label>
-          <label class="field-group"><span>Telefone 1</span><input v-model="form.telefone1" class="field" type="text" @blur="formatPhoneField('telefone1')" /></label>
-          <label class="field-group"><span>Telefone 2</span><input v-model="form.telefone2" class="field" type="text" @blur="formatPhoneField('telefone2')" /></label>
+          <label class="field-group">
+            <span>Telefone 1</span>
+            <div class="phone-field-row">
+              <button
+                class="phone-flag-button"
+                :class="form.flag_whatsapp_telefone1 ? 'phone-flag-button--active' : ''"
+                :title="form.flag_whatsapp_telefone1 ? 'WhatsApp ativo no Telefone 1' : 'Marcar Telefone 1 como WhatsApp'"
+                type="button"
+                @click="form.flag_whatsapp_telefone1 = !form.flag_whatsapp_telefone1"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="currentColor" d="M12.04 2C6.58 2 2.15 6.35 2.15 11.72c0 1.9.56 3.75 1.62 5.34L2 22l5.12-1.66a10.06 10.06 0 0 0 4.92 1.28h.01c5.46 0 9.89-4.36 9.89-9.73S17.5 2 12.04 2Zm5.76 13.77c-.24.67-1.41 1.28-1.95 1.36-.5.08-1.14.11-1.84-.11-.43-.14-.99-.32-1.7-.62-2.98-1.27-4.93-4.24-5.08-4.44-.15-.2-1.21-1.58-1.21-3.02 0-1.44.76-2.14 1.03-2.43.27-.29.59-.36.79-.36.2 0 .4 0 .58.01.18.01.42-.07.66.51.24.58.81 1.99.88 2.13.07.15.12.32.02.51-.1.2-.15.32-.29.5-.15.17-.31.39-.45.52-.15.14-.31.29-.13.56.18.27.79 1.29 1.7 2.09 1.17 1.04 2.16 1.36 2.47 1.51.31.15.49.13.67-.08.18-.2.78-.89.99-1.2.21-.31.42-.26.71-.15.29.1 1.85.86 2.17 1.01.32.16.53.23.61.36.08.13.08.74-.16 1.41Z" />
+                </svg>
+              </button>
+              <input v-model="form.telefone1" class="field" type="text" @blur="formatPhoneField('telefone1')" />
+            </div>
+          </label>
+          <label class="field-group">
+            <span>Telefone 2</span>
+            <div class="phone-field-row">
+              <button
+                class="phone-flag-button"
+                :class="form.flag_whatsapp_telefone2 ? 'phone-flag-button--active' : ''"
+                :title="form.flag_whatsapp_telefone2 ? 'WhatsApp ativo no Telefone 2' : 'Marcar Telefone 2 como WhatsApp'"
+                type="button"
+                @click="form.flag_whatsapp_telefone2 = !form.flag_whatsapp_telefone2"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="currentColor" d="M12.04 2C6.58 2 2.15 6.35 2.15 11.72c0 1.9.56 3.75 1.62 5.34L2 22l5.12-1.66a10.06 10.06 0 0 0 4.92 1.28h.01c5.46 0 9.89-4.36 9.89-9.73S17.5 2 12.04 2Zm5.76 13.77c-.24.67-1.41 1.28-1.95 1.36-.5.08-1.14.11-1.84-.11-.43-.14-.99-.32-1.7-.62-2.98-1.27-4.93-4.24-5.08-4.44-.15-.2-1.21-1.58-1.21-3.02 0-1.44.76-2.14 1.03-2.43.27-.29.59-.36.79-.36.2 0 .4 0 .58.01.18.01.42-.07.66.51.24.58.81 1.99.88 2.13.07.15.12.32.02.51-.1.2-.15.32-.29.5-.15.17-.31.39-.45.52-.15.14-.31.29-.13.56.18.27.79 1.29 1.7 2.09 1.17 1.04 2.16 1.36 2.47 1.51.31.15.49.13.67-.08.18-.2.78-.89.99-1.2.21-.31.42-.26.71-.15.29.1 1.85.86 2.17 1.01.32.16.53.23.61.36.08.13.08.74-.16 1.41Z" />
+                </svg>
+              </button>
+              <input v-model="form.telefone2" class="field" type="text" @blur="formatPhoneField('telefone2')" />
+            </div>
+          </label>
+          <label class="field-group field-group--span-2">
+            <span>Api WhatsApp MSG</span>
+            <div class="field-inline field-inline--popup">
+              <select v-model="form.api_whatsapp" class="field" :disabled="apiOptionsLoading">
+                <option value="">Selecione</option>
+                <option v-for="option in apiWhatsappOptions" :key="option" :value="option">{{ option }}</option>
+              </select>
+              <button class="secondary-button" :disabled="saving" type="button" @click="openWhatsappModal">Configurar WhatsApp</button>
+            </div>
+          </label>
           <label class="field-group">
             <span>CEP</span>
             <div class="field-inline">
@@ -198,6 +240,61 @@
       </div>
     </Teleport>
 
+    <Teleport to="body">
+      <div v-if="whatsappModal.open" class="modal-backdrop" @click.self="closeWhatsappModal">
+        <section class="modal-card modal-card--whatsapp">
+          <header class="panel__header panel__header--stacked">
+            <div>
+              <p class="eyebrow">Configuração da integração</p>
+              <h3 class="panel__title">Parâmetros do WhatsApp</h3>
+            </div>
+          </header>
+          <div class="modal-card__body modal-card__body--whatsapp">
+            <div class="modal-form modal-form--whatsapp">
+              <label class="field-group"><span>Usuário da API</span><input v-model="form.usuario_api_whatsapp" class="field" type="text" /></label>
+              <label class="field-group">
+                <span>Token da API</span>
+                <div class="field-inline field-inline--token-generator">
+                  <input v-model="form.token_api_whatsapp" class="field" type="text" />
+                  <button class="token-generator-button" title="Gerar" aria-label="Gerar" type="button" @click="generateWhatsappToken">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path fill="currentColor" d="M14.5 3a5.5 5.5 0 0 0-5.45 4.75H4.75a2.75 2.75 0 1 0 0 5.5h.8a4 4 0 1 0 7.9 0h1.8a2.75 2.75 0 1 0 0-5.5h-.8A5.5 5.5 0 0 0 14.5 3Zm0 1.5a4 4 0 0 1 3.96 3.45.75.75 0 0 1-.74.8h-3.97a.75.75 0 0 0-.75.75v3.75a2.5 2.5 0 1 1-5 0V9.5a.75.75 0 0 0-.75-.75H4.75a1.25 1.25 0 1 1 0-2.5h4.97a.75.75 0 0 0 .74-.8A4 4 0 0 1 14.5 4.5Zm.75 5.75h3a1.25 1.25 0 1 1 0 2.5h-3v-2.5Z" />
+                    </svg>
+                  </button>
+                </div>
+              </label>
+              <label class="field-group"><span>Sufixo</span><input v-model="form.sufixo_whatsapp" class="field" type="text" /></label>
+              <label class="field-group"><span>País</span><input v-model.number="form.pais_whatsapp" class="field" min="1" type="number" /></label>
+              <label class="field-group field-group--span-2"><span>Mensagem renovação</span><textarea v-model="form.msg_renovacao" class="field parameters-form__textarea"></textarea></label>
+              <label class="field-group field-group--span-2"><span>Mensagem negociação</span><textarea v-model="form.msg_negociacao" class="field parameters-form__textarea"></textarea></label>
+              <label class="field-group field-group--span-2"><span>Mensagem campanha</span><textarea v-model="form.msg_campanha" class="field parameters-form__textarea"></textarea></label>
+              <label class="field-group field-group--span-2">
+                <span>Regra nono dígito</span>
+                <textarea v-model="whatsappModal.regraNonoDigito" class="field parameters-form__textarea parameters-form__textarea--code" placeholder='[{"campo":"DDD","operador":"between","valor":[11,29]}]'></textarea>
+              </label>
+              <div class="field-group field-group--span-2 whatsapp-modal__switches">
+                <label class="status-switch" :class="form.ligar_websocket ? 'status-switch--on' : 'status-switch--off'">
+                  <input v-model="form.ligar_websocket" class="status-switch__input" type="checkbox" />
+                  <span class="status-switch__track"><span class="status-switch__thumb"></span></span>
+                  <span class="status-switch__label">Ligar websocket</span>
+                </label>
+                <label class="status-switch" :class="form.silenciar_mensagem ? 'status-switch--on' : 'status-switch--off'">
+                  <input v-model="form.silenciar_mensagem" class="status-switch__input" type="checkbox" />
+                  <span class="status-switch__track"><span class="status-switch__thumb"></span></span>
+                  <span class="status-switch__label">Silenciar mensagem</span>
+                </label>
+              </div>
+              <p v-if="whatsappModal.error" class="feedback feedback--error">{{ whatsappModal.error }}</p>
+            </div>
+          </div>
+          <footer class="form-actions modal-form__actions modal-form__actions--whatsapp">
+            <button class="ghost-button" type="button" @click="closeWhatsappModal">Cancelar</button>
+            <button class="primary-button" type="button" @click="saveWhatsappModal">Salvar</button>
+          </footer>
+        </section>
+      </div>
+    </Teleport>
+
     <p v-if="success" class="feedback feedback--success">{{ success }}</p>
     <p v-if="error" class="feedback feedback--error">{{ error }}</p>
   </section>
@@ -207,8 +304,9 @@
 import { onMounted, reactive, ref, watch } from 'vue'
 
 import type { BairroOption, CidadeOption, UFOption } from '@/models/location'
-import type { Parameter, ParameterInput, ParameterScheduleEntry } from '@/models/parameter'
+import type { Parameter, ParameterInput, ParameterNinthDigitRule, ParameterScheduleEntry } from '@/models/parameter'
 import { listBairrosByCidade, listCitiesByUf, listUfs, lookupAddressByCep, lookupCepByAddress } from '@/services/locationService'
+import { listWhatsappApiNames } from '@/services/parameterService'
 
 const props = defineProps<{
   initialParameters?: Parameter | null
@@ -228,9 +326,11 @@ const emit = defineEmits<{
 const ufs = ref<UFOption[]>([])
 const cities = ref<CidadeOption[]>([])
 const bairros = ref<BairroOption[]>([])
+const apiWhatsappOptions = ref<string[]>([])
 const citiesLoading = ref(false)
 const bairrosLoading = ref(false)
 const lookupLoading = ref(false)
+const apiOptionsLoading = ref(false)
 const lookupMessage = ref('')
 let syncingForm = false
 const weekdayOptions = [
@@ -243,6 +343,7 @@ const weekdayOptions = [
   { value: 6, label: 'Dom' },
 ] as const
 const scheduleModal = reactive({ open: false, target: 'score' as 'score' | 'whatsapp', dias_semana: [] as number[], horario: '09:00', error: '' })
+const whatsappModal = reactive({ open: false, regraNonoDigito: '[]', error: '' })
 
 const form = reactive({
   nome_fantasia: '',
@@ -255,7 +356,9 @@ const form = reactive({
   uf: '',
   cidade_id: null as number | null,
   telefone1: '',
+  flag_whatsapp_telefone1: false,
   telefone2: '',
+  flag_whatsapp_telefone2: false,
   e_mail: '',
   responsavel: '',
   complemento: '',
@@ -280,9 +383,10 @@ const form = reactive({
   whatsapp_cobranca_dias_antes: 1,
   whatsapp_cobranca_dias_depois: 1,
   whatsapp_cobranca_modelo: '',
+  api_whatsapp: '',
   usuario_api_whatsapp: '',
   token_api_whatsapp: '',
-  regra_nono_dig_whats: [] as string[],
+  regra_nono_dig_whats: [] as ParameterNinthDigitRule[],
   sufixo_whatsapp: '',
   msg_renovacao: '',
   msg_negociacao: '',
@@ -294,6 +398,7 @@ const form = reactive({
 
 onMounted(() => {
   void loadUfsOptions()
+  void loadApiWhatsappOptions()
 })
 
 watch(
@@ -343,6 +448,10 @@ watch(
 
 async function submitForm() {
   await tryResolveCepByAddress()
+  if (!applyWhatsappModalRules()) {
+    whatsappModal.open = true
+    return
+  }
   emit('submit', buildPayload())
 }
 
@@ -351,6 +460,19 @@ async function loadUfsOptions() {
     return
   }
   ufs.value = await listUfs()
+}
+
+async function loadApiWhatsappOptions() {
+  apiOptionsLoading.value = true
+  try {
+    const options = await listWhatsappApiNames()
+    apiWhatsappOptions.value = options
+    if (form.api_whatsapp && !options.includes(form.api_whatsapp)) {
+      apiWhatsappOptions.value = [...options, form.api_whatsapp].sort((left, right) => left.localeCompare(right))
+    }
+  } finally {
+    apiOptionsLoading.value = false
+  }
 }
 
 async function loadCitiesOptions(uf: string) {
@@ -389,7 +511,9 @@ async function syncParametersIntoForm(parameters?: Parameter | null) {
   form.uf = parameters.uf ?? ''
   form.cidade_id = null
   form.telefone1 = formatPhoneValue(parameters.telefone1)
+  form.flag_whatsapp_telefone1 = parameters.flag_whatsapp_telefone1 ?? false
   form.telefone2 = formatPhoneValue(parameters.telefone2)
+  form.flag_whatsapp_telefone2 = parameters.flag_whatsapp_telefone2 ?? false
   form.e_mail = parameters.e_mail ?? ''
   form.responsavel = parameters.responsavel ?? ''
   form.complemento = parameters.complemento ?? ''
@@ -414,9 +538,11 @@ async function syncParametersIntoForm(parameters?: Parameter | null) {
   form.whatsapp_cobranca_dias_antes = parameters.whatsapp_cobranca_dias_antes
   form.whatsapp_cobranca_dias_depois = parameters.whatsapp_cobranca_dias_depois
   form.whatsapp_cobranca_modelo = parameters.whatsapp_cobranca_modelo ?? ''
+  form.api_whatsapp = parameters.api_whatsapp ?? ''
   form.usuario_api_whatsapp = parameters.usuario_api_whatsapp ?? ''
   form.token_api_whatsapp = parameters.token_api_whatsapp ?? ''
   form.regra_nono_dig_whats = [...parameters.regra_nono_dig_whats]
+  whatsappModal.regraNonoDigito = formatNinthDigitRules(parameters.regra_nono_dig_whats)
   form.sufixo_whatsapp = parameters.sufixo_whatsapp ?? ''
   form.msg_renovacao = parameters.msg_renovacao ?? ''
   form.msg_negociacao = parameters.msg_negociacao ?? ''
@@ -567,7 +693,9 @@ function buildPayload(): ParameterInput {
     uf: emptyToNull(form.uf),
     cidade_id: form.cidade_id,
     telefone1: emptyToNull(cleanDigits(form.telefone1)),
+    flag_whatsapp_telefone1: form.flag_whatsapp_telefone1,
     telefone2: emptyToNull(cleanDigits(form.telefone2)),
+    flag_whatsapp_telefone2: form.flag_whatsapp_telefone2,
     e_mail: emptyToNull(form.e_mail),
     responsavel: emptyToNull(form.responsavel),
     complemento: emptyToNull(form.complemento),
@@ -584,6 +712,7 @@ function buildPayload(): ParameterInput {
     whatsapp_cobranca_dias_antes: Number(form.whatsapp_cobranca_dias_antes || 0),
     whatsapp_cobranca_dias_depois: Number(form.whatsapp_cobranca_dias_depois || 0),
     whatsapp_cobranca_modelo: emptyToNull(form.whatsapp_cobranca_modelo),
+    api_whatsapp: emptyToNull(form.api_whatsapp),
     usuario_api_whatsapp: emptyToNull(form.usuario_api_whatsapp),
     token_api_whatsapp: emptyToNull(form.token_api_whatsapp),
     regra_nono_dig_whats: [...form.regra_nono_dig_whats],
@@ -608,6 +737,36 @@ function openScheduleModal(target: 'score' | 'whatsapp') {
 function closeScheduleModal() {
   scheduleModal.open = false
   scheduleModal.error = ''
+}
+
+function openWhatsappModal() {
+  whatsappModal.open = true
+  whatsappModal.regraNonoDigito = formatNinthDigitRules(form.regra_nono_dig_whats)
+  whatsappModal.error = ''
+}
+
+function closeWhatsappModal() {
+  whatsappModal.open = false
+  whatsappModal.error = ''
+}
+
+function saveWhatsappModal() {
+  if (!applyWhatsappModalRules()) {
+    return
+  }
+  emit('submit', buildPayload())
+  closeWhatsappModal()
+}
+
+function applyWhatsappModalRules() {
+  try {
+    form.regra_nono_dig_whats = parseNinthDigitRules(whatsappModal.regraNonoDigito)
+    whatsappModal.error = ''
+    return true
+  } catch (error) {
+    whatsappModal.error = error instanceof Error ? error.message : 'Regra do nono dígito inválida.'
+    return false
+  }
 }
 
 function toggleScheduleWeekday(day: number) {
@@ -734,9 +893,153 @@ function formatPhoneField(field: 'telefone1' | 'telefone2') {
 function formatCnpj() {
   form.cnpj = formatCnpjValue(form.cnpj)
 }
+
+function formatNinthDigitRules(value: ParameterNinthDigitRule[] | null | undefined) {
+  return JSON.stringify(value ?? [], null, 2)
+}
+
+function parseNinthDigitRules(value: string) {
+  const normalized = value.trim()
+  if (!normalized) {
+    return []
+  }
+  const parsed = JSON.parse(normalized)
+  if (!Array.isArray(parsed)) {
+    throw new Error('A regra do nono dígito deve ser uma lista JSON.')
+  }
+  return parsed.map((item) => {
+    if (!item || typeof item !== 'object') {
+      throw new Error('Cada regra do nono dígito deve ser um objeto JSON.')
+    }
+    const campo = typeof item.campo === 'string' ? item.campo.trim() : ''
+    const operador = typeof item.operador === 'string' ? item.operador.trim() : ''
+    if (!campo || !operador) {
+      throw new Error('Cada regra do nono dígito precisa de campo e operador.')
+    }
+    return { campo, operador, valor: 'valor' in item ? item.valor : null }
+  })
+}
+
+function generateWhatsappToken() {
+  form.token_api_whatsapp = crypto.randomUUID()
+}
 </script>
 
 <style scoped>
+.phone-field-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 0;
+  align-items: stretch;
+}
+
+.phone-field-row .field {
+  min-height: 34px;
+  border-left: 0;
+  border-radius: 0 3px 3px 0;
+}
+
+.phone-flag-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-height: 34px;
+  border: 1px solid rgba(20, 184, 166, 0.22);
+  border-radius: 3px 0 0 3px;
+  background: rgba(226, 232, 240, 0.72);
+  color: rgba(71, 85, 105, 0.9);
+  cursor: pointer;
+}
+
+.phone-flag-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.phone-flag-button--active {
+  background: rgba(22, 163, 74, 0.16);
+  color: #15803d;
+  border-color: rgba(22, 163, 74, 0.32);
+}
+
+.field-inline--popup {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.55rem;
+}
+
+.field-inline--token-generator {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 0;
+  align-items: stretch;
+}
+
+.field-inline--token-generator .field {
+  border-right: 0;
+  border-radius: 3px 0 0 3px;
+}
+
+.token-generator-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-height: 34px;
+  border: 1px solid rgba(249, 115, 22, 0.22);
+  border-radius: 0 3px 3px 0;
+  background: rgba(255, 243, 234, 0.96);
+  color: #c65a11;
+  cursor: pointer;
+}
+
+.token-generator-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.token-generator-button:hover {
+  background: rgba(255, 234, 220, 0.98);
+}
+
+.modal-card--whatsapp {
+  width: min(760px, calc(100vw - 2rem));
+  max-height: min(88vh, 820px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.modal-card__body--whatsapp {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.modal-form--whatsapp {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+}
+
+.modal-form__actions--whatsapp {
+  margin-top: 0.75rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(133, 148, 166, 0.22);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(245, 248, 251, 0.98));
+  justify-content: flex-end;
+}
+
+.whatsapp-modal__switches {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.parameters-form__textarea--code {
+  min-height: 140px;
+  font-family: Consolas, 'Courier New', monospace;
+}
 .settings-card {
   display: grid;
   gap: 1rem;

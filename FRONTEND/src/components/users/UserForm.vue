@@ -73,7 +73,7 @@
 
       <label class="field-group">
         <span>Celular</span>
-        <div class="field-inline field-inline--cellphone">
+        <div class="field-inline field-inline--cellphone field-inline--cellphone-user">
           <label
             class="whatsapp-toggle"
             :class="form.flag_whatsapp ? 'whatsapp-toggle--on' : 'whatsapp-toggle--off'"
@@ -891,5 +891,40 @@ select.field {
   margin: 0;
   text-align: center;
   color: rgba(15, 23, 42, 0.55);
+}
+
+.field-inline--cellphone-user {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 0;
+  align-items: stretch;
+}
+
+.field-inline--cellphone-user .field {
+  min-height: 34px;
+  border-left: 0;
+  border-radius: 0 3px 3px 0;
+}
+
+.field-inline--cellphone-user .whatsapp-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-height: 34px;
+  border-radius: 3px 0 0 3px;
+}
+
+.field-inline--cellphone-user .whatsapp-toggle__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.field-inline--cellphone-user .whatsapp-toggle__icon svg {
+  width: 16px;
+  height: 16px;
 }
 </style>

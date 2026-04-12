@@ -1,4 +1,7 @@
+import json
+from ast import literal_eval
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -48,6 +51,12 @@ class ParameterScheduleEntry(BaseModel):
         return f"{hour:02d}:{minute:02d}"
 
 
+class ParameterNinthDigitRule(BaseModel):
+    campo: str
+    operador: str
+    valor: Any
+
+
 class ParameterBase(BaseModel):
     nome_fantasia: str | None = None
     razao_social: str | None = None
@@ -59,7 +68,9 @@ class ParameterBase(BaseModel):
     uf: str | None = None
     cidade_id: int | None = None
     telefone1: str | None = None
+    flag_whatsapp_telefone1: bool = False
     telefone2: str | None = None
+    flag_whatsapp_telefone2: bool = False
     e_mail: str | None = None
     responsavel: str | None = None
     complemento: str | None = None
@@ -84,9 +95,10 @@ class ParameterBase(BaseModel):
     whatsapp_cobranca_dias_antes: int = Field(default=1)
     whatsapp_cobranca_dias_depois: int = Field(default=1)
     whatsapp_cobranca_modelo: str | None = None
+    api_whatsapp: str | None = "quepasa"
     usuario_api_whatsapp: str | None = None
     token_api_whatsapp: str | None = None
-    regra_nono_dig_whats: list[str] = Field(default_factory=list)
+    regra_nono_dig_whats: list[ParameterNinthDigitRule] = Field(default_factory=list)
     sufixo_whatsapp: str | None = None
     msg_renovacao: str | None = None
     msg_negociacao: str | None = None
@@ -104,6 +116,7 @@ class ParameterBase(BaseModel):
         "score_ultimo_erro",
         "whatsapp_ultimo_erro",
         "whatsapp_cobranca_modelo",
+        "api_whatsapp",
         "usuario_api_whatsapp",
         "token_api_whatsapp",
         "sufixo_whatsapp",
@@ -154,13 +167,38 @@ class ParameterBase(BaseModel):
 
     @field_validator("regra_nono_dig_whats", mode="before")
     @classmethod
-    def normalize_list_fields(cls, value: object) -> list[str]:
+    def normalize_ninth_digit_rules(cls, value: object) -> list[dict[str, Any]]:
         if value in (None, ""):
             return []
+        if isinstance(value, dict):
+            value = [value]
         if isinstance(value, list):
-            return [str(item).strip() for item in value if str(item).strip()]
+            normalized_rules: list[dict[str, Any]] = []
+            for item in value:
+                if isinstance(item, dict):
+                    field_name = _strip_to_none(item.get("campo"))
+                    operator = _strip_to_none(item.get("operador"))
+                    if field_name and operator:
+                        normalized_rules.append(
+                            {
+                                "campo": field_name,
+                                "operador": operator,
+                                "valor": item.get("valor"),
+                            }
+                        )
+            return normalized_rules
         normalized = _strip_to_none(value)
-        return [normalized] if normalized else []
+        if normalized is None:
+            return []
+        if normalized.startswith("{"):
+            for parser in (json.loads, literal_eval):
+                try:
+                    parsed = parser(normalized)
+                except (ValueError, SyntaxError):
+                    continue
+                if isinstance(parsed, dict):
+                    return cls.normalize_ninth_digit_rules(parsed)
+        return [{"campo": "DDD", "operador": "=", "valor": normalized}]
 
 
 class ParameterUpdate(ParameterBase):

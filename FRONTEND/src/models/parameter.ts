@@ -3,6 +3,12 @@ export interface ParameterScheduleEntry {
   horario: string
 }
 
+export interface ParameterNinthDigitRule {
+  campo: string
+  operador: string
+  valor: unknown
+}
+
 export interface Parameter {
   parametros_id: number
   nome_fantasia: string | null
@@ -15,7 +21,9 @@ export interface Parameter {
   uf: string | null
   cidade_id: number | null
   telefone1: string | null
+  flag_whatsapp_telefone1: boolean
   telefone2: string | null
+  flag_whatsapp_telefone2: boolean
   e_mail: string | null
   responsavel: string | null
   complemento: string | null
@@ -40,9 +48,10 @@ export interface Parameter {
   whatsapp_cobranca_dias_antes: number
   whatsapp_cobranca_dias_depois: number
   whatsapp_cobranca_modelo: string | null
+  api_whatsapp: string | null
   usuario_api_whatsapp: string | null
   token_api_whatsapp: string | null
-  regra_nono_dig_whats: string[]
+  regra_nono_dig_whats: ParameterNinthDigitRule[]
   sufixo_whatsapp: string | null
   msg_renovacao: string | null
   msg_negociacao: string | null
@@ -63,7 +72,9 @@ export interface ParameterInput {
   uf: string | null
   cidade_id: number | null
   telefone1: string | null
+  flag_whatsapp_telefone1: boolean
   telefone2: string | null
+  flag_whatsapp_telefone2: boolean
   e_mail: string | null
   responsavel: string | null
   complemento: string | null
@@ -80,9 +91,10 @@ export interface ParameterInput {
   whatsapp_cobranca_dias_antes: number
   whatsapp_cobranca_dias_depois: number
   whatsapp_cobranca_modelo: string | null
+  api_whatsapp: string | null
   usuario_api_whatsapp: string | null
   token_api_whatsapp: string | null
-  regra_nono_dig_whats: string[]
+  regra_nono_dig_whats: ParameterNinthDigitRule[]
   sufixo_whatsapp: string | null
   msg_renovacao: string | null
   msg_negociacao: string | null

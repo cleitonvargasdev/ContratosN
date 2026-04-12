@@ -55,7 +55,7 @@
 
             <label class="field-group">
               <span>Celular principal</span>
-              <div class="field-inline field-inline--cellphone">
+              <div class="field-inline field-inline--cellphone field-inline--cellphone-primary">
                 <label class="whatsapp-toggle" :class="form.flag_whatsapp ? 'whatsapp-toggle--on' : 'whatsapp-toggle--off'" title="WhatsApp" aria-label="WhatsApp">
                   <input v-model="form.flag_whatsapp" class="whatsapp-toggle__input" type="checkbox" />
                   <span class="whatsapp-toggle__icon" aria-hidden="true">
@@ -65,6 +65,10 @@
                   </span>
                 </label>
                 <input v-model="form.celular01" class="field" type="text" @blur="formatPhoneField('celular01')" />
+                <label class="cellphone-checkbox" title="Envio automático de Mensagem" aria-label="Envio automático de Mensagem">
+                  <input v-model="form.nao_enviar_whatsapp" class="cellphone-checkbox__input" type="checkbox" />
+                  <span class="cellphone-checkbox__box" aria-hidden="true"></span>
+                </label>
               </div>
             </label>
 
@@ -72,14 +76,6 @@
               <span>Celular secundário</span>
               <input v-model="form.celular02" class="field" type="text" @blur="formatPhoneField('celular02')" />
             </label>
-
-            <div class="field-group field-group--toggle">
-              <span>WhatsApp</span>
-              <label class="toggle-row">
-                <input v-model="form.nao_enviar_whatsapp" type="checkbox" />
-                <span>Não enviar WhatsApp</span>
-              </label>
-            </div>
 
             <label class="field-group">
               <span>CEP</span>
@@ -202,7 +198,7 @@
 
             <label class="field-group">
               <span>Celular</span>
-              <div class="field-inline field-inline--cellphone">
+              <div class="field-inline field-inline--cellphone field-inline--cellphone-responsavel">
                 <label class="whatsapp-toggle" :class="form.flag_whatsapp_responsavel ? 'whatsapp-toggle--on' : 'whatsapp-toggle--off'" title="WhatsApp" aria-label="WhatsApp">
                   <input v-model="form.flag_whatsapp_responsavel" class="whatsapp-toggle__input" type="checkbox" />
                   <span class="whatsapp-toggle__icon" aria-hidden="true">
@@ -1196,6 +1192,111 @@ function formatPercentField() {
 .field-inline--map {
   align-items: stretch;
   gap: 0;
+}
+
+.field-inline--cellphone-primary {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  gap: 0;
+  align-items: stretch;
+}
+
+.field-inline--cellphone-primary .field {
+  min-height: 34px;
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
+}
+
+.field-inline--cellphone-primary .whatsapp-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-height: 34px;
+  border-radius: 3px 0 0 3px;
+}
+
+.field-inline--cellphone-primary .whatsapp-toggle__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.field-inline--cellphone-primary .whatsapp-toggle__icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cellphone-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-height: 34px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-left: 0;
+  border-radius: 0 3px 3px 0;
+  background: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+}
+
+.field-inline--cellphone-responsavel {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 0;
+  align-items: stretch;
+}
+
+.field-inline--cellphone-responsavel .field {
+  min-height: 34px;
+  border-radius: 0 3px 3px 0;
+  border-left: 0;
+}
+
+.field-inline--cellphone-responsavel .whatsapp-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-height: 34px;
+  border-radius: 3px 0 0 3px;
+}
+
+.field-inline--cellphone-responsavel .whatsapp-toggle__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.field-inline--cellphone-responsavel .whatsapp-toggle__icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cellphone-checkbox__input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cellphone-checkbox__box {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(100, 116, 139, 0.72);
+  border-radius: 4px;
+  background: #fff;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cellphone-checkbox__input:checked + .cellphone-checkbox__box {
+  border-color: #dc2626;
+  background: linear-gradient(180deg, rgba(254, 226, 226, 0.98), rgba(254, 202, 202, 0.94));
+  box-shadow: inset 0 0 0 4px rgba(220, 38, 38, 0.18);
 }
 
 .field-inline--map .field {

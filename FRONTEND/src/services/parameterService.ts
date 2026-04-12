@@ -5,6 +5,10 @@ export async function getParameters(): Promise<Parameter> {
   return apiFetch<Parameter>('/parametros/')
 }
 
+export async function listWhatsappApiNames(): Promise<string[]> {
+  return apiFetch<string[]>('/parametros/whatsapp-apis')
+}
+
 export async function updateParameters(payload: ParameterInput): Promise<Parameter> {
   return apiFetch<Parameter>('/parametros/', {
     method: 'PUT',

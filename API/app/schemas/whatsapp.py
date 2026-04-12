@@ -6,6 +6,9 @@ class WhatsAppConnectionStatusRead(BaseModel):
     expected_phone: str | None = None
     connected: bool
     connected_phone: str | None = None
+    api_available: bool = False
+    api_status: str | None = None
+    api_message: str | None = None
     provider_status: str | None = None
     verified: bool = False
     message: str | None = None

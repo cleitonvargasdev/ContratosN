@@ -2,80 +2,65 @@
   <section class="panel whatsapp-panel">
     <header class="panel__header whatsapp-panel__header">
       <div>
-        <p class="eyebrow">Integração QuePasa</p>
         <h2 class="panel__title">Conexão com API do WhatsApp</h2>
-        <p class="panel__subtitle">Sessão única CONTRATOS vinculada ao Telefone 1 de Parâmetros.</p>
-      </div>
-
-      <div class="whatsapp-status-badge" :class="statusBadgeClass">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M16.75 13.96c-.25-.13-1.47-.72-1.69-.8-.23-.08-.39-.12-.56.12-.16.25-.64.8-.78.96-.14.17-.29.19-.54.07-.25-.13-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.38-1.72-.15-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.15.16-.25.25-.42.08-.17.04-.31-.02-.43-.06-.13-.56-1.35-.77-1.85-.2-.48-.4-.41-.56-.42h-.47c-.16 0-.42.06-.64.31-.22.25-.84.82-.84 2s.86 2.31.98 2.47c.12.17 1.69 2.58 4.1 3.62.57.25 1.02.4 1.37.51.57.18 1.08.16 1.49.1.45-.07 1.38-.56 1.57-1.11.2-.55.2-1.03.14-1.12-.06-.1-.22-.16-.46-.28ZM12.04 2C6.52 2 2.04 6.47 2.04 12c0 1.95.56 3.77 1.53 5.31L2 22l4.84-1.51A9.94 9.94 0 0 0 12.04 22C17.56 22 22.04 17.53 22.04 12S17.56 2 12.04 2Z"
-            fill="currentColor"
-          />
-        </svg>
-        <span>{{ statusLabel }}</span>
+        <p class="panel__subtitle">Consulta da conexão do Telefone 1 configurado em Parâmetros.</p>
       </div>
     </header>
 
-    <div class="whatsapp-grid">
-      <article class="whatsapp-card whatsapp-card--info">
-        <h3>Conferência da conta</h3>
-        <dl class="whatsapp-summary">
-          <div>
-            <dt>Sessão</dt>
-            <dd>{{ status?.session_key ?? 'CONTRATOS' }}</dd>
-          </div>
-          <div>
-            <dt>Telefone 1</dt>
-            <dd>{{ formattedExpectedPhone }}</dd>
-          </div>
-          <div>
-            <dt>Número conectado</dt>
-            <dd>{{ formattedConnectedPhone }}</dd>
-          </div>
-          <div>
-            <dt>Status do provedor</dt>
-            <dd>{{ status?.provider_status ?? 'Aguardando consulta' }}</dd>
-          </div>
-        </dl>
-
-        <p class="whatsapp-card__message">{{ statusMessage }}</p>
-
-        <div class="whatsapp-card__actions">
-          <button class="primary-button primary-button--success" :disabled="controller.state.connecting" type="button" @click="handleConnect">
-            {{ controller.state.connecting ? 'Gerando QR Code...' : 'Conectar' }}
-          </button>
-          <button class="ghost-button" :disabled="controller.state.loading || controller.state.connecting" type="button" @click="handleRefresh">
-            Atualizar status
-          </button>
-        </div>
-      </article>
-
-      <article class="whatsapp-card whatsapp-card--qr">
-        <div v-if="controller.state.qrCodeDataUrl" class="whatsapp-qr-box">
-          <img class="whatsapp-qr-box__image" :src="controller.state.qrCodeDataUrl" alt="QR Code para conectar o WhatsApp" />
-          <div class="whatsapp-qr-box__meta">
-            <strong>{{ controller.state.countdown }}s</strong>
-            <span>QR Code expira em 15 segundos.</span>
-            <span>Tentativa {{ controller.state.attempts }} de 3.</span>
-          </div>
+    <article class="whatsapp-card whatsapp-card--summary">
+      <div class="whatsapp-account-row">
+        <div class="whatsapp-account-row__label">
+          <span>Telefone 1</span>
+          <strong>{{ formattedExpectedPhone }}</strong>
         </div>
 
-        <div v-else class="whatsapp-empty-state">
-          <div class="whatsapp-empty-state__icon">QR</div>
-          <h3>{{ emptyStateTitle }}</h3>
-          <p>{{ emptyStateMessage }}</p>
+        <div class="whatsapp-connection-indicator" :class="statusBadgeClass">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M16.75 13.96c-.25-.13-1.47-.72-1.69-.8-.23-.08-.39-.12-.56.12-.16.25-.64.8-.78.96-.14.17-.29.19-.54.07-.25-.13-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.38-1.72-.15-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.15.16-.25.25-.42.08-.17.04-.31-.02-.43-.06-.13-.56-1.35-.77-1.85-.2-.48-.4-.41-.56-.42h-.47c-.16 0-.42.06-.64.31-.22.25-.84.82-.84 2s.86 2.31.98 2.47c.12.17 1.69 2.58 4.1 3.62.57.25 1.02.4 1.37.51.57.18 1.08.16 1.49.1.45-.07 1.38-.56 1.57-1.11.2-.55.2-1.03.14-1.12-.06-.1-.22-.16-.46-.28ZM12.04 2C6.52 2 2.04 6.47 2.04 12c0 1.95.56 3.77 1.53 5.31L2 22l4.84-1.51A9.94 9.94 0 0 0 12.04 22C17.56 22 22.04 17.53 22.04 12S17.56 2 12.04 2Z"
+              fill="currentColor"
+            />
+          </svg>
+          <span>{{ statusLabel }}</span>
         </div>
-      </article>
+      </div>
+
+      <dl class="whatsapp-summary">
+        <div>
+          <dt>Status do serviço da API</dt>
+          <dd>{{ serviceStatusLabel }}</dd>
+        </div>
+        <div>
+          <dt>Status do provedor</dt>
+          <dd>{{ providerStatusLabel }}</dd>
+        </div>
+      </dl>
+
+      <p class="whatsapp-card__message">{{ statusMessage }}</p>
+
+      <div class="whatsapp-card__actions">
+        <button class="primary-button primary-button--success" :disabled="Boolean(status?.connected) || controller.state.connecting || controller.state.loading" type="button" @click="handleConnect">
+          {{ controller.state.connecting ? 'Gerando QR Code...' : 'Conectar' }}
+        </button>
+        <button class="ghost-button" :disabled="controller.state.loading || controller.state.connecting" type="button" @click="handleRefresh">
+          Atualizar status
+        </button>
+      </div>
+    </article>
+
+    <div v-if="controller.state.qrCodeDataUrl" class="whatsapp-qr-modal" role="dialog" aria-modal="true" aria-labelledby="whatsapp-qr-title">
+      <div class="whatsapp-qr-modal__backdrop" @click="handleCloseQrPopup"></div>
+      <div class="whatsapp-qr-modal__content">
+        <h3 id="whatsapp-qr-title">Conectar WhatsApp</h3>
+        <img class="whatsapp-qr-box__image" :src="controller.state.qrCodeDataUrl" alt="QR Code para conectar o WhatsApp" />
+        <div class="whatsapp-qr-box__meta">
+          <strong>{{ controller.state.countdown }}s</strong>
+          <span>Escaneie com o Telefone 1.</span>
+          <span>Após 15 segundos o popup fecha e o status é consultado novamente.</span>
+        </div>
+        <button class="ghost-button" type="button" @click="handleCloseQrPopup">Fechar</button>
+      </div>
     </div>
-
-    <section v-if="showConfigurationHint" class="whatsapp-config-hint">
-      <h3>Configuração pendente do QuePasa</h3>
-      <p>O provedor exige um usuário válido no header X-QUEPASA-USER para gerar o QR Code.</p>
-      <p>Defina no backend: QUEPASA_USER=cleitinhojt@gmail.com</p>
-      <p>Depois reinicie a API para recarregar as variáveis de ambiente.</p>
-    </section>
 
     <p v-if="controller.state.error" class="feedback feedback--error">{{ controller.state.error }}</p>
   </section>
@@ -90,38 +75,16 @@ import { errorAlert } from '@/services/alertService'
 const controller = useWhatsAppConnectionController()
 
 const status = computed(() => controller.state.status)
-
 const statusLabel = computed(() => (status.value?.connected ? 'Conectado' : 'Desconectado'))
+const serviceStatusLabel = computed(() => (status.value?.connected ? 'Conectado' : 'Desconectado'))
 const statusBadgeClass = computed(() => (status.value?.connected ? 'whatsapp-status-badge--connected' : 'whatsapp-status-badge--disconnected'))
-const showConfigurationHint = computed(() => isQuePasaUserError(controller.state.error))
-
 const formattedExpectedPhone = computed(() => formatPhone(status.value?.expected_phone ?? null))
-const formattedConnectedPhone = computed(() => formatPhone(status.value?.connected_phone ?? null))
-const statusMessage = computed(() => status.value?.message ?? 'Verifique a conexão e gere um QR Code quando necessário.')
-
-const emptyStateTitle = computed(() => {
-  if (controller.state.exhausted) {
-    return 'QR Code pausado'
-  }
-  if (status.value?.connected) {
-    return 'Conta conectada'
-  }
-  return 'Pronto para conectar'
-})
-
-const emptyStateMessage = computed(() => {
-  if (controller.state.exhausted) {
-    return controller.state.qrMessage || 'O limite de 3 tentativas foi atingido. Gere um novo QR Code manualmente.'
-  }
-  if (status.value?.connected) {
-    return 'A sessão CONTRATOS já está conectada. Nenhum QR Code é necessário neste momento.'
-  }
-  return controller.state.qrMessage || 'Clique em Conectar para gerar o QR Code da sessão CONTRATOS.'
-})
+const providerStatusLabel = computed(() => translateProviderStatus(status.value?.provider_status))
+const statusMessage = computed(() => status.value?.message ?? 'Use Atualizar status para consultar a conexão com a API do WhatsApp.')
 
 onMounted(() => {
   void controller.loadStatus().catch(async () => {
-    if (controller.state.error && !isQuePasaUserError(controller.state.error)) {
+    if (controller.state.error) {
       await errorAlert(controller.state.error)
     }
   })
@@ -135,7 +98,7 @@ async function handleRefresh() {
   try {
     await controller.loadStatus()
   } catch {
-    if (controller.state.error && !isQuePasaUserError(controller.state.error)) {
+    if (controller.state.error) {
       await errorAlert(controller.state.error)
     }
   }
@@ -151,9 +114,8 @@ async function handleConnect() {
   }
 }
 
-function isQuePasaUserError(message: string): boolean {
-  const normalized = message.toLowerCase()
-  return normalized.includes('quepasa_user') || normalized.includes('usuario do quepasa') || normalized.includes('missing user name parameter')
+function handleCloseQrPopup() {
+  controller.closeQrPopup()
 }
 
 function formatPhone(value: string | null): string {
@@ -176,6 +138,26 @@ function formatPhone(value: string | null): string {
   }
   return value
 }
+
+function translateProviderStatus(value: string | null | undefined): string {
+  const normalized = (value ?? '').trim().toLowerCase()
+  if (!normalized) {
+    return 'Aguardando consulta'
+  }
+  if (normalized === 'follow server information') {
+    return 'Seguindo informações do servidor'
+  }
+  if (normalized === 'scan') {
+    return 'Aguardando leitura do QR Code'
+  }
+  if (normalized === 'ready') {
+    return 'Pronto'
+  }
+  if (normalized === 'connected' || normalized === 'online' || normalized === '1') {
+    return 'Conectado'
+  }
+  return value ?? 'Aguardando consulta'
+}
 </script>
 
 <style scoped>
@@ -185,16 +167,8 @@ function formatPhone(value: string | null): string {
 }
 
 .whatsapp-panel__header {
-  align-items: flex-start;
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.whatsapp-grid {
   display: grid;
-  gap: 1.5rem;
-  grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+  gap: 0.45rem;
 }
 
 .whatsapp-card {
@@ -205,10 +179,33 @@ function formatPhone(value: string | null): string {
   padding: 1.5rem;
 }
 
-.whatsapp-card h3 {
-  color: #12372a;
-  font-size: 1.05rem;
-  margin: 0 0 1rem;
+.whatsapp-card--summary {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.whatsapp-account-row {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.whatsapp-account-row__label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.whatsapp-account-row__label span {
+  color: #5b6b63;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.whatsapp-account-row__label strong {
+  color: #10281f;
+  font-size: 1.1rem;
 }
 
 .whatsapp-summary {
@@ -241,17 +238,16 @@ function formatPhone(value: string | null): string {
 .whatsapp-card__message {
   color: #355548;
   line-height: 1.5;
-  margin: 1rem 0 0;
+  margin: 0;
 }
 
 .whatsapp-card__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-  margin-top: 1.5rem;
 }
 
-.whatsapp-status-badge {
+.whatsapp-connection-indicator {
   align-items: center;
   border-radius: 999px;
   display: inline-flex;
@@ -260,7 +256,7 @@ function formatPhone(value: string | null): string {
   padding: 0.8rem 1.1rem;
 }
 
-.whatsapp-status-badge svg {
+.whatsapp-connection-indicator svg {
   height: 1.4rem;
   width: 1.4rem;
 }
@@ -275,41 +271,40 @@ function formatPhone(value: string | null): string {
   color: #b91c1c;
 }
 
-.whatsapp-card--qr {
+.whatsapp-qr-modal {
+  inset: 0;
+  position: fixed;
+  z-index: 80;
+}
+
+.whatsapp-qr-modal__backdrop {
+  background: rgba(15, 23, 42, 0.54);
+  inset: 0;
+  position: absolute;
+}
+
+.whatsapp-qr-modal__content {
   align-items: center;
   background:
     radial-gradient(circle at top, rgba(34, 197, 94, 0.12), transparent 35%),
-    linear-gradient(180deg, rgba(244, 250, 247, 0.96), rgba(234, 243, 238, 0.98));
+    linear-gradient(180deg, rgba(244, 250, 247, 0.98), rgba(234, 243, 238, 0.98));
+  border-radius: 24px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
   display: flex;
-  justify-content: center;
-  min-height: 420px;
-}
-
-.whatsapp-config-hint {
-  background: linear-gradient(180deg, rgba(255, 247, 237, 0.96), rgba(255, 251, 235, 0.98));
-  border: 1px solid rgba(194, 120, 3, 0.22);
-  border-radius: 20px;
-  color: #8a4b08;
-  display: grid;
-  gap: 0.45rem;
-  padding: 1rem 1.2rem;
-}
-
-.whatsapp-config-hint h3 {
-  color: #9a3412;
-  margin: 0;
-}
-
-.whatsapp-config-hint p {
-  margin: 0;
-}
-
-.whatsapp-qr-box {
-  align-items: center;
-  display: grid;
+  flex-direction: column;
   gap: 1.25rem;
-  justify-items: center;
+  left: 50%;
+  max-width: min(420px, calc(100vw - 2rem));
+  padding: 1.5rem;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
   width: 100%;
+}
+
+.whatsapp-qr-modal__content h3 {
+  color: #12372a;
+  margin: 0;
 }
 
 .whatsapp-qr-box__image {
@@ -334,50 +329,14 @@ function formatPhone(value: string | null): string {
   font-size: 2rem;
 }
 
-.whatsapp-empty-state {
-  align-items: center;
-  color: #264438;
-  display: grid;
-  gap: 0.9rem;
-  justify-items: center;
-  max-width: 340px;
-  text-align: center;
-}
-
-.whatsapp-empty-state h3 {
-  margin: 0;
-}
-
-.whatsapp-empty-state p {
-  line-height: 1.6;
-  margin: 0;
-}
-
-.whatsapp-empty-state__icon {
-  align-items: center;
-  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
-  border-radius: 24px;
-  color: #15803d;
-  display: inline-flex;
-  font-size: 1.4rem;
-  font-weight: 800;
-  height: 84px;
-  justify-content: center;
-  letter-spacing: 0.12em;
-  width: 84px;
-}
-
-@media (max-width: 960px) {
-  .whatsapp-panel__header {
+@media (max-width: 720px) {
+  .whatsapp-account-row {
+    align-items: stretch;
     flex-direction: column;
   }
 
-  .whatsapp-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .whatsapp-card--qr {
-    min-height: 360px;
+  .whatsapp-card__actions {
+    flex-direction: column;
   }
 }
 </style>

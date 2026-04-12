@@ -1,27 +1,21 @@
 import { reactive, readonly } from 'vue'
 
-import type { WhatsAppConnectionStatus, WhatsAppQrCodeResponse } from '@/models/whatsapp'
+import type { WhatsAppConnectionStatus } from '@/models/whatsapp'
 import { connectWhatsApp, getWhatsAppStatus } from '@/services/whatsappService'
-
-const MAX_ATTEMPTS = 3
-const STATUS_POLL_INTERVAL_SECONDS = 3
 
 export function useWhatsAppConnectionController() {
   const state = reactive({
     loading: false,
     connecting: false,
     error: '',
-    attempts: 0,
     countdown: 0,
     qrCodeDataUrl: '',
     qrMessage: '',
-    exhausted: false,
     status: null as WhatsAppConnectionStatus | null,
   })
 
   let timerId: number | null = null
   let tickBusy = false
-  let statusPollCounter = 0
 
   async function loadStatus(): Promise<void> {
     state.loading = true
@@ -40,25 +34,27 @@ export function useWhatsAppConnectionController() {
   }
 
   async function startConnectionFlow(): Promise<void> {
-    clearTimer()
-    state.attempts = 0
-    state.exhausted = false
-    state.error = ''
-    await requestQrCode()
-  }
-
-  async function requestQrCode(): Promise<void> {
-    if (state.connecting || state.attempts >= MAX_ATTEMPTS) {
+    if (state.status?.connected || state.connecting) {
       return
     }
 
-    state.connecting = true
+    clearTimer()
     state.error = ''
+    state.connecting = true
     try {
       const response = await connectWhatsApp()
-      applyQrResponse(response)
-      state.attempts += 1
-      state.exhausted = false
+      state.qrCodeDataUrl = response.qr_code_data_url
+      state.countdown = 15
+      state.qrMessage = response.message ?? ''
+      if (state.status) {
+        state.status = {
+          ...state.status,
+          expected_phone: response.expected_phone,
+          provider_status: response.provider_status,
+          message: response.message ?? state.status.message,
+          connected: false,
+        }
+      }
       startTimer()
     } catch (error) {
       state.error = error instanceof Error ? error.message : 'Falha ao gerar o QR Code do WhatsApp'
@@ -71,24 +67,8 @@ export function useWhatsAppConnectionController() {
     }
   }
 
-  function applyQrResponse(response: WhatsAppQrCodeResponse): void {
-    state.qrCodeDataUrl = response.qr_code_data_url
-    state.countdown = response.expires_in_seconds
-    state.qrMessage = response.message ?? ''
-    if (state.status) {
-      state.status = {
-        ...state.status,
-        expected_phone: response.expected_phone,
-        provider_status: response.provider_status,
-        message: response.message ?? state.status.message,
-        connected: false,
-      }
-    }
-  }
-
   function startTimer(): void {
     clearTimer()
-    statusPollCounter = 0
     timerId = window.setInterval(() => {
       void tick()
     }, 1000)
@@ -104,49 +84,22 @@ export function useWhatsAppConnectionController() {
         state.countdown -= 1
       }
 
-      statusPollCounter += 1
-      if (statusPollCounter >= STATUS_POLL_INTERVAL_SECONDS) {
-        statusPollCounter = 0
-        await refreshStatusDuringFlow()
-        if (state.status?.connected) {
-          return
-        }
-      }
-
       if (state.countdown <= 0) {
         clearTimer()
-        await handleQrExpiration()
+        await finalizeConnectionFlow()
       }
     } finally {
       tickBusy = false
     }
   }
 
-  async function refreshStatusDuringFlow(): Promise<void> {
+  async function finalizeConnectionFlow(): Promise<void> {
     try {
       state.status = await getWhatsAppStatus()
-      if (state.status.connected) {
-        resetQrState()
-      }
     } catch {
-      // Mantem o fluxo do QR mesmo quando a consulta intermediaria falha.
+      // Mantem o fechamento do popup mesmo quando a consulta final falha.
     }
-  }
-
-  async function handleQrExpiration(): Promise<void> {
-    await refreshStatusDuringFlow()
-    if (state.status?.connected) {
-      return
-    }
-
-    if (state.attempts >= MAX_ATTEMPTS) {
-      resetQrState()
-      state.exhausted = true
-      state.qrMessage = 'Limite de 3 tentativas atingido. Clique em Conectar para gerar um novo QR Code.'
-      return
-    }
-
-    await requestQrCode()
+    resetQrState()
   }
 
   function resetQrState(): void {
@@ -154,7 +107,6 @@ export function useWhatsAppConnectionController() {
     state.qrCodeDataUrl = ''
     state.countdown = 0
     state.qrMessage = ''
-    state.exhausted = false
   }
 
   function clearTimer(): void {
@@ -162,17 +114,21 @@ export function useWhatsAppConnectionController() {
       window.clearInterval(timerId)
       timerId = null
     }
-    statusPollCounter = 0
+  }
+
+  function closeQrPopup(): void {
+    resetQrState()
   }
 
   function dispose(): void {
-    clearTimer()
+    resetQrState()
   }
 
   return {
     state: readonly(state),
     loadStatus,
     startConnectionFlow,
+    closeQrPopup,
     dispose,
   }
 }

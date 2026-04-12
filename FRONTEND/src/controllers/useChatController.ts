@@ -13,7 +13,8 @@ import {
   sendChatMessage,
   setChatMuted,
 } from '@/services/chatService'
-import { chatMessageToast } from '@/services/alertService'
+import { getParameters } from '@/services/parameterService'
+import { chatMessageToast, playSmsNotificationSound } from '@/services/alertService'
 
 const state = reactive({
   open: false,
@@ -34,6 +35,7 @@ const auth = useAuthController()
 let socket: WebSocket | null = null
 let reconnectTimer: number | null = null
 let isManualSocketClose = false
+let chatNotificationsMuted = false
 
 async function initialize(): Promise<void> {
   await auth.initializeAuth()
@@ -42,7 +44,7 @@ async function initialize(): Promise<void> {
   }
 
   if (!state.initialized) {
-    await Promise.all([fetchConversations(), fetchContacts()])
+    await Promise.all([fetchConversations(), fetchContacts(), loadNotificationSettings()])
     state.initialized = true
   }
 
@@ -68,6 +70,15 @@ async function fetchContacts(term?: string): Promise<void> {
     state.contacts = await listChatContacts(term)
   } finally {
     state.loadingContacts = false
+  }
+}
+
+async function loadNotificationSettings(): Promise<void> {
+  try {
+    const parameters = await getParameters()
+    chatNotificationsMuted = Boolean(parameters.silenciar_mensagem)
+  } catch {
+    chatNotificationsMuted = false
   }
 }
 
@@ -418,6 +429,9 @@ function handleSocketEvent(event: ChatEventPayload): void {
   }
 
   if (isIncomingMessage && event.message && !nextConversation.muted) {
+    if (!chatNotificationsMuted) {
+      playSmsNotificationSound()
+    }
     void chatMessageToast(nextConversation.peer.nome, event.message.content)
   }
 }
@@ -429,6 +443,7 @@ function resetChat(): void {
     socket.close()
   }
   socket = null
+  chatNotificationsMuted = false
   state.open = false
   state.initialized = false
   state.loadingConversations = false

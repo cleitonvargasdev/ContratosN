@@ -4,6 +4,9 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
+from app.core.secrets import encrypt_secret, secret_matches, secret_needs_reencryption
+from app.repositories.api_config_repository import ApiConfigRepository
 from app.models.accounts_receivable import ContaReceber
 from app.models.client import Cliente
 from app.models.contract import Contrato
@@ -18,6 +21,7 @@ class ParameterService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.repository = ParameterRepository(session)
+        self.api_config_repository = ApiConfigRepository(session)
         self.location_service = LocationService(session)
         self.client_metrics_service = ClientMetricsService(session)
         self.local_timezone = datetime.now().astimezone().tzinfo or UTC
@@ -25,6 +29,13 @@ class ParameterService:
     async def get_parameters(self) -> Parametro:
         parameter = await self.repository.get_singleton()
         if parameter is not None:
+            parameter_changed = self._apply_whatsapp_defaults(parameter)
+            api_configs_changed = await self._ensure_whatsapp_api_configs(parameter)
+            if parameter_changed:
+                await self.repository.commit()
+                await self.repository.refresh(parameter)
+            elif api_configs_changed:
+                await self.repository.refresh(parameter)
             return parameter
 
         parameter = Parametro(
@@ -42,6 +53,12 @@ class ParameterService:
             whatsapp_cobranca_dias_depois=1,
             regra_nono_dig_whats=[],
             pais_whatsapp=55,
+            flag_whatsapp_telefone1=False,
+            flag_whatsapp_telefone2=False,
+            api_whatsapp="quepasa",
+            usuario_api_whatsapp=(settings.quepasa_user.strip() if settings.quepasa_user else "cleitinhojt@gmail.com"),
+            token_api_whatsapp=settings.quepasa_token.strip() or "CONTRATOS",
+            sufixo_whatsapp="@s.whatsapp.net",
             ligar_websocket=False,
             silenciar_mensagem=False,
             whatsapp_cobranca_modelo=(
@@ -49,7 +66,140 @@ class ParameterService:
                 "Entre em contato para regularização."
             ),
         )
-        return await self.repository.add(parameter)
+        parameter = await self.repository.add(parameter)
+        await self._ensure_whatsapp_api_configs(parameter)
+        return parameter
+
+    @staticmethod
+    def _apply_whatsapp_defaults(parameter: Parametro) -> bool:
+        changed = False
+
+        default_user = settings.quepasa_user.strip() if settings.quepasa_user else "cleitinhojt@gmail.com"
+        default_token = settings.quepasa_token.strip() or "CONTRATOS"
+
+        if not parameter.api_whatsapp:
+            parameter.api_whatsapp = "quepasa"
+            changed = True
+        if not parameter.usuario_api_whatsapp:
+            parameter.usuario_api_whatsapp = default_user
+            changed = True
+        if not parameter.token_api_whatsapp:
+            parameter.token_api_whatsapp = default_token
+            changed = True
+        if not parameter.sufixo_whatsapp:
+            parameter.sufixo_whatsapp = "@s.whatsapp.net"
+            changed = True
+        if not parameter.pais_whatsapp:
+            parameter.pais_whatsapp = 55
+            changed = True
+        if parameter.flag_whatsapp_telefone1 is None:
+            parameter.flag_whatsapp_telefone1 = False
+            changed = True
+        if parameter.flag_whatsapp_telefone2 is None:
+            parameter.flag_whatsapp_telefone2 = False
+            changed = True
+
+        return changed
+
+    async def list_whatsapp_api_names(self) -> list[str]:
+        parameter = await self.get_parameters()
+        api_names = await self.api_config_repository.list_distinct_api_names()
+        current_name = parameter.api_whatsapp.strip() if isinstance(parameter.api_whatsapp, str) else None
+        if current_name and current_name not in api_names:
+            return sorted([*api_names, current_name], key=str.lower)
+        return api_names
+
+    async def _ensure_whatsapp_api_configs(self, parameter: Parametro) -> bool:
+        api_name = (parameter.api_whatsapp or "quepasa").strip().lower()
+        if api_name != "quepasa":
+            return False
+
+        health_password = settings.quepasa_health_password.strip()
+        defaults = [
+            {
+                "nome_api": "quepasa",
+                "funcionalidade": "conectar",
+                "url": f"{settings.quepasa_apiwpp_url.rstrip('/')}/scan",
+                "key1": "Accept",
+                "value1": "application/json, image/png, */*",
+                "key2": "X-QUEPASA-TOKEN",
+                "value2": "{token_api_whatsapp}",
+                "key3": "X-QUEPASA-USER",
+                "value3": "{usuario_api_whatsapp}",
+            },
+            {
+                "nome_api": "quepasa",
+                "funcionalidade": "verificar",
+                "url": f"{settings.quepasa_apiwpp_url.rstrip('/')}/info",
+                "key1": "Accept",
+                "value1": "application/json",
+                "key2": "X-QUEPASA-TOKEN",
+                "value2": "{token_api_whatsapp}",
+            },
+            {
+                "nome_api": "quepasa",
+                "funcionalidade": "mensagem",
+                "url": f"{settings.quepasa_apiwpp_url.rstrip('/')}/v3/bot/{{token_api_whatsapp}}/send",
+                "key1": "Accept",
+                "value1": "application/json",
+                "key2": "Content-Type",
+                "value2": "application/json",
+                "body": '{"chatid":"{chatid}","text":"{text}"}',
+            },
+            {
+                "nome_api": "quepasa",
+                "funcionalidade": "health",
+                "url": f"{settings.quepasa_apiwpp_url.rstrip('/')}/health",
+                "key1": "Accept",
+                "value1": "application/json",
+                "key2": "X-QUEPASA-USER",
+                "value2": "{usuario_api_whatsapp}",
+                "key3": "X-QUEPASA-PASSWORD",
+                "value3": health_password,
+                "_encrypted_fields": {"value3"},
+            },
+        ]
+
+        changed = False
+        for payload in defaults:
+            encrypted_fields = payload.get("_encrypted_fields", set())
+            record = await self.api_config_repository.get_by_name_and_functionality(payload["nome_api"], payload["funcionalidade"])
+            if record is None:
+                await self.api_config_repository.create(self._prepare_api_config_payload(payload, encrypted_fields))
+                changed = True
+                continue
+
+            updates = {
+                field: self._prepare_api_config_field_value(field, value, encrypted_fields)
+                for field, value in payload.items()
+                if not field.startswith("_") and not self._api_config_field_matches(record, field, value, encrypted_fields)
+            }
+            if updates:
+                await self.api_config_repository.update(record, updates)
+                changed = True
+
+        return changed
+
+    @staticmethod
+    def _prepare_api_config_payload(payload: dict[str, object], encrypted_fields: set[str]) -> dict[str, object]:
+        return {
+            field: ParameterService._prepare_api_config_field_value(field, value, encrypted_fields)
+            for field, value in payload.items()
+            if not field.startswith("_")
+        }
+
+    @staticmethod
+    def _prepare_api_config_field_value(field: str, value: object, encrypted_fields: set[str]) -> object:
+        if field in encrypted_fields and isinstance(value, str):
+            return encrypt_secret(value)
+        return value
+
+    @staticmethod
+    def _api_config_field_matches(record: object, field: str, expected_value: object, encrypted_fields: set[str]) -> bool:
+        current_value = getattr(record, field)
+        if field in encrypted_fields and isinstance(expected_value, str):
+            return secret_matches(current_value, expected_value) and not secret_needs_reencryption(current_value)
+        return current_value == expected_value
 
     async def update_parameters(self, payload: ParameterUpdate) -> Parametro:
         parameter = await self.get_parameters()
