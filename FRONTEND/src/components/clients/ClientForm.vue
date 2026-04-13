@@ -65,9 +65,18 @@
                   </span>
                 </label>
                 <input v-model="form.celular01" class="field" type="text" @blur="formatPhoneField('celular01')" />
-                <label class="cellphone-checkbox" title="Envio automático de Mensagem" aria-label="Envio automático de Mensagem">
-                  <input v-model="form.nao_enviar_whatsapp" class="cellphone-checkbox__input" type="checkbox" />
-                  <span class="cellphone-checkbox__box" aria-hidden="true"></span>
+                <label
+                  class="client-block-toggle"
+                  :class="form.nao_enviar_whatsapp ? 'client-block-toggle--on' : 'client-block-toggle--off'"
+                  title="Não enviar WhatsApp"
+                  aria-label="Não enviar WhatsApp"
+                >
+                  <input v-model="form.nao_enviar_whatsapp" class="client-block-toggle__input" type="checkbox" />
+                  <span class="client-block-toggle__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                      <path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.4 4.29 19.71 2.88 18.3 9.17 12 2.88 5.71 4.29 4.29l6.3 6.3 6.29-6.3z" fill="currentColor" />
+                    </svg>
+                  </span>
                 </label>
               </div>
             </label>
@@ -159,14 +168,19 @@
             </div>
 
             <div class="client-card__score-corner">
-              <div class="score-widget score-widget--corner">
+              <button
+                class="score-widget score-widget--corner score-widget-button"
+                type="button"
+                :disabled="!currentClientId"
+                @click="handleOpenScoreLog"
+              >
                 <div class="score-widget__ring" :style="scoreRingStyle">
                   <div class="score-widget__core">
                     <span class="score-widget__value">{{ normalizedScore }}</span>
                     <span class="score-widget__label">Score</span>
                   </div>
                 </div>
-              </div>
+              </button>
             </div>
           </header>
 
@@ -382,7 +396,8 @@ import { computed, reactive, ref, watch } from 'vue'
 
 import type { CobradorOption, Client, ClientInput, RegraJurosOption } from '@/models/client'
 import type { BairroOption, CidadeOption, UFOption } from '@/models/location'
-import { listCobradorOptions, listRegraJurosOptions } from '@/services/clientService'
+import { showClientScoreLogPopup } from '@/services/alertService'
+import { listCobradorOptions, listClientScoreLogs, listRegraJurosOptions } from '@/services/clientService'
 import { listBairrosByCidade, listCitiesByUf, listUfs, lookupAddressByCep, lookupCepByAddress } from '@/services/locationService'
 
 const turnoOptions = ['Integral', 'Manhã', 'Tarde', 'Noite'] as const
@@ -470,6 +485,7 @@ const form = reactive({
   regra_juros_id: null as number | null,
 })
 
+const currentClientId = computed(() => props.initialClient?.clientes_id ?? null)
 const normalizedScore = computed(() => Math.max(0, Math.min(1000, Number(form.score) || 0)))
 const scorePercentage = computed(() => (normalizedScore.value / 1000) * 100)
 const scoreRingStyle = computed(() => ({
@@ -689,6 +705,15 @@ async function submitForm() {
   await ensureCompanyCoordinates()
   emit('submit', buildPayload())
   if (!props.error && props.mode === 'create') resetForm()
+}
+
+async function handleOpenScoreLog() {
+  if (!currentClientId.value) {
+    return
+  }
+
+  const logs = await listClientScoreLogs(currentClientId.value)
+  await showClientScoreLogPopup(form.nome || props.initialClient?.nome || 'Cliente', logs)
 }
 
 async function handleCepBlur() {
@@ -1230,9 +1255,10 @@ function formatPercentField() {
   height: 16px;
 }
 
-.cellphone-checkbox {
-  display: inline-flex;
+.client-block-toggle {
   align-items: center;
+  cursor: pointer;
+  display: inline-flex;
   justify-content: center;
   width: 34px;
   min-height: 34px;
@@ -1240,7 +1266,44 @@ function formatPercentField() {
   border-left: 0;
   border-radius: 0 3px 3px 0;
   background: rgba(255, 255, 255, 0.92);
-  cursor: pointer;
+}
+
+.client-block-toggle__input {
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.client-block-toggle__icon {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: rgba(148, 163, 184, 0.9);
+  display: inline-flex;
+  height: 100%;
+  justify-content: center;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+  width: 100%;
+}
+
+.client-block-toggle__icon svg {
+  height: 14px;
+  width: 14px;
+}
+
+.client-block-toggle--on .client-block-toggle__icon {
+  color: #dc2626;
+}
+
+.client-block-toggle--on {
+  background: linear-gradient(180deg, rgba(254, 226, 226, 0.98), rgba(254, 202, 202, 0.94));
+  border-color: rgba(220, 38, 38, 0.38);
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.08);
+}
+
+.client-block-toggle--off .client-block-toggle__icon {
+  color: rgba(148, 163, 184, 0.9);
 }
 
 .field-inline--cellphone-responsavel {
@@ -1276,27 +1339,6 @@ function formatPercentField() {
 .field-inline--cellphone-responsavel .whatsapp-toggle__icon svg {
   width: 16px;
   height: 16px;
-}
-
-.cellphone-checkbox__input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.cellphone-checkbox__box {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(100, 116, 139, 0.72);
-  border-radius: 4px;
-  background: #fff;
-  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.cellphone-checkbox__input:checked + .cellphone-checkbox__box {
-  border-color: #dc2626;
-  background: linear-gradient(180deg, rgba(254, 226, 226, 0.98), rgba(254, 202, 202, 0.94));
-  box-shadow: inset 0 0 0 4px rgba(220, 38, 38, 0.18);
 }
 
 .field-inline--map .field {
@@ -1339,6 +1381,23 @@ function formatPercentField() {
 .score-widget {
   display: flex;
   justify-content: center;
+}
+
+.score-widget-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.score-widget-button:disabled {
+  cursor: default;
+}
+
+.score-widget-button:focus-visible {
+  outline: 2px solid rgba(249, 115, 22, 0.28);
+  outline-offset: 4px;
+  border-radius: 999px;
 }
 
 .score-widget__ring {

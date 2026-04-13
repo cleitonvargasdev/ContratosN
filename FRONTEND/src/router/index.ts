@@ -30,6 +30,7 @@ import UsersCreateView from '@/views/users/UsersCreateView.vue'
 import UsersEditView from '@/views/users/UsersEditView.vue'
 import UsersListView from '@/views/users/UsersListView.vue'
 import WhatsAppConnectionView from '@/views/whatsapp/WhatsAppConnectionView.vue'
+import WhatsAppDispatchesView from '@/views/whatsapp/WhatsAppDispatchesView.vue'
 
 const routes = [
   {
@@ -238,6 +239,11 @@ const routes = [
         path: 'contas-whatsapp',
         name: 'whatsapp-connection',
         component: WhatsAppConnectionView,
+      },
+      {
+        path: 'envios-whatsapp',
+        name: 'whatsapp-dispatches',
+        component: WhatsAppDispatchesView,
       },
       {
         path: 'modulos/:group/:slug',

@@ -1,9 +1,13 @@
 from typing import Annotated
+from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_active_user, get_db_session, get_pagination_params, require_permission
+from app.core.config import settings
+from app.core.security import create_access_token
 from app.models.user import User
 from app.schemas.accounts_receivable import (
     ContractInstallmentGenerateRequest,
@@ -15,13 +19,16 @@ from app.schemas.accounts_receivable import (
     InstallmentSettleRequest,
     InstallmentUpdateRequest,
 )
-from app.schemas.contract import ContractCreate, ContractListParams, ContractListResponse, ContractRead, ContractUpdate
+from app.schemas.contract import ContractCreate, ContractListParams, ContractListResponse, ContractRead, ContractUpdate, ContractWhatsAppDocumentSendResponse
 from app.schemas.pagination import PaginationParams
 from app.services.accounts_receivable_service import AccountsReceivableService
+from app.services.contract_report_service import ContractReportService
 from app.services.contract_service import ContractService
 
 
 router = APIRouter(dependencies=[Depends(get_current_active_user)])
+public_router = APIRouter()
+TEST_CONTRACT_PDF_URL = "https://drive.google.com/uc?export=download&id=1KgW_4Q7OZojxtLZl3yesGzypIIgJhjf7"
 
 
 def get_contract_service(session: AsyncSession = Depends(get_db_session)) -> ContractService:
@@ -30,6 +37,46 @@ def get_contract_service(session: AsyncSession = Depends(get_db_session)) -> Con
 
 def get_accounts_receivable_service(session: AsyncSession = Depends(get_db_session)) -> AccountsReceivableService:
     return AccountsReceivableService(session)
+
+
+def get_contract_report_service(session: AsyncSession = Depends(get_db_session)) -> ContractReportService:
+    return ContractReportService(session)
+
+
+def _create_contract_pdf_token(contract_id: int) -> str:
+    return create_access_token(
+        {"sub": str(contract_id), "type": "contract_pdf"},
+        settings.jwt_secret_key,
+        settings.jwt_algorithm,
+        expires_minutes=15,
+    )
+
+
+def _validate_contract_pdf_token(token: str, contract_id: int) -> None:
+    try:
+        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+    except JWTError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token do PDF invalido") from exc
+
+    if payload.get("type") != "contract_pdf" or str(payload.get("sub") or "") != str(contract_id):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token do PDF invalido")
+
+
+def _build_public_contract_pdf_url(request: Request, contract_id: int) -> str:
+    if TEST_CONTRACT_PDF_URL:
+        return TEST_CONTRACT_PDF_URL
+
+    token = _create_contract_pdf_token(contract_id)
+    route_path = request.app.url_path_for("print_contract_public", contract_id=str(contract_id))
+    base_url = (settings.public_api_base_url or str(request.base_url)).rstrip("/")
+    parsed = urlparse(base_url)
+    hostname = (parsed.hostname or "").strip().lower()
+    if hostname in {"127.0.0.1", "localhost", "0.0.0.0"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Configure PUBLIC_API_BASE_URL com uma URL publica acessivel pelo QuePasa para enviar o contrato em PDF.",
+        )
+    return f"{base_url}{route_path}?token={token}"
 
 
 @router.get("/", response_model=ContractListResponse, summary="Listar contratos")
@@ -51,6 +98,29 @@ async def list_contracts(
         quitado=quitado,
     )
     return await service.list_contracts(params)
+
+
+@router.get("/{contract_id}/imprimir", summary="Imprimir contrato")
+async def print_contract(
+    contract_id: int,
+    _: User = Depends(require_permission("contratos", "read")),
+    service: ContractReportService = Depends(get_contract_report_service),
+) -> Response:
+    pdf_bytes, filename = await service.generate_contract_pdf(contract_id)
+    headers = {"Content-Disposition": f'inline; filename="{filename}"'}
+    return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
+
+
+@public_router.get("/publico/{contract_id}/imprimir", summary="Imprimir contrato publico", name="print_contract_public", include_in_schema=False)
+async def print_contract_public(
+    contract_id: int,
+    token: str,
+    service: ContractReportService = Depends(get_contract_report_service),
+) -> Response:
+    _validate_contract_pdf_token(token, contract_id)
+    pdf_bytes, filename = await service.generate_contract_pdf(contract_id)
+    headers = {"Content-Disposition": f'inline; filename="{filename}"'}
+    return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
 
 
 @router.get("/{contract_id}", response_model=ContractRead, summary="Buscar contrato por ID")
@@ -167,6 +237,18 @@ async def send_installment_whatsapp_message(
     service: AccountsReceivableService = Depends(get_accounts_receivable_service),
 ) -> InstallmentWhatsAppSendResponse:
     return InstallmentWhatsAppSendResponse.model_validate(await service.send_installment_whatsapp_message(installment_id))
+
+
+@router.post("/{contract_id}/whatsapp-documento", response_model=ContractWhatsAppDocumentSendResponse, summary="Enviar contrato PDF via WhatsApp")
+async def send_contract_whatsapp_document(
+    contract_id: int,
+    request: Request,
+    _: User = Depends(require_permission("contratos", "update")),
+    service: ContractReportService = Depends(get_contract_report_service),
+) -> ContractWhatsAppDocumentSendResponse:
+    public_pdf_url = _build_public_contract_pdf_url(request, contract_id)
+    result = await service.send_contract_pdf_whatsapp(contract_id, public_pdf_url)
+    return ContractWhatsAppDocumentSendResponse.model_validate(result)
 
 
 @router.post("/", response_model=ContractRead, status_code=status.HTTP_201_CREATED, summary="Criar contrato")

@@ -12,7 +12,7 @@ import type {
   InstallmentSettlePayload,
   InstallmentUpdatePayload,
 } from '@/models/contract'
-import { apiFetch } from '@/services/http'
+import { apiFetch, apiFetchBlob } from '@/services/http'
 
 export async function listContracts(filters: ContractListFilters): Promise<ContractListResponse> {
   const params = new URLSearchParams()
@@ -115,6 +115,16 @@ export async function deleteReceiptPayment(receiptId: number): Promise<ContractI
 
 export async function sendInstallmentWhatsAppMessage(installmentId: number): Promise<{ success: boolean; message: string; chatid: string; installment_id: number }> {
   return apiFetch<{ success: boolean; message: string; chatid: string; installment_id: number }>(`/contratos/parcelas/${installmentId}/whatsapp`, {
+    method: 'POST',
+  })
+}
+
+export async function printContractPdf(contractId: number): Promise<Blob> {
+  return apiFetchBlob(`/contratos/${contractId}/imprimir`)
+}
+
+export async function sendContractWhatsAppDocument(contractId: number): Promise<{ success: boolean; message: string; chatid: string; contract_id: number; document_url: string }> {
+  return apiFetch<{ success: boolean; message: string; chatid: string; contract_id: number; document_url: string }>(`/contratos/${contractId}/whatsapp-documento`, {
     method: 'POST',
   })
 }

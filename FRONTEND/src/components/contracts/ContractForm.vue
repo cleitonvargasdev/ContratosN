@@ -259,6 +259,7 @@
                     <th>Parc.</th>
                     <th>Vencimento</th>
                     <th>Dia Semana</th>
+                    <th>Atraso</th>
                     <th>Valor</th>
                     <th>Juros</th>
                     <th>Valor Total</th>
@@ -272,7 +273,7 @@
                 </thead>
                 <tbody>
                   <tr v-if="!installmentsLoading && installmentRows.length === 0">
-                    <td colspan="12">Nenhuma parcela gerada.</td>
+                    <td colspan="13">Nenhuma parcela gerada.</td>
                   </tr>
                   <tr v-for="row in installmentRows" :key="row.key" :class="{ 'contract-installments__row--paid': row.isPaid }">
                     <td>{{ row.label }}</td>
@@ -280,6 +281,7 @@
                       <span class="contract-installments__due-date" :class="{ 'contract-installments__due-date--overdue': row.isOverdue }">{{ row.dueDate }}</span>
                     </td>
                     <td>{{ row.weekday }}</td>
+                    <td>{{ row.overdueDays }}</td>
                     <td>{{ row.baseValue }}</td>
                     <td>{{ row.interestValue }}</td>
                     <td>{{ row.value }}</td>
@@ -322,11 +324,11 @@
                     </td>
                     <td>
                       <button
-                        class="icon-action icon-action--message"
+                        :class="['icon-action', 'icon-action--message', { 'icon-action--sent': row.whatsappSent }]"
                         :disabled="row.isPaid || !canSendCurrentClientWhatsApp || installmentsSaving"
                         type="button"
-                        title="Enviar mensagem no WhatsApp"
-                        aria-label="Enviar mensagem no WhatsApp"
+                        :title="row.whatsappSent ? 'Parcela com mensagem já enviada no WhatsApp' : 'Enviar mensagem no WhatsApp'"
+                        :aria-label="row.whatsappSent ? 'Parcela com mensagem já enviada no WhatsApp' : 'Enviar mensagem no WhatsApp'"
                         @click="handleSendInstallmentWhatsApp(row.id)"
                       >
                         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -377,6 +379,20 @@
           <span>Excluir</span>
         </button>
         <button
+          v-if="props.mode === 'edit'"
+          class="primary-button primary-button--accent-soft form-actions__button contract-action-button"
+          :disabled="props.saving || !currentContractId"
+          type="button"
+          @click="handlePrintContract"
+        >
+          <span class="contract-action-button__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M6 2h9l5 5v4h-2V8h-4V4H8v7H6V2zm8 1.5V9h5.5L14 3.5zM6 13h12a3 3 0 0 1 3 3v4h-3v2H6v-2H3v-4a3 3 0 0 1 3-3zm2 5v2h8v-2H8zm10-2a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" fill="currentColor" />
+            </svg>
+          </span>
+          <span>Imprimir</span>
+        </button>
+        <button
           v-if="activeTab === 'dados'"
           class="primary-button primary-button--accent-soft form-actions__button contract-action-button contract-action-button--calculate"
           :disabled="props.saving"
@@ -425,7 +441,9 @@
                 <span>{{ formatDocument(client.cpf_cnpj) }}</span>
                 <small>{{ formatClientAddress(client) }}</small>
                 <div class="contract-client-result__meta">
-                  <small>Score: {{ formatScore(client.score) }}</small>
+                  <small class="contract-client-result__score-link" @click.stop="handleOpenClientScoreLog(client)">
+                    Score: {{ formatScore(client.score) }}
+                  </small>
                   <small>Limite: {{ formatCurrency(client.limite_credito) }}</small>
                 </div>
               </button>
@@ -560,14 +578,15 @@ import {
   generateContractInstallments,
   listInstallmentReceipts,
   listContractInstallments,
+  printContractPdf,
   receiveContractInstallment,
   reopenContractInstallment,
   sendInstallmentWhatsAppMessage,
   settleContractInstallment,
   updateContractInstallment,
 } from '@/services/contractService'
-import { chooseReceiptToDeletePrompt, errorAlert, infoAlert, playCashRegisterSound, successAlert } from '@/services/alertService'
-import { listClients, listRegraComissaoOptions, listRegraJurosOptions } from '@/services/clientService'
+import { chooseReceiptToDeletePrompt, confirmActionAlert, errorAlert, infoAlert, playCashRegisterSound, showClientScoreLogPopup, successAlert } from '@/services/alertService'
+import { listClientScoreLogs, listClients, listRegraComissaoOptions, listRegraJurosOptions } from '@/services/clientService'
 import { listCitiesByUf, listFeriados } from '@/services/locationService'
 import { listPaymentPlans } from '@/services/paymentPlanService'
 import { listUsers } from '@/services/userService'
@@ -600,7 +619,7 @@ const installmentsLoading = ref(false)
 const installmentsSaving = ref(false)
 const holidayCache = reactive<Record<string, FeriadoOption[]>>({})
 const previewInstallmentsPayload = ref<ContractInstallmentGeneratePayload | null>(null)
-const generatedInstallments = ref<Array<{ key: string; id: number | null; label: string; dueDate: string; weekday: string; baseValue: string; interestValue: string; value: string; receivedValue: string; canPay: boolean; canSettle: boolean; canDeletePayment: boolean; canEdit: boolean; isOverdue: boolean; settleTitle: string; isPaid: boolean }>>([])
+const generatedInstallments = ref<Array<{ key: string; id: number | null; label: string; dueDate: string; overdueDays: string; weekday: string; baseValue: string; interestValue: string; value: string; receivedValue: string; canPay: boolean; canSettle: boolean; canDeletePayment: boolean; canEdit: boolean; isOverdue: boolean; settleTitle: string; isPaid: boolean; whatsappSent: boolean }>>([])
 const clientModal = reactive({ open: false, term: '' })
 const installmentEditModal = reactive({
   open: false,
@@ -739,6 +758,7 @@ const installmentRows = computed(() => {
       id: item.id,
       label: String(item.parcela_nro ?? '').padStart(2, '0'),
       dueDate: formatDateLabel(item.vencimentol ?? item.vencimento_original),
+      overdueDays: formatInstallmentOverdueDays(item.vencimentol ?? item.vencimento_original, item.quitado, item.valor_total, item.valor_recebido),
       weekday: formatWeekdayLabel(item.vencimentol ?? item.vencimento_original),
       baseValue: formatCurrency(item.valor_base),
       interestValue: formatCurrency(item.valor_juros),
@@ -751,6 +771,7 @@ const installmentRows = computed(() => {
       isOverdue: isInstallmentOverdue(item.vencimentol ?? item.vencimento_original, item.quitado, item.valor_total, item.valor_recebido),
       settleTitle: canReopenInstallment(item) ? 'Reabrir parcela' : 'Quitar parcela',
       isPaid: Boolean(item.quitado),
+      whatsappSent: Boolean(item.msg_whatsapp),
     }))
   }
 
@@ -1063,6 +1084,7 @@ async function calculateInstallments() {
       id: null,
       label: String(item.parcela_nro).padStart(2, '0'),
       dueDate: formatDateLabel(item.vencimento),
+      overdueDays: formatInstallmentOverdueDays(item.vencimento, false, item.valor_total, 0),
       weekday: formatWeekdayLabel(item.vencimento),
       baseValue: formatCurrency(item.valor_total),
       interestValue: formatCurrency(0),
@@ -1075,6 +1097,7 @@ async function calculateInstallments() {
       isOverdue: isInstallmentOverdue(item.vencimento, false, item.valor_total, 0),
       settleTitle: 'Quitar parcela',
       isPaid: false,
+      whatsappSent: false,
     }))
     activeTab.value = 'parcelas'
     return
@@ -1093,6 +1116,22 @@ async function calculateInstallments() {
     await errorAlert(error instanceof Error ? error.message : 'Falha ao gerar parcelas do contrato')
   } finally {
     installmentsSaving.value = false
+  }
+}
+
+async function handlePrintContract() {
+  if (!currentContractId.value) {
+    await infoAlert('Salve o contrato antes de imprimir.')
+    return
+  }
+
+  try {
+    const pdfBlob = await printContractPdf(currentContractId.value)
+    const pdfUrl = URL.createObjectURL(pdfBlob)
+    window.open(pdfUrl, '_blank', 'noopener,noreferrer')
+    window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 60_000)
+  } catch (error) {
+    await errorAlert(error instanceof Error ? error.message : 'Falha ao imprimir contrato')
   }
 }
 
@@ -1590,6 +1629,15 @@ function selectClient(clientId: number) {
   closeClientModal()
 }
 
+async function handleOpenClientScoreLog(client: Client) {
+  if (!client.clientes_id) {
+    return
+  }
+
+  const logs = await listClientScoreLogs(client.clientes_id)
+  await showClientScoreLogPopup(client.nome || 'Cliente', logs)
+}
+
 async function hydrateClientCities() {
   const ufList = [...new Set(clientOptions.value.map((client) => client.uf).filter((uf): uf is string => Boolean(uf)))]
 
@@ -1619,9 +1667,7 @@ async function assignNextContractNumber() {
 }
 
 function currentDateTimeLocal() {
-  const date = new Date()
-  const timezoneOffset = date.getTimezoneOffset() * 60000
-  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16)
+  return toApiDateTimeLocal(new Date()).slice(0, 16)
 }
 
 function currentDateInputValue() {
@@ -1967,7 +2013,7 @@ function formatDateLabel(value: string | null) {
     return '-'
   }
 
-  const calendarDate = parseCalendarDate(value)
+  const calendarDate = parseDisplayCalendarDate(value)
   if (!calendarDate) {
     return '-'
   }
@@ -1980,7 +2026,7 @@ function formatWeekdayLabel(value: string | null) {
     return '-'
   }
 
-  const calendarDate = parseCalendarDate(value)
+  const calendarDate = parseDisplayCalendarDate(value)
   if (!calendarDate) {
     return '-'
   }
@@ -2003,29 +2049,66 @@ function parseCalendarDate(value: string) {
   }
 }
 
+function parseDisplayCalendarDate(value: string) {
+  const parsedDate = new Date(value)
+  if (!Number.isNaN(parsedDate.getTime()) && value.includes('T')) {
+    return {
+      year: parsedDate.getFullYear(),
+      month: parsedDate.getMonth() + 1,
+      day: parsedDate.getDate(),
+    }
+  }
+
+  return parseCalendarDate(value)
+}
+
 function isInstallmentOverdue(
   dueDateValue: string | Date | null,
   quitado: boolean | null | undefined,
   totalValue: number | null | undefined,
   receivedValue: number | null | undefined,
 ) {
+  return calculateInstallmentOverdueDays(dueDateValue, quitado, totalValue, receivedValue) > 0
+}
+
+function calculateInstallmentOverdueDays(
+  dueDateValue: string | Date | null,
+  quitado: boolean | null | undefined,
+  totalValue: number | null | undefined,
+  receivedValue: number | null | undefined,
+) {
   if (quitado) {
-    return false
+    return 0
   }
 
   const dueDate = toCalendarDate(dueDateValue)
   if (!dueDate) {
-    return false
+    return 0
   }
 
   const remainingValue = Math.max((totalValue ?? 0) - (receivedValue ?? 0), 0)
   if (remainingValue <= 0) {
-    return false
+    return 0
   }
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  return dueDate < today
+  const diffMs = today.getTime() - dueDate.getTime()
+  if (diffMs <= 0) {
+    return 0
+  }
+
+  return Math.floor(diffMs / 86_400_000)
+}
+
+function formatInstallmentOverdueDays(
+  dueDateValue: string | Date | null,
+  quitado: boolean | null | undefined,
+  totalValue: number | null | undefined,
+  receivedValue: number | null | undefined,
+) {
+  const overdueDays = calculateInstallmentOverdueDays(dueDateValue, quitado, totalValue, receivedValue)
+  return overdueDays > 0 ? String(overdueDays) : ''
 }
 
 function toCalendarDate(value: string | Date | null) {
@@ -2062,15 +2145,34 @@ async function handleSendInstallmentWhatsApp(installmentId: number | null) {
     return
   }
 
+  const installment = persistedInstallments.value.find((item) => item.id === installmentId)
   const selectedClient = clientOptions.value.find((item) => item.clientes_id === form.cliente_id)
+  if (selectedClient?.nao_enviar_whatsapp) {
+    await infoAlert('Este cliente está marcado para não enviar WhatsApp.')
+    return
+  }
   if (!selectedClient?.flag_whatsapp || !selectedClient.celular01?.trim()) {
     await infoAlert('Cliente sem WhatsApp ativo no celular principal.')
     return
   }
 
+  if (installment?.msg_whatsapp) {
+    const confirmed = await confirmActionAlert(
+      'Mensagem já enviada',
+      'Esta parcela já foi enviada no WhatsApp. Deseja reenviar?',
+      'Reenviar',
+    )
+    if (!confirmed) {
+      return
+    }
+  }
+
   installmentsSaving.value = true
   try {
     const response = await sendInstallmentWhatsAppMessage(installmentId)
+    if (currentContractId.value) {
+      await loadInstallments(currentContractId.value)
+    }
     await successAlert(response.message || 'Mensagem enviada com sucesso.', 'update')
   } catch (error) {
     await errorAlert(error instanceof Error ? error.message : 'Falha ao enviar mensagem da parcela via WhatsApp')
@@ -2145,5 +2247,25 @@ function formatClientAddress(client: Client) {
 
 .contract-client-result--neutral {
   background: rgba(255, 255, 255, 0.96);
+}
+
+.contract-client-result__score-link {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(15, 118, 110, 0.45);
+  text-underline-offset: 2px;
+}
+
+.icon-action--message {
+  background: rgba(22, 163, 74, 0.14);
+  border: 1px solid rgba(22, 163, 74, 0.28);
+  color: #15803d;
+}
+
+.icon-action--sent {
+  background: rgba(220, 38, 38, 0.16);
+  border: 1px solid rgba(220, 38, 38, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
 }
 </style>

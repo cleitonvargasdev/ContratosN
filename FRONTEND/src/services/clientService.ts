@@ -1,4 +1,4 @@
-import type { CobradorOption, Client, ClientInput, ClientListFilters, ClientListResponse, RegraComissaoOption, RegraJurosOption } from '@/models/client'
+import type { CobradorOption, Client, ClientInput, ClientListFilters, ClientListResponse, ClientScoreLog, RegraComissaoOption, RegraJurosOption } from '@/models/client'
 import { apiFetch } from '@/services/http'
 
 export async function listClients(filters: ClientListFilters): Promise<ClientListResponse> {
@@ -23,6 +23,10 @@ export async function createClient(payload: ClientInput): Promise<Client> {
 
 export async function getClientById(clientId: number): Promise<Client> {
   return apiFetch<Client>(`/clientes/${clientId}`)
+}
+
+export async function listClientScoreLogs(clientId: number): Promise<ClientScoreLog[]> {
+  return apiFetch<ClientScoreLog[]>(`/clientes/${clientId}/score-log`)
 }
 
 export async function updateClient(clientId: number, payload: ClientInput): Promise<Client> {

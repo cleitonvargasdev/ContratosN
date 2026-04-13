@@ -62,16 +62,6 @@
               <input v-model="form.telefone2" class="field" type="text" @blur="formatPhoneField('telefone2')" />
             </div>
           </label>
-          <label class="field-group field-group--span-2">
-            <span>Api WhatsApp MSG</span>
-            <div class="field-inline field-inline--popup">
-              <select v-model="form.api_whatsapp" class="field" :disabled="apiOptionsLoading">
-                <option value="">Selecione</option>
-                <option v-for="option in apiWhatsappOptions" :key="option" :value="option">{{ option }}</option>
-              </select>
-              <button class="secondary-button" :disabled="saving" type="button" @click="openWhatsappModal">Configurar WhatsApp</button>
-            </div>
-          </label>
           <label class="field-group">
             <span>CEP</span>
             <div class="field-inline">
@@ -172,8 +162,7 @@
               <button type="button" class="schedule-picker__add" :disabled="saving" @click="openScheduleModal('whatsapp')"><span class="schedule-picker__add-main">+</span></button>
             </div>
             <div class="automation-controls-row">
-              <label class="field-group automation-controls-row__field"><span>Dias antes</span><input v-model.number="form.whatsapp_cobranca_dias_antes" class="field" min="0" type="number" /></label>
-              <label class="field-group automation-controls-row__field"><span>Dias após</span><input v-model.number="form.whatsapp_cobranca_dias_depois" class="field" min="0" type="number" /></label>
+              <label class="field-group automation-controls-row__field automation-controls-row__field--wide"><span>Dias após</span><input v-model.number="form.whatsapp_cobranca_dias_depois" class="field" min="0" type="number" /></label>
               <div class="score-actions automation-controls-row__actions">
                 <label class="status-switch status-switch--compact" :class="form.whatsapp_cobranca_automatica ? 'status-switch--on' : 'status-switch--off'">
                   <input v-model="form.whatsapp_cobranca_automatica" class="status-switch__input" type="checkbox" />
@@ -204,7 +193,16 @@
               <span class="schedule-status__error">{{ form.whatsapp_ultimo_erro }}</span>
             </div>
           </div>
-          <label class="field-group field-group--span-2"><span>Modelo da mensagem</span><textarea v-model="form.whatsapp_cobranca_modelo" class="field parameters-form__textarea"></textarea></label>
+          <label class="field-group field-group--span-2">
+            <span>Api WhatsApp MSG</span>
+            <div class="field-inline field-inline--popup">
+              <select v-model="form.api_whatsapp" class="field" :disabled="apiOptionsLoading">
+                <option value="">Selecione</option>
+                <option v-for="option in apiWhatsappOptions" :key="option" :value="option">{{ option }}</option>
+              </select>
+              <button class="secondary-button" :disabled="saving" type="button" @click="openWhatsappModal">Configurar WhatsApp</button>
+            </div>
+          </label>
         </div>
           </section>
         </div>
@@ -709,9 +707,9 @@ function buildPayload(): ParameterInput {
     score_agendamentos: [...form.score_agendamentos],
     whatsapp_cobranca_automatica: form.whatsapp_cobranca_automatica,
     whatsapp_agendamentos: [...form.whatsapp_agendamentos],
-    whatsapp_cobranca_dias_antes: Number(form.whatsapp_cobranca_dias_antes || 0),
+    whatsapp_cobranca_dias_antes: 0,
     whatsapp_cobranca_dias_depois: Number(form.whatsapp_cobranca_dias_depois || 0),
-    whatsapp_cobranca_modelo: emptyToNull(form.whatsapp_cobranca_modelo),
+    whatsapp_cobranca_modelo: null,
     api_whatsapp: emptyToNull(form.api_whatsapp),
     usuario_api_whatsapp: emptyToNull(form.usuario_api_whatsapp),
     token_api_whatsapp: emptyToNull(form.token_api_whatsapp),
@@ -967,6 +965,11 @@ function generateWhatsappToken() {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.55rem;
+}
+
+.automation-controls-row__field--wide {
+  flex: 1 1 260px;
+  min-width: 220px;
 }
 
 .field-inline--token-generator {

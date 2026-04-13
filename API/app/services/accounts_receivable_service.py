@@ -41,8 +41,55 @@ class AccountsReceivableService:
         self.location_repository = LocationRepository(session)
         self.client_metrics_service = ClientMetricsService(session)
         self.whatsapp_service = WhatsAppService(session)
+        self.local_timezone = datetime.now().astimezone().tzinfo or UTC
 
     async def send_installment_whatsapp_message(self, installment_id: int) -> dict[str, object]:
+        installment, contract, client = await self._get_installment_context(installment_id)
+        dispatch_result = await self.send_installment_whatsapp_from_entities(installment, contract, client, send_type=1, commit=True)
+        return {
+            "success": True,
+            "message": "Mensagem enviada com sucesso.",
+            "chatid": str(dispatch_result.get("chatid") or ""),
+            "installment_id": installment_id,
+        }
+
+    async def send_installment_whatsapp_from_entities(
+        self,
+        installment: ContaReceber,
+        contract: Contrato,
+        client: object,
+        *,
+        send_type: int,
+        commit: bool,
+    ) -> dict[str, object]:
+        if not getattr(client, "flag_whatsapp", False):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente sem flag WhatsApp no celular principal")
+        if getattr(client, "nao_enviar_whatsapp", False):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente marcado para nao receber WhatsApp")
+
+        phone_number = str(getattr(client, "celular01", "") or "").strip()
+        if not phone_number:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente sem celular principal cadastrado")
+
+        message_payload = self.build_installment_whatsapp_payload(getattr(client, "nome", None), contract.contratos_id, installment)
+        provider_result = await self.whatsapp_service.send_text_message(phone_number, str(message_payload["text"]))
+        sent_at = datetime.now(UTC)
+        installment.msg_whatsapp = True
+        installment.dt_hora_envio = sent_at
+        installment.tipo_envio = send_type
+        if commit:
+            await self.repository.commit()
+            await self.repository.refresh(installment)
+        return {
+            "success": bool(provider_result.get("success")),
+            "chatid": str(provider_result.get("chatid") or ""),
+            "destination_phone": phone_number,
+            "sent_at": sent_at,
+            "message_payload": message_payload,
+            "provider_payload": provider_result,
+        }
+
+    async def _get_installment_context(self, installment_id: int) -> tuple[ContaReceber, Contrato, object]:
         installment = await self.repository.get_by_id(installment_id)
         if installment is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parcela nao encontrada")
@@ -60,21 +107,17 @@ class AccountsReceivableService:
         client = await self.client_repository.get_by_id(contract.cliente_id)
         if client is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
+        return installment, contract, client
 
-        if not client.flag_whatsapp:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente sem flag WhatsApp no celular principal")
-
-        phone_number = (client.celular01 or "").strip()
-        if not phone_number:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente sem celular principal cadastrado")
-
-        text = self._build_installment_whatsapp_message(client.nome, contract.contratos_id, installment)
-        provider_result = await self.whatsapp_service.send_text_message(phone_number, text)
+    @staticmethod
+    def build_installment_whatsapp_payload(client_name: str | None, contract_id: int, installment: ContaReceber) -> dict[str, object]:
+        text = AccountsReceivableService._build_installment_whatsapp_message(client_name, contract_id, installment)
         return {
-            "success": bool(provider_result.get("success")),
-            "message": "Mensagem enviada com sucesso.",
-            "chatid": str(provider_result.get("chatid") or ""),
-            "installment_id": installment_id,
+            "text": text,
+            "contract_id": contract_id,
+            "parcela_nro": installment.parcela_nro,
+            "valor_total": float(installment.valor_total or 0),
+            "vencimento": (installment.vencimentol or installment.vencimento_original).isoformat() if (installment.vencimentol or installment.vencimento_original) else None,
         }
 
     async def list_contract_installments(self, contract_id: int) -> list[ContractInstallmentRead]:
@@ -146,7 +189,7 @@ class AccountsReceivableService:
         if contract is not None and contract.recorrencia:
             return await self._receive_recurring_installment(installment, contract, payload, current_user_id)
 
-        payment_date = payload.data_recebimento or datetime.now()
+        payment_date = self._normalize_input_datetime(payload.data_recebimento) or datetime.now(self.local_timezone)
         current_total = float(installment.valor_total or 0)
         current_received = float(installment.valor_recebido or 0)
         payment_value = float(payload.valor_recebido or 0)
@@ -266,7 +309,7 @@ class AccountsReceivableService:
         payload: InstallmentPaymentCreate,
         current_user_id: int | None,
     ) -> ContractInstallmentRead:
-        payment_date = payload.data_recebimento or datetime.now()
+        payment_date = self._normalize_input_datetime(payload.data_recebimento) or datetime.now(self.local_timezone)
         payment_value = float(payload.valor_recebido or 0)
         current_total = float(installment.valor_total or 0)
         current_received = float(installment.valor_recebido or 0)
@@ -349,7 +392,7 @@ class AccountsReceivableService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parcela nao encontrada")
 
         installment.quitado = True
-        installment.data_recebimento = payload.data_recebimento or installment.data_recebimento or datetime.now()
+        installment.data_recebimento = self._normalize_input_datetime(payload.data_recebimento) or installment.data_recebimento or datetime.now(self.local_timezone)
         await self._sync_contract_by_id(installment.contratos_id)
         await self.repository.commit()
         await self.repository.refresh(installment)
@@ -361,9 +404,10 @@ class AccountsReceivableService:
         client_label = (client_name or "cliente").strip() or "cliente"
         parcela_label = installment.parcela_nro or 0
         return (
-            f"Ola {client_label}, sua parcela do contrato N{chr(186)} {contract_id}, "
-            f"parcela {parcela_label}, vence em {AccountsReceivableService._format_message_date(due_date)}, "
-            f"no valor de {AccountsReceivableService._format_message_currency(float(installment.valor_total or 0))}."
+            f"Ola! {client_label}, informamos que sua parcela n{chr(186)} {parcela_label} "
+            f"no valor de {AccountsReceivableService._format_message_currency(float(installment.valor_total or 0))}, "
+            f"do contrato {contract_id} venceu dia {AccountsReceivableService._format_message_date(due_date)} "
+            "e encontra-se pendente o pagamento em nosso sistema, favor entrar em contato!"
         )
 
     @staticmethod
@@ -495,6 +539,13 @@ class AccountsReceivableService:
             candidate += timedelta(days=1)
         return candidate
 
+    def _normalize_input_datetime(self, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None or value.utcoffset() is None:
+            return value.replace(tzinfo=self.local_timezone)
+        return value.astimezone(self.local_timezone)
+
     def _add_months(self, value: datetime, months: int) -> datetime:
         month_index = value.month - 1 + months
         year = value.year + month_index // 12
@@ -555,4 +606,7 @@ class AccountsReceivableService:
             valor_juros=installment.valor_juros,
             dia_semana=weekday,
             possui_pagamento=bool((installment.valor_recebido or 0) > 0 or installment.data_recebimento),
+            msg_whatsapp=bool(installment.msg_whatsapp),
+            dt_hora_envio=installment.dt_hora_envio,
+            tipo_envio=installment.tipo_envio,
         )

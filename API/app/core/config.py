@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     quepasa_health_password: str = Field(alias="QUEPASA_HEALTH_PASSWORD")
     quepasa_timeout_seconds: float = Field(default=15.0, alias="QUEPASA_TIMEOUT_SECONDS")
     secret_encryption_key: str | None = Field(default=None, alias="SECRET_ENCRYPTION_KEY")
+    public_api_base_url: str | None = Field(default=None, alias="PUBLIC_API_BASE_URL")
 
     model_config = SettingsConfigDict(env_file=str(ENV_FILE), env_file_encoding="utf-8", extra="ignore")
 

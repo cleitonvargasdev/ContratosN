@@ -147,3 +147,16 @@ export interface ClientListResponse {
   page: number
   page_size: number
 }
+
+export interface ClientScoreLog {
+  id: number
+  cliente_id: number
+  data_hora_evento: string
+  evento: string
+  pontuacao_anterior: number
+  variacao_pontos: number
+  pontuacao_atual: number
+  regra_pontos: number | null
+  quantidade_referencia: number | null
+  detalhe_calculo: string | null
+}

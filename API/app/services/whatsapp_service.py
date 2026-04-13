@@ -100,6 +100,32 @@ class WhatsAppService:
 			"chatid": chatid,
 		}
 
+	async def send_document_message(self, phone_number: str, document_url: str, text: str) -> dict[str, Any]:
+		config = await self._get_whatsapp_config(required_user=True, required_token=True)
+		chatid = self._build_chatid(
+			phone_number,
+			country_code=config["country_code"],
+			suffix=config["suffix"],
+			ninth_digit_rules=config["ninth_digit_rules"],
+		)
+		request_config = await self._build_api_request_config(
+			"documento",
+			config,
+			extra_placeholders={"chatid": chatid, "chatId": chatid, "url": document_url, "text": text},
+		)
+		async with httpx.AsyncClient(timeout=self.timeout) as client:
+			response = await client.post(request_config["url"], headers=request_config["headers"], json=request_config["json"])
+		response = self._validate_provider_response(response)
+		data = self._parse_json_response(response)
+		if data.get("success") is False:
+			message = self._extract_error_message(data) or "Falha ao enviar documento pelo WhatsApp."
+			raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=message)
+		return {
+			"success": True,
+			"message": self._extract_error_message(data) or "Documento enviado com sucesso.",
+			"chatid": chatid,
+		}
+
 	async def _get_whatsapp_config(
 		self,
 		*,

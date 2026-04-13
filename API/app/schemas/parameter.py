@@ -215,4 +215,7 @@ class ParameterAutomationRunResponse(BaseModel):
     executado_em: datetime
     clientes_recalculados: int
     cobrancas_whatsapp_preparadas: int
+    cobrancas_whatsapp_enviadas: int = 0
+    cobrancas_whatsapp_erros: int = 0
+    whatsapp_batch_id: int | None = None
     parametros: ParameterRead

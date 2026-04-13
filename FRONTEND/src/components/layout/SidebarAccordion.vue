@@ -181,6 +181,7 @@ const baseSections: SidebarSection[] = [
       { label: 'Usuários', to: '/usuarios', resource: 'usuarios', action: 'read', icon: 'users' },
       { label: 'Perfil de usuários', to: '/perfis', resource: 'perfis', action: 'read', icon: 'contacts' },
       { label: 'Contas WhatsApp', to: '/contas-whatsapp', icon: 'whatsapp' },
+      { label: 'Envios WhatsApp', to: '/envios-whatsapp', icon: 'history' },
       { label: 'APIs', to: '/apis', resource: 'apis', action: 'read', icon: 'sliders' },
       { label: 'Contas Bancárias', to: '/modulos/cadastros/contas-bancarias?titulo=Contas%20Banc%C3%A1rias&grupo=Cadastros', icon: 'bank' },
       { label: 'Plano de contas', to: '/modulos/cadastros/plano-de-contas?titulo=Plano%20de%20contas&grupo=Cadastros', icon: 'ledger' },

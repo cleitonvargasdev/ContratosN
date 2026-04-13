@@ -92,6 +92,9 @@ export interface ContractInstallment {
   valor_juros: number | null
   dia_semana: string | null
   possui_pagamento: boolean
+  msg_whatsapp: boolean
+  dt_hora_envio: string | null
+  tipo_envio: number | null
 }
 
 export interface ContractInstallmentGenerateItem {

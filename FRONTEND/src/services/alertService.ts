@@ -1,5 +1,7 @@
 import Swal from 'sweetalert2'
 
+import type { ClientScoreLog } from '@/models/client'
+
 export interface ReceivePaymentPromptResult {
   valorRecebido: number
   juros: number | null
@@ -181,6 +183,55 @@ export async function infoAlert(message: string): Promise<void> {
   })
 }
 
+export async function showClientScoreLogPopup(clientName: string, logs: ClientScoreLog[]): Promise<void> {
+  const title = clientName.trim() ? `Histórico do score • ${escapeHtml(clientName)}` : 'Histórico do score'
+  const html = logs.length === 0
+    ? '<p class="swal-empty-state" style="margin:0; text-align:left;">Nenhum processamento de score registrado.</p>'
+    : `
+      <div class="swal-table-wrap" style="overflow-x:auto; text-align:left;">
+        <table class="swal-table" style="width:100%; border-collapse:collapse; text-align:left;">
+          <thead>
+            <tr>
+              <th style="text-align:left;">Data/Hora</th>
+              <th style="text-align:left;">Evento</th>
+              <th style="text-align:left;">Cálculo</th>
+              <th style="text-align:left;">Anterior</th>
+              <th style="text-align:left;">Variação</th>
+              <th style="text-align:left;">Atual</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${logs
+              .map(
+                (log) => `
+                  <tr>
+                    <td style="text-align:left;">${escapeHtml(formatDateTime(log.data_hora_evento))}</td>
+                    <td style="text-align:left;">${escapeHtml(log.evento)}</td>
+                    <td style="text-align:left;">${escapeHtml(buildScoreLogDetail(log))}</td>
+                    <td style="text-align:left;">${log.pontuacao_anterior}</td>
+                    <td class="${log.variacao_pontos >= 0 ? 'swal-table__delta--positive' : 'swal-table__delta--negative'}" style="text-align:left;">${formatScoreDelta(log.variacao_pontos)}</td>
+                    <td style="text-align:left;">${log.pontuacao_atual}</td>
+                  </tr>
+                `,
+              )
+              .join('')}
+          </tbody>
+        </table>
+      </div>
+    `
+
+  await Swal.fire({
+    title,
+    html,
+    width: 920,
+    confirmButtonText: 'Fechar',
+    buttonsStyling: false,
+    customClass: sharedClasses,
+    background: '#fffaf9',
+    color: '#24303b',
+  })
+}
+
 export async function chatMessageToast(senderName: string, message: string): Promise<void> {
   await Swal.fire({
     title: senderName,
@@ -344,6 +395,40 @@ function formatDecimalInput(value: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value)
+}
+
+function formatDateTime(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+  return date.toLocaleString('pt-BR')
+}
+
+function formatScoreDelta(value: number): string {
+  const prefix = value >= 0 ? '+' : ''
+  return `${prefix}${value} pts`
+}
+
+function buildScoreLogDetail(log: ClientScoreLog): string {
+  if (log.detalhe_calculo?.trim()) {
+    return log.detalhe_calculo.trim()
+  }
+
+  if (log.regra_pontos !== null && log.regra_pontos !== undefined && log.quantidade_referencia !== null && log.quantidade_referencia !== undefined) {
+    return `${formatScoreDelta(log.regra_pontos)} x ${log.quantidade_referencia}`
+  }
+
+  return '-'
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 function buildSwalButtonLabel(label: string, tone: 'confirm' | 'cancel'): string {

@@ -84,11 +84,11 @@
             <td class="actions-cell actions-cell--compact contract-actions-cell contract-msg-cell">
               <button
                 class="icon-action icon-action--message"
-                :disabled="!contract.cliente_telefone"
+                :disabled="!contract.cliente_telefone || !props.canUpdate"
                 type="button"
-                title="Enviar mensagem no WhatsApp"
-                aria-label="Enviar mensagem no WhatsApp"
-                @click="openWhatsApp(contract.cliente_telefone)"
+                title="Enviar contrato PDF no WhatsApp"
+                aria-label="Enviar contrato PDF no WhatsApp"
+                @click="$emit('sendWhatsappDocument', contract.contratos_id)"
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M17.47 14.38c-.27-.13-1.59-.78-1.84-.87-.25-.09-.43-.13-.61.13-.18.27-.7.87-.86 1.05-.16.18-.31.2-.58.07-.27-.13-1.12-.41-2.14-1.3-.79-.7-1.33-1.56-1.48-1.83-.16-.27-.02-.41.11-.54.12-.12.27-.31.4-.47.13-.16.18-.27.27-.45.09-.18.04-.34-.02-.47-.07-.13-.61-1.47-.84-2.02-.22-.53-.44-.46-.61-.47h-.52c-.18 0-.47.07-.72.34-.25.27-.95.93-.95 2.26s.97 2.62 1.11 2.8c.13.18 1.91 2.91 4.62 4.08.65.28 1.15.45 1.54.58.65.2 1.24.17 1.7.1.52-.08 1.59-.65 1.82-1.27.22-.62.22-1.15.16-1.27-.07-.12-.25-.2-.52-.34Z" fill="currentColor"/>
@@ -151,6 +151,7 @@ const emit = defineEmits<{
   'change-page-size': [pageSize: number]
   edit: [contractId: number]
   delete: [contractId: number]
+  sendWhatsappDocument: [contractId: number]
 }>()
 
 const draft = reactive({
@@ -268,15 +269,6 @@ function formatCurrency(value: number | null | undefined) {
     style: 'currency',
     currency: 'BRL',
   }).format(value)
-}
-
-function openWhatsApp(phone: string | null) {
-  const digits = (phone ?? '').replace(/\D/g, '')
-  if (!digits) {
-    return
-  }
-
-  window.open(`https://wa.me/55${digits}`, '_blank', 'noopener,noreferrer')
 }
 
 function handleRowDoubleClick(contractId: number) {

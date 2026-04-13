@@ -5,10 +5,11 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.client import Cliente
+from app.models.client_score_log import ClientScoreLog
 from app.models.parameter import Parametro
 from app.models.user import User
 from app.repositories.client_repository import ClientRepository
-from app.schemas.client import ClientCobradorOptionRead, ClientCreate, ClientListParams, ClientListResponse, ClientUpdate
+from app.schemas.client import ClientCobradorOptionRead, ClientCreate, ClientListParams, ClientListResponse, ClientScoreLogRead, ClientUpdate
 from app.services.location_service import LocationService
 
 
@@ -23,6 +24,15 @@ class ClientService:
 
     async def get_client(self, client_id: int) -> Cliente | None:
         return await self.repository.get_by_id(client_id)
+
+    async def list_client_score_logs(self, client_id: int) -> list[ClientScoreLogRead]:
+        result = await self.repository.session.execute(
+            select(ClientScoreLog)
+            .where(ClientScoreLog.cliente_id == client_id)
+            .order_by(ClientScoreLog.data_hora_evento.desc(), ClientScoreLog.id.desc())
+            .limit(200)
+        )
+        return [ClientScoreLogRead.model_validate(item) for item in result.scalars().all()]
 
     async def list_active_cobradores(self) -> list[ClientCobradorOptionRead]:
         result = await self.repository.session.execute(

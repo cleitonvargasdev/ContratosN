@@ -12,6 +12,7 @@
     @change-page-size="handlePageSize"
     @delete="handleDelete"
     @edit="handleEdit"
+    @send-whatsapp-document="handleSendWhatsAppDocument"
   />
 </template>
 
@@ -22,7 +23,8 @@ import { useRouter } from 'vue-router'
 import ContractTable from '@/components/contracts/ContractTable.vue'
 import { useAuthController } from '@/controllers/useAuthController'
 import { useContractsController } from '@/controllers/useContractsController'
-import { confirmDeleteAlert, errorAlert, successAlert } from '@/services/alertService'
+import { confirmActionAlert, confirmDeleteAlert, errorAlert, successAlert } from '@/services/alertService'
+import { sendContractWhatsAppDocument } from '@/services/contractService'
 
 const contracts = useContractsController()
 const auth = useAuthController()
@@ -68,6 +70,28 @@ async function handleDelete(contractId: number) {
     if (contracts.state.error) {
       await errorAlert(contracts.state.error)
     }
+  }
+}
+
+async function handleSendWhatsAppDocument(contractId: number) {
+  if (!auth.hasPermission('contratos', 'update')) {
+    return
+  }
+
+  const confirmed = await confirmActionAlert(
+    'Enviar contrato no WhatsApp?',
+    'O sistema vai gerar o PDF do contrato e enviar para o WhatsApp do cliente.',
+    'Enviar',
+  )
+  if (!confirmed) {
+    return
+  }
+
+  try {
+    const response = await sendContractWhatsAppDocument(contractId)
+    await successAlert(response.message || 'Contrato enviado com sucesso.', 'update')
+  } catch (error) {
+    await errorAlert(error instanceof Error ? error.message : 'Falha ao enviar contrato pelo WhatsApp')
   }
 }
 </script>

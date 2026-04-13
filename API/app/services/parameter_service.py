@@ -148,6 +148,16 @@ class ParameterService:
             },
             {
                 "nome_api": "quepasa",
+                "funcionalidade": "documento",
+                "url": f"{settings.quepasa_apiwpp_url.rstrip('/')}/v3/bot/{{token_api_whatsapp}}/senddocument",
+                "key1": "Accept",
+                "value1": "application/json",
+                "key2": "Content-Type",
+                "value2": "application/json",
+                "body": '{"chatId":"{chatId}","url":"{url}","text":"{text}"}',
+            },
+            {
+                "nome_api": "quepasa",
                 "funcionalidade": "health",
                 "url": f"{settings.quepasa_apiwpp_url.rstrip('/')}/health",
                 "key1": "Accept",
@@ -221,6 +231,9 @@ class ParameterService:
         now = datetime.now(self.local_timezone)
         recalculated_clients = 0
         prepared_whatsapp = 0
+        sent_whatsapp = 0
+        error_whatsapp = 0
+        whatsapp_batch_id: int | None = None
 
         score_due = manual or self._is_schedule_due(parameter.score_atualizacao_automatica, parameter.score_atualizacao_proxima_execucao, now)
         whatsapp_due = manual or self._is_schedule_due(parameter.whatsapp_cobranca_automatica, parameter.whatsapp_cobranca_proxima_execucao, now)
@@ -238,10 +251,22 @@ class ParameterService:
 
         if whatsapp_due:
             try:
-                prepared_whatsapp = await self._count_whatsapp_candidates(parameter, now)
+                from app.services.whatsapp_dispatch_service import WhatsAppDispatchService
+
+                dispatch_service = WhatsAppDispatchService(self.session)
+                dispatch_result = await dispatch_service.execute_scheduled_dispatch(
+                    parameter,
+                    executed_at=now,
+                    scheduled_for=None if manual else parameter.whatsapp_cobranca_proxima_execucao,
+                    manual=manual,
+                )
+                prepared_whatsapp = int(dispatch_result.get("prepared") or 0)
+                sent_whatsapp = int(dispatch_result.get("sent") or 0)
+                error_whatsapp = int(dispatch_result.get("errors") or 0)
+                whatsapp_batch_id = int(dispatch_result["batch_id"]) if dispatch_result.get("batch_id") is not None else None
                 parameter.whatsapp_cobranca_ultima_execucao = now
-                parameter.whatsapp_ultima_execucao_sucesso = True
-                parameter.whatsapp_ultimo_erro = None
+                parameter.whatsapp_ultima_execucao_sucesso = error_whatsapp == 0
+                parameter.whatsapp_ultimo_erro = None if error_whatsapp == 0 else f"{error_whatsapp} envio(s) com erro."
             except Exception as exc:
                 parameter.whatsapp_cobranca_ultima_execucao = now
                 parameter.whatsapp_ultima_execucao_sucesso = False
@@ -256,6 +281,9 @@ class ParameterService:
             executado_em=now,
             clientes_recalculados=recalculated_clients,
             cobrancas_whatsapp_preparadas=prepared_whatsapp,
+            cobrancas_whatsapp_enviadas=sent_whatsapp,
+            cobrancas_whatsapp_erros=error_whatsapp,
+            whatsapp_batch_id=whatsapp_batch_id,
             parametros=ParameterRead.model_validate(parameter),
         )
 
@@ -283,7 +311,7 @@ class ParameterService:
 
     async def _count_whatsapp_candidates(self, parameter: Parametro, reference: datetime) -> int:
         lower_bound = reference.date() - timedelta(days=max(parameter.whatsapp_cobranca_dias_depois or 0, 0))
-        upper_bound = reference.date() + timedelta(days=max(parameter.whatsapp_cobranca_dias_antes or 0, 0))
+        today = reference.date()
         result = await self.session.execute(
             select(func.count())
             .select_from(ContaReceber)
@@ -292,9 +320,11 @@ class ParameterService:
             .where(
                 ContaReceber.quitado.is_(False),
                 Cliente.flag_whatsapp.is_(True),
+                Cliente.nao_enviar_whatsapp.is_(False),
                 ContaReceber.vencimentol.is_not(None),
+                ContaReceber.msg_whatsapp.is_(False),
                 func.date(ContaReceber.vencimentol) >= lower_bound,
-                func.date(ContaReceber.vencimentol) <= upper_bound,
+                func.date(ContaReceber.vencimentol) <= today,
             )
         )
         return int(result.scalar() or 0)

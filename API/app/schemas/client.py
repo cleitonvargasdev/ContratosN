@@ -172,6 +172,21 @@ class ClientRead(ClientBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ClientScoreLogRead(BaseModel):
+    id: int
+    cliente_id: int
+    data_hora_evento: datetime
+    evento: str
+    pontuacao_anterior: int
+    variacao_pontos: int
+    pontuacao_atual: int
+    regra_pontos: int | None = None
+    quantidade_referencia: int | None = None
+    detalhe_calculo: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ClientCobradorOptionRead(BaseModel):
     id: int
     nome: str

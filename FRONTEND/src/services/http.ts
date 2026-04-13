@@ -99,6 +99,34 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, retry = 
   return (await response.json()) as T
 }
 
+export async function apiFetchBlob(path: string, init: RequestInit = {}, retry = true): Promise<Blob> {
+  const headers = new Headers(init.headers)
+  const accessToken = getAccessToken()
+
+  if (accessToken) {
+    headers.set('Authorization', `Bearer ${accessToken}`)
+  }
+
+  const response = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers,
+  })
+
+  if (response.status === 401 && retry && getRefreshToken()) {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      return apiFetchBlob(path, init, false)
+    }
+  }
+
+  if (!response.ok) {
+    const message = await extractErrorMessage(response)
+    throw new Error(message)
+  }
+
+  return response.blob()
+}
+
 async function extractErrorMessage(response: Response): Promise<string> {
   try {
     const data = (await response.json()) as { detail?: string }

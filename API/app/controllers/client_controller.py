@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_active_user, get_db_session, get_pagination_params, require_permission
 from app.models.user import User
-from app.schemas.client import ClientCobradorOptionRead, ClientCreate, ClientListParams, ClientListResponse, ClientRead, ClientUpdate
+from app.schemas.client import ClientCobradorOptionRead, ClientCreate, ClientListParams, ClientListResponse, ClientRead, ClientScoreLogRead, ClientUpdate
 from app.schemas.pagination import PaginationParams
 from app.schemas.rules import RegraComissaoOptionRead, RegraJurosOptionRead
 from app.services.client_service import ClientService
@@ -70,6 +70,18 @@ async def get_client(
     if client is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
     return client
+
+
+@router.get("/{client_id}/score-log", response_model=list[ClientScoreLogRead], summary="Listar historico do score do cliente")
+async def list_client_score_logs(
+    client_id: int,
+    _: User = Depends(require_permission("clientes", "read")),
+    service: ClientService = Depends(get_client_service),
+) -> list[ClientScoreLogRead]:
+    client = await service.get_client(client_id)
+    if client is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
+    return await service.list_client_score_logs(client_id)
 
 
 @router.post("/", response_model=ClientRead, status_code=status.HTTP_201_CREATED, summary="Criar cliente")

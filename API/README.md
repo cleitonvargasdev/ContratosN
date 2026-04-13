@@ -22,6 +22,11 @@ npm run dev -- --host=127.0.0.1 --port=5174
 - Frontend: `http://127.0.0.1:5174/`
 - API usada pelo frontend: `http://127.0.0.1:8007/api/v1`
 
+## WhatsApp PDF
+
+- Para enviar contrato em PDF pelo QuePasa, configure `PUBLIC_API_BASE_URL` no `.env` da API com uma URL publica da API, por exemplo: `https://api.seudominio.com`.
+- `127.0.0.1`, `localhost` ou `0.0.0.0` nao funcionam para `senddocument`, porque o provedor precisa baixar o PDF a partir de fora da sua maquina.
+
 ## Swagger
 
 - Swagger UI: `http://127.0.0.1:8007/swagger`

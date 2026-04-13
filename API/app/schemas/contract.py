@@ -59,3 +59,11 @@ class ContractListParams(PaginationParams):
 
 class ContractListResponse(PaginatedResponse[ContractRead]):
     model_config = ConfigDict()
+
+
+class ContractWhatsAppDocumentSendResponse(BaseModel):
+    success: bool
+    message: str
+    chatid: str
+    contract_id: int
+    document_url: str
