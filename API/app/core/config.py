@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     quepasa_timeout_seconds: float = Field(default=15.0, alias="QUEPASA_TIMEOUT_SECONDS")
     secret_encryption_key: str | None = Field(default=None, alias="SECRET_ENCRYPTION_KEY")
     public_api_base_url: str | None = Field(default=None, alias="PUBLIC_API_BASE_URL")
+    cors_allow_origins_raw: str = Field(
+        default="http://127.0.0.1:5174,http://localhost:5174,http://127.0.0.1:5173,http://localhost:5173",
+        alias="CORS_ALLOW_ORIGINS",
+    )
+    cors_allow_origin_regex: str = Field(
+        default=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+        alias="CORS_ALLOW_ORIGIN_REGEX",
+    )
 
     model_config = SettingsConfigDict(env_file=str(ENV_FILE), env_file_encoding="utf-8", extra="ignore")
 
@@ -56,6 +64,15 @@ class Settings(BaseSettings):
             f"postgresql+psycopg2://{self.db_user}:{self.db_password}"
             f"@{self.db_host}:{self.db_port}/postgres"
         )
+
+    @property
+    def cors_allow_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_allow_origins_raw.split(",") if origin.strip()]
+
+    @property
+    def cors_origin_regex(self) -> str | None:
+        value = self.cors_allow_origin_regex.strip()
+        return value or None
 
 
 @lru_cache
