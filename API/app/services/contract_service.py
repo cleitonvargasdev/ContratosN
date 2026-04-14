@@ -18,7 +18,34 @@ LOCKED_CONTRACT_FIELDS = {
     "valor_parcela",
     "obs",
     "usuario_id_vendedor",
+    "aluguel",
+    "recorrencia",
+    "cobranca_segunda",
+    "cobranca_terca",
+    "cobranca_quarta",
+    "cobranca_quinta",
+    "cobranca_sexta",
+    "cobranca_sabado",
+    "cobranca_domingo",
+    "cobranca_feriado",
+    "cobranca_mensal",
+    "cobranca_quinzenal",
 }
+
+SCHEDULE_RULE_FIELDS = (
+    "aluguel",
+    "recorrencia",
+    "cobranca_segunda",
+    "cobranca_terca",
+    "cobranca_quarta",
+    "cobranca_quinta",
+    "cobranca_sexta",
+    "cobranca_sabado",
+    "cobranca_domingo",
+    "cobranca_feriado",
+    "cobranca_mensal",
+    "cobranca_quinzenal",
+)
 
 
 class ContractService:
@@ -39,6 +66,7 @@ class ContractService:
 
     async def create_contract(self, payload: ContractCreate, current_user_id: int | None = None) -> Contrato:
         payload_data = payload.model_dump()
+        self._validate_contract_rules(payload_data)
         if current_user_id is not None and payload_data.get("user_add") is None:
             payload_data["user_add"] = current_user_id
         contract = Contrato(**payload_data)
@@ -55,10 +83,17 @@ class ContractService:
         update_data.pop("user_add", None)
 
         if update_data:
+            self._validate_contract_rules(self._resolve_rule_state(update_data, contract))
+
+        if update_data:
             installments = await self.accounts_repository.list_by_contract(contract.contratos_id)
             has_locked_installments = any((float(item.valor_recebido or 0) > 0) or bool(item.quitado) for item in installments)
             if has_locked_installments:
-                blocked_fields = sorted(field for field in LOCKED_CONTRACT_FIELDS if field in update_data)
+                blocked_fields = sorted(
+                    field
+                    for field in LOCKED_CONTRACT_FIELDS
+                    if field in update_data and update_data[field] != getattr(contract, field)
+                )
                 if blocked_fields:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
@@ -100,3 +135,18 @@ class ContractService:
             await self.accounts_repository.commit()
 
         return has_changes
+
+    @staticmethod
+    def _validate_contract_rules(values: dict[str, object]) -> None:
+        if bool(values.get("aluguel")) and bool(values.get("recorrencia")):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Contrato nao pode ser aluguel e recorrente ao mesmo tempo")
+
+        if bool(values.get("cobranca_mensal")) and bool(values.get("cobranca_quinzenal")):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Selecione apenas uma frequencia: mensal ou quinzenal")
+
+    @staticmethod
+    def _resolve_rule_state(update_data: dict[str, object], contract: Contrato) -> dict[str, object]:
+        return {
+            field: update_data.get(field, getattr(contract, field))
+            for field in SCHEDULE_RULE_FIELDS
+        }

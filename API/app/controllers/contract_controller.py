@@ -203,6 +203,16 @@ async def settle_installment(
     return await service.settle_installment(installment_id, payload)
 
 
+@router.post("/{contract_id}/parcelas/quitar", response_model=list[ContractInstallmentRead], summary="Quitar parcelas em aberto")
+async def settle_open_contract_installments(
+    contract_id: int,
+    payload: InstallmentSettleRequest,
+    _: User = Depends(require_permission("contratos", "update")),
+    service: AccountsReceivableService = Depends(get_accounts_receivable_service),
+) -> list[ContractInstallmentRead]:
+    return await service.settle_open_installments(contract_id, payload)
+
+
 @router.post("/parcelas/{installment_id}/reabrir", response_model=ContractInstallmentRead, summary="Reabrir parcela")
 async def reopen_installment(
     installment_id: int,

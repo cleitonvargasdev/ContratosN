@@ -27,7 +27,18 @@ export interface Contract {
   valor_comissao_apurada: number | null
   regra_comissao_id: number | null
   regra_juros_id: number | null
+  aluguel: boolean | null
   recorrencia: boolean | null
+  cobranca_segunda: boolean | null
+  cobranca_terca: boolean | null
+  cobranca_quarta: boolean | null
+  cobranca_quinta: boolean | null
+  cobranca_sexta: boolean | null
+  cobranca_sabado: boolean | null
+  cobranca_domingo: boolean | null
+  cobranca_feriado: boolean | null
+  cobranca_mensal: boolean | null
+  cobranca_quinzenal: boolean | null
 }
 
 export interface ContractBaseInput {
@@ -52,7 +63,18 @@ export interface ContractBaseInput {
   valor_comissao_apurada: number | null
   regra_comissao_id: number | null
   regra_juros_id: number | null
+  aluguel: boolean | null
   recorrencia: boolean | null
+  cobranca_segunda: boolean | null
+  cobranca_terca: boolean | null
+  cobranca_quarta: boolean | null
+  cobranca_quinta: boolean | null
+  cobranca_sexta: boolean | null
+  cobranca_sabado: boolean | null
+  cobranca_domingo: boolean | null
+  cobranca_feriado: boolean | null
+  cobranca_mensal: boolean | null
+  cobranca_quinzenal: boolean | null
 }
 
 export interface ContractCreateInput extends ContractBaseInput {

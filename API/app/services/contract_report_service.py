@@ -186,7 +186,7 @@ class ContractReportService:
             parcela_nro = int(installment.parcela_nro or 0)
             latest_payment = latest_receipts.get(parcela_nro)
             value_text = self._format_currency(float(installment.valor_total or installment.valor_base or contract.valor_parcela or 0))
-            value_pg = value_text if not installment.quitado else f"{value_text}<br/><b>PG</b>"
+            value_pg = value_text if not installment.quitado else f"<b>PG</b> {value_text}"
             rows.append([
                 Paragraph(str(parcela_nro or "-"), styles["CellCenter"]),
                 Paragraph(self._format_date(installment.vencimentol or installment.vencimento_original), styles["CellCenter"]),

@@ -71,7 +71,7 @@ class AccountsReceivableService:
         if not phone_number:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente sem celular principal cadastrado")
 
-        message_payload = self.build_installment_whatsapp_payload(getattr(client, "nome", None), contract.contratos_id, installment)
+        message_payload = self.build_installment_whatsapp_payload(getattr(client, "nome", None), contract.contratos_id, installment, send_type=send_type)
         provider_result = await self.whatsapp_service.send_text_message(phone_number, str(message_payload["text"]))
         sent_at = datetime.now(UTC)
         installment.msg_whatsapp = True
@@ -110,8 +110,8 @@ class AccountsReceivableService:
         return installment, contract, client
 
     @staticmethod
-    def build_installment_whatsapp_payload(client_name: str | None, contract_id: int, installment: ContaReceber) -> dict[str, object]:
-        text = AccountsReceivableService._build_installment_whatsapp_message(client_name, contract_id, installment)
+    def build_installment_whatsapp_payload(client_name: str | None, contract_id: int, installment: ContaReceber, *, send_type: int = 2) -> dict[str, object]:
+        text = AccountsReceivableService._build_installment_whatsapp_message(client_name, contract_id, installment, send_type=send_type)
         return {
             "text": text,
             "contract_id": contract_id,
@@ -186,8 +186,8 @@ class AccountsReceivableService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parcela nao encontrada")
 
         contract = await self.repository.get_contract_by_id(installment.contratos_id) if installment.contratos_id is not None else None
-        if contract is not None and contract.recorrencia:
-            return await self._receive_recurring_installment(installment, contract, payload, current_user_id)
+        if contract is not None and (bool(contract.recorrencia) or bool(contract.aluguel)):
+            return await self._receive_scheduled_installment(installment, contract, payload, current_user_id)
 
         payment_date = self._normalize_input_datetime(payload.data_recebimento) or datetime.now(self.local_timezone)
         current_total = float(installment.valor_total or 0)
@@ -302,7 +302,7 @@ class AccountsReceivableService:
         await self.repository.refresh(installment)
         return self._build_installment_read(installment)
 
-    async def _receive_recurring_installment(
+    async def _receive_scheduled_installment(
         self,
         installment: ContaReceber,
         contract: Contrato,
@@ -313,9 +313,8 @@ class AccountsReceivableService:
         payment_value = float(payload.valor_recebido or 0)
         current_total = float(installment.valor_total or 0)
         current_received = float(installment.valor_recebido or 0)
-        remaining_balance = max(current_total - current_received - payment_value, 0)
-        recurring_interest_percent = float(contract.percent_juros or installment.percent_juros or 0)
-        next_installment_value = round(remaining_balance * (1 + (recurring_interest_percent / 100)), 4)
+        remaining_before_payment = max(current_total - current_received, 0)
+        interest_value = max(payment_value - remaining_before_payment, 0)
 
         receipt = Recebimento(
             contrato_id=installment.contratos_id,
@@ -324,41 +323,44 @@ class AccountsReceivableService:
             data_recebimento=payment_date,
             parcela_nro=installment.parcela_nro,
             desconto=None,
-            juros=0,
+            juros=interest_value,
         )
         await self.repository.add_receipt(receipt)
 
-        installment.valor_base = payment_value
-        installment.valor_total = payment_value
-        installment.valor_recebido = payment_value
+        installment.valor_recebido = current_received + payment_value
         installment.desconto = 0
-        installment.valor_juros = 0
+        installment.valor_juros = float(installment.valor_juros or 0) + interest_value
+        installment.valor_total = float(installment.valor_base or 0) + float(installment.valor_juros or 0)
         installment.data_recebimento = payment_date
-        installment.quitado = True
+        installment.quitado = float(installment.valor_recebido or 0) >= float(installment.valor_total or 0)
 
-        if next_installment_value > 0:
-            next_due_date = await self._calculate_next_recurring_due_date(contract, installment, payment_date)
-            contract.data_final = next_due_date
-
+        if installment.quitado:
             existing_installments = await self.repository.list_by_contract(contract.contratos_id)
-            next_parcela_nro = max((item.parcela_nro or 0) for item in existing_installments) + 1 if existing_installments else 1
+            has_other_open_installment = any(item.id != installment.id and not item.quitado for item in existing_installments)
+            next_installment_value = round(float(contract.valor_parcela or installment.valor_base or installment.valor_total or 0), 4)
 
-            next_installment = ContaReceber(
-                contratos_id=contract.contratos_id,
-                vencimento_original=next_due_date,
-                vencimentol=next_due_date,
-                valor_base=next_installment_value,
-                valor_total=next_installment_value,
-                valor_recebido=0,
-                percent_juros=recurring_interest_percent,
-                quitado=False,
-                usuarios_id=current_user_id,
-                parcela_nro=next_parcela_nro,
-                valor_juros=0,
-                desconto=0,
-                prorrogada=False,
-            )
-            await self.repository.add_installments([next_installment])
+            if not has_other_open_installment and next_installment_value > 0:
+                next_due_date = await self._calculate_next_scheduled_due_date(contract, installment, payment_date)
+                contract.data_final = next_due_date
+
+                next_parcela_nro = max((item.parcela_nro or 0) for item in existing_installments) + 1 if existing_installments else 1
+
+                next_installment = ContaReceber(
+                    contratos_id=contract.contratos_id,
+                    vencimento_original=next_due_date,
+                    vencimentol=next_due_date,
+                    valor_base=next_installment_value,
+                    valor_total=next_installment_value,
+                    valor_recebido=0,
+                    percent_juros=float(contract.percent_juros or 0),
+                    quitado=False,
+                    usuarios_id=current_user_id,
+                    parcela_nro=next_parcela_nro,
+                    valor_juros=0,
+                    desconto=0,
+                    prorrogada=False,
+                )
+                await self.repository.add_installments([next_installment])
 
         await self._sync_contract_by_id(installment.contratos_id)
         await self.repository.commit()
@@ -398,17 +400,63 @@ class AccountsReceivableService:
         await self.repository.refresh(installment)
         return self._build_installment_read(installment)
 
+    async def settle_open_installments(self, contract_id: int, payload: InstallmentSettleRequest) -> list[ContractInstallmentRead]:
+        contract = await self.repository.get_contract_by_id(contract_id)
+        if contract is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contrato nao encontrado")
+
+        installments = await self.repository.list_by_contract(contract_id)
+        settlement_date = self._normalize_input_datetime(payload.data_recebimento) or datetime.now(self.local_timezone)
+
+        for installment in installments:
+            if installment.quitado:
+                continue
+            installment.quitado = True
+            installment.data_recebimento = installment.data_recebimento or settlement_date
+
+        await self._sync_contract_financials(contract, installments)
+        await self.client_metrics_service.refresh_client_metrics(contract.cliente_id)
+        await self.repository.commit()
+
+        updated_installments = await self.repository.list_by_contract(contract_id)
+        return [self._build_installment_read(item) for item in updated_installments]
+
     @staticmethod
-    def _build_installment_whatsapp_message(client_name: str | None, contract_id: int, installment: ContaReceber) -> str:
+    def _build_installment_whatsapp_message(client_name: str | None, contract_id: int, installment: ContaReceber, *, send_type: int = 2) -> str:
         due_date = installment.vencimentol or installment.vencimento_original
         client_label = (client_name or "cliente").strip() or "cliente"
         parcela_label = installment.parcela_nro or 0
+
+        if send_type == 1:
+            return (
+                f"Ola! {client_label}, informamos que sua parcela n{chr(186)} {parcela_label} "
+                f"no valor de {AccountsReceivableService._format_message_currency(float(installment.valor_total or 0))}, "
+                f"do contrato {contract_id} {AccountsReceivableService._build_manual_due_status_text(due_date)}"
+            )
+
         return (
             f"Ola! {client_label}, informamos que sua parcela n{chr(186)} {parcela_label} "
             f"no valor de {AccountsReceivableService._format_message_currency(float(installment.valor_total or 0))}, "
             f"do contrato {contract_id} venceu dia {AccountsReceivableService._format_message_date(due_date)} "
             "e encontra-se pendente o pagamento em nosso sistema, favor entrar em contato!"
         )
+
+    @staticmethod
+    def _build_manual_due_status_text(value: datetime | None) -> str:
+        if value is None:
+            return "tem vencimento em data nao informada."
+
+        today = datetime.now(value.tzinfo).date() if value.tzinfo is not None else datetime.now().date()
+        due_date = value.date()
+        formatted_date = AccountsReceivableService._format_message_date(value)
+
+        if due_date < today:
+            return f"venceu dia {formatted_date} e encontra-se pendente o pagamento em nosso sistema, favor entrar em contato!"
+
+        if due_date == today:
+            return "vence hoje e encontra-se pendente o pagamento em nosso sistema, favor entrar em contato!"
+
+        return f"vencera dia {formatted_date}."
 
     @staticmethod
     def _format_message_date(value: datetime | None) -> str:
@@ -500,16 +548,32 @@ class AccountsReceivableService:
         await self._sync_contract_financials(contract, installments)
         await self.client_metrics_service.refresh_client_metrics(contract.cliente_id)
 
-    async def _calculate_next_recurring_due_date(
+    async def _calculate_next_scheduled_due_date(
         self,
         contract: Contrato,
         installment: ContaReceber,
         payment_date: datetime,
     ) -> datetime:
         base_due_date = installment.vencimentol or installment.vencimento_original or payment_date
-        next_month_date = self._add_months(base_due_date, 1)
         holidays = await self._load_contract_holidays(contract)
-        return self._move_to_next_business_day(next_month_date, holidays)
+
+        if bool(contract.cobranca_mensal):
+            next_date = self._add_months(base_due_date, 1)
+            return self._move_to_next_allowed_due_date(next_date, contract, holidays)
+
+        if bool(contract.cobranca_quinzenal):
+            next_date = base_due_date + timedelta(days=15)
+            return self._move_to_next_allowed_due_date(next_date, contract, holidays)
+
+        allowed_weekdays = self._get_allowed_weekdays(contract)
+        next_date = base_due_date + timedelta(days=1)
+        safety = 0
+        while not self._is_allowed_due_date(next_date, contract, holidays, allowed_weekdays):
+            next_date += timedelta(days=1)
+            safety += 1
+            if safety > 370:
+                break
+        return next_date
 
     async def _load_contract_holidays(self, contract: Contrato) -> set[date]:
         holidays = await self.location_repository.list_feriados(nivel=1)
@@ -533,11 +597,43 @@ class AccountsReceivableService:
 
         return holiday_dates
 
-    def _move_to_next_business_day(self, value: datetime, holidays: set[date]) -> datetime:
+    def _move_to_next_allowed_due_date(self, value: datetime, contract: Contrato, holidays: set[date]) -> datetime:
         candidate = value
-        while candidate.weekday() >= 5 or candidate.date() in holidays:
+        allowed_weekdays = self._get_allowed_weekdays(contract)
+        safety = 0
+        while not self._is_allowed_due_date(candidate, contract, holidays, allowed_weekdays):
             candidate += timedelta(days=1)
+            safety += 1
+            if safety > 370:
+                break
         return candidate
+
+    @staticmethod
+    def _get_allowed_weekdays(contract: Contrato) -> set[int]:
+        allowed_weekdays: set[int] = set()
+        if bool(contract.cobranca_domingo):
+            allowed_weekdays.add(6)
+        if bool(contract.cobranca_segunda):
+            allowed_weekdays.add(0)
+        if bool(contract.cobranca_terca):
+            allowed_weekdays.add(1)
+        if bool(contract.cobranca_quarta):
+            allowed_weekdays.add(2)
+        if bool(contract.cobranca_quinta):
+            allowed_weekdays.add(3)
+        if bool(contract.cobranca_sexta):
+            allowed_weekdays.add(4)
+        if bool(contract.cobranca_sabado):
+            allowed_weekdays.add(5)
+        return allowed_weekdays or {0, 1, 2, 3, 4}
+
+    @staticmethod
+    def _is_allowed_due_date(value: datetime, contract: Contrato, holidays: set[date], allowed_weekdays: set[int]) -> bool:
+        if value.weekday() not in allowed_weekdays:
+            return False
+        if not bool(contract.cobranca_feriado) and value.date() in holidays:
+            return False
+        return True
 
     def _normalize_input_datetime(self, value: datetime | None) -> datetime | None:
         if value is None:

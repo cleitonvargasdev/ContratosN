@@ -95,6 +95,14 @@ export async function settleContractInstallment(installmentId: number, payload: 
   })
 }
 
+export async function settleOpenContractInstallments(contractId: number, payload: InstallmentSettlePayload): Promise<ContractInstallment[]> {
+  return apiFetch<ContractInstallment[]>(`/contratos/${contractId}/parcelas/quitar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function reopenContractInstallment(installmentId: number): Promise<ContractInstallment> {
   return apiFetch<ContractInstallment>(`/contratos/parcelas/${installmentId}/reabrir`, {
     method: 'POST',

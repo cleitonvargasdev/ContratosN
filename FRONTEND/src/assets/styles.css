@@ -1266,8 +1266,20 @@ select {
   margin-bottom: 0;
 }
 
-.contract-installments__add-button {
+.contract-installments__header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
   margin-left: auto;
+}
+
+.contract-installments__add-button {
+  margin-left: 0;
+}
+
+.contract-installments__bulk-settle-button {
+  border-color: rgba(216, 75, 98, 0.28);
 }
 
 .modal-backdrop {
@@ -2037,7 +2049,14 @@ select {
 }
 
 .contract-days-picker__item--recorrente {
-  grid-column: 1 / -1;
+  grid-column: 1;
+  grid-row: 3;
+  justify-self: start;
+}
+
+.contract-days-picker__item--aluguel {
+  grid-column: 4;
+  grid-row: 3;
   justify-self: start;
 }
 
@@ -2211,6 +2230,15 @@ select {
     grid-template-columns: 1fr;
   }
 
+  .contract-installments__header-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .contract-installments__header-actions > button {
+    flex: 1 1 180px;
+  }
+
   .contract-card__triple {
     grid-template-columns: 1fr;
   }
@@ -2221,6 +2249,12 @@ select {
 
   .contract-days-picker__grid {
     grid-template-columns: repeat(2, minmax(0, max-content));
+  }
+
+  .contract-days-picker__item--recorrente,
+  .contract-days-picker__item--aluguel {
+    grid-column: auto;
+    grid-row: auto;
   }
 }
 

@@ -27,7 +27,18 @@ class ContractBase(BaseModel):
     valor_comissao_apurada: float | None = None
     regra_comissao_id: int | None = None
     regra_juros_id: int | None = None
-    recorrencia: bool | None = None
+    aluguel: bool = False
+    recorrencia: bool = False
+    cobranca_segunda: bool = True
+    cobranca_terca: bool = True
+    cobranca_quarta: bool = True
+    cobranca_quinta: bool = True
+    cobranca_sexta: bool = True
+    cobranca_sabado: bool = False
+    cobranca_domingo: bool = False
+    cobranca_feriado: bool = False
+    cobranca_mensal: bool = False
+    cobranca_quinzenal: bool = False
 
 
 class ContractCreate(ContractBase):

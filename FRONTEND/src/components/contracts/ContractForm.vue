@@ -222,6 +222,10 @@
                     <input v-model="form.recorrencia" :disabled="contractEditLocked" type="checkbox" @change="handleRecurringChange" />
                     <span class="contract-days-picker__label--recorrente">Recorrente - valor dos juros se repete</span>
                   </label>
+                  <label class="contract-days-picker__item contract-days-picker__item--aluguel">
+                    <input v-model="form.aluguel" :disabled="contractEditLocked" type="checkbox" @change="handleRentChange" />
+                    <span class="contract-days-picker__label--recorrente">Aluguel</span>
+                  </label>
                 </div>
               </div>
             </div>
@@ -236,16 +240,26 @@
             <header class="contract-card__header contract-card__header--parcelas">
               <div>
                 <h3 class="panel__title">Parcelas</h3>
+                <p class="contract-card__subtitle">{{ installmentsCaptionLabel }}</p>
               </div>
-              <button
-                v-if="props.mode === 'edit'"
-                class="primary-button primary-button--accent-soft primary-button--compact contract-installments__add-button"
-                :disabled="installmentsSaving"
-                type="button"
-                @click="openInstallmentCreateModal"
-              >
-                Incluir Parcela +
-              </button>
+              <div v-if="props.mode === 'edit'" class="contract-installments__header-actions">
+                <button
+                  class="ghost-button ghost-button--danger primary-button--compact contract-installments__bulk-settle-button"
+                  :disabled="installmentsSaving || !currentContractId || openInstallmentsCount === 0"
+                  type="button"
+                  @click="handleSettleAllInstallments"
+                >
+                  Quitar todas
+                </button>
+                <button
+                  class="primary-button primary-button--accent-soft primary-button--compact contract-installments__add-button"
+                  :disabled="installmentsSaving"
+                  type="button"
+                  @click="openInstallmentCreateModal"
+                >
+                  Incluir Parcela +
+                </button>
+              </div>
             </header>
 
             <div class="contract-installments__tools">
@@ -583,6 +597,7 @@ import {
   reopenContractInstallment,
   sendInstallmentWhatsAppMessage,
   settleContractInstallment,
+  settleOpenContractInstallments,
   updateContractInstallment,
 } from '@/services/contractService'
 import { chooseReceiptToDeletePrompt, confirmActionAlert, errorAlert, infoAlert, playCashRegisterSound, showClientScoreLogPopup, successAlert } from '@/services/alertService'
@@ -697,6 +712,7 @@ const form = reactive({
   valor_comissao_apurada: '',
   regra_comissao_id: null as number | null,
   regra_juros_id: '',
+  aluguel: false,
   recorrencia: false,
 })
 
@@ -706,6 +722,24 @@ const selectedClientLabel = computed(() => {
     return 'Não selecionado'
   }
   return `${client.clientes_id} - ${client.nome || 'Sem nome'}`
+})
+
+const selectedClientName = computed(() => {
+  const client = clientOptions.value.find((item) => item.clientes_id === form.cliente_id)
+  if (client?.nome?.trim()) {
+    return client.nome.trim()
+  }
+
+  if (props.initialContract?.cliente_nome?.trim()) {
+    return props.initialContract.cliente_nome.trim()
+  }
+
+  return 'Sem cliente'
+})
+
+const installmentsCaptionLabel = computed(() => {
+  const contractNumber = form.contratos_id.trim() || '-'
+  return `Parcelas - Contrato nº ${contractNumber} - ${selectedClientName.value}`
 })
 
 const canSendCurrentClientWhatsApp = computed(() => {
@@ -750,6 +784,7 @@ const filteredClients = computed(() => {
 })
 
 const sortedPersistedInstallments = computed(() => [...persistedInstallments.value].sort(compareInstallments))
+const openInstallmentsCount = computed(() => persistedInstallments.value.filter((item) => !item.quitado).length)
 
 const installmentRows = computed(() => {
   if (sortedPersistedInstallments.value.length > 0) {
@@ -873,10 +908,20 @@ function syncContractIntoForm(contract?: Contract | null) {
   form.valor_comissao_apurada = toStringValue(contract.valor_comissao_apurada)
   form.regra_comissao_id = contract.regra_comissao_id
   form.regra_juros_id = toStringValue(contract.regra_juros_id)
+  form.aluguel = Boolean(contract.aluguel)
   form.recorrencia = Boolean(contract.recorrencia)
-  if (form.recorrencia) {
+  billingDays.sabado = Boolean(contract.cobranca_sabado)
+  billingDays.domingo = Boolean(contract.cobranca_domingo)
+  billingDays.feriado = Boolean(contract.cobranca_feriado)
+  billingDays.mensal = Boolean(contract.cobranca_mensal)
+  billingDays.quinzenal = Boolean(contract.cobranca_quinzenal)
+  billingDays.segunda = Boolean(contract.cobranca_segunda)
+  billingDays.terca = Boolean(contract.cobranca_terca)
+  billingDays.quarta = Boolean(contract.cobranca_quarta)
+  billingDays.quinta = Boolean(contract.cobranca_quinta)
+  billingDays.sexta = Boolean(contract.cobranca_sexta)
+  if ((form.recorrencia || form.aluguel) && !billingDays.mensal && !billingDays.quinzenal) {
     billingDays.mensal = true
-    billingDays.quinzenal = false
   }
   previewInstallmentsPayload.value = null
   generatedInstallments.value = []
@@ -909,6 +954,7 @@ function resetForm() {
   form.valor_comissao_apurada = ''
   form.regra_comissao_id = null
   form.regra_juros_id = ''
+  form.aluguel = false
   form.recorrencia = false
   activeTab.value = 'dados'
   persistedInstallments.value = []
@@ -1012,8 +1058,20 @@ function handleRecurringChange() {
     return
   }
 
+  form.aluguel = false
   billingDays.mensal = true
   billingDays.quinzenal = false
+}
+
+function handleRentChange() {
+  if (contractEditLocked.value || !form.aluguel) {
+    return
+  }
+
+  form.recorrencia = false
+  if (!billingDays.mensal && !billingDays.quinzenal) {
+    billingDays.mensal = true
+  }
 }
 
 async function calculateInstallments() {
@@ -1028,21 +1086,39 @@ async function calculateInstallments() {
   }
 
   const startDate = parseLocalDateTime(form.data_contrato)
+  const scheduledContract = form.recorrencia || form.aluguel
   const installmentValue = toLocaleNumberOrNull(form.valor_parcela) ?? toLocaleNumberOrNull(form.valor_final)
   const qtdDias = toIntegerOrNull(form.qtde_dias)
 
-  if (!form.plano_id && (!form.valor_parcela.trim() || !form.qtde_dias.trim())) {
+  if (form.recorrencia && form.aluguel) {
+    await infoAlert('Aluguel e recorrente nao podem estar marcados juntos.')
+    return
+  }
+
+  if (!billingDays.mensal && !billingDays.quinzenal && !hasAnyWeeklyBillingDaySelected()) {
+    await infoAlert('Selecione ao menos um dia de cobranca ou uma frequencia mensal/quinzenal.')
+    return
+  }
+
+  if (scheduledContract && !form.valor_parcela.trim()) {
+    await infoAlert('Informe o valor da parcela para contratos de aluguel ou recorrentes.')
+    return
+  }
+
+  if (!scheduledContract && !form.plano_id && (!form.valor_parcela.trim() || !form.qtde_dias.trim())) {
     await infoAlert('Selecione o plano ou informe os valores antes de calcular os dias.')
     return
   }
 
-  if (!startDate || installmentValue === null || qtdDias === null || qtdDias <= 0) {
+  if (!startDate || installmentValue === null || (!scheduledContract && (qtdDias === null || qtdDias <= 0))) {
     await infoAlert('Selecione o plano ou informe data do contrato, dias e valor antes de calcular os dias.')
     return
   }
 
   const holidaySet = await loadHolidaySet()
-  const dueDates = buildDueDates(startDate, qtdDias, holidaySet)
+  const dueDates = scheduledContract
+    ? buildSingleScheduledDueDate(startDate, holidaySet)
+    : buildDueDates(startDate, qtdDias as number, holidaySet)
   const endDate = dueDates.at(-1) ?? null
   form.data_final = endDate ? toDateTimeLocal(endDate.toISOString()) : ''
 
@@ -1264,6 +1340,42 @@ async function saveInstallmentSettle() {
     void successAlert(reopening ? 'Parcela reaberta com sucesso.' : 'Parcela quitada com sucesso.', 'update')
   } catch (error) {
     await errorAlert(error instanceof Error ? error.message : reopening ? 'Falha ao reabrir parcela' : 'Falha ao quitar parcela')
+  } finally {
+    installmentsSaving.value = false
+  }
+}
+
+async function handleSettleAllInstallments() {
+  if (!currentContractId.value) {
+    return
+  }
+
+  if (openInstallmentsCount.value === 0) {
+    await infoAlert('Nao existem parcelas em aberto para quitar.')
+    return
+  }
+
+  const confirmed = await confirmActionAlert(
+    'Quitar todas as parcelas?',
+    'Essa acao vai marcar como quitadas todas as parcelas em aberto, mesmo sem valor recebido.',
+    'Quitar todas',
+  )
+
+  if (!confirmed) {
+    return
+  }
+
+  installmentsSaving.value = true
+  try {
+    persistedInstallments.value = await settleOpenContractInstallments(currentContractId.value, {
+      data_recebimento: currentDateTimeLocal(),
+    })
+    syncQuitadoFromInstallments()
+    syncFinancialTotalsFromInstallments()
+    playCashRegisterSound()
+    void successAlert('Parcelas em aberto quitadas com sucesso.', 'update')
+  } catch (error) {
+    await errorAlert(error instanceof Error ? error.message : 'Falha ao quitar parcelas em aberto')
   } finally {
     installmentsSaving.value = false
   }
@@ -1596,7 +1708,18 @@ function buildCommonPayload(): ContractUpdateInput {
     valor_comissao_apurada: toNumberOrNull(form.valor_comissao_apurada),
     regra_comissao_id: form.regra_comissao_id,
     regra_juros_id: toNumberOrNull(form.regra_juros_id),
+    aluguel: form.aluguel,
     recorrencia: form.recorrencia,
+    cobranca_segunda: billingDays.segunda,
+    cobranca_terca: billingDays.terca,
+    cobranca_quarta: billingDays.quarta,
+    cobranca_quinta: billingDays.quinta,
+    cobranca_sexta: billingDays.sexta,
+    cobranca_sabado: billingDays.sabado,
+    cobranca_domingo: billingDays.domingo,
+    cobranca_feriado: billingDays.feriado,
+    cobranca_mensal: billingDays.mensal,
+    cobranca_quinzenal: billingDays.quinzenal,
   }
 }
 
@@ -1845,6 +1968,21 @@ function buildDueDates(startDate: Date, qtdDias: number, holidaySet: Set<string>
   return buildWeeklyDueDates(startDate, qtdDias, holidaySet)
 }
 
+function buildSingleScheduledDueDate(startDate: Date, holidaySet: Set<string>) {
+  if (billingDays.mensal) {
+    const candidate = addMonths(startDate, 1)
+    return [resolveMonthlyDueDate(candidate, holidaySet)]
+  }
+
+  if (billingDays.quinzenal) {
+    const candidate = new Date(startDate)
+    candidate.setDate(candidate.getDate() + 15)
+    return [resolveMonthlyDueDate(candidate, holidaySet)]
+  }
+
+  return buildWeeklyDueDates(startDate, 1, holidaySet)
+}
+
 function buildMonthlyDueDates(startDate: Date, qtdDias: number, holidaySet: Set<string>) {
   const dates: Date[] = []
   const cursor = new Date(startDate)
@@ -1910,14 +2048,7 @@ function buildBiweeklyDueDates(startDate: Date, qtdDias: number, holidaySet: Set
 }
 
 function buildWeeklyDueDates(startDate: Date, qtdDias: number, holidaySet: Set<string>) {
-  const allowedWeekdays = new Set<number>()
-  if (billingDays.domingo) allowedWeekdays.add(0)
-  if (billingDays.segunda) allowedWeekdays.add(1)
-  if (billingDays.terca) allowedWeekdays.add(2)
-  if (billingDays.quarta) allowedWeekdays.add(3)
-  if (billingDays.quinta) allowedWeekdays.add(4)
-  if (billingDays.sexta) allowedWeekdays.add(5)
-  if (billingDays.sabado) allowedWeekdays.add(6)
+  const allowedWeekdays = getAllowedWeekdays()
 
   const dates: Date[] = []
   const cursor = new Date(startDate)
@@ -1940,6 +2071,28 @@ function shouldIncludeDate(date: Date, holidaySet: Set<string>) {
   }
 
   return true
+}
+
+function hasAnyWeeklyBillingDaySelected() {
+  return billingDays.domingo || billingDays.segunda || billingDays.terca || billingDays.quarta || billingDays.quinta || billingDays.sexta || billingDays.sabado
+}
+
+function getAllowedWeekdays() {
+  const allowedWeekdays = new Set<number>()
+  if (billingDays.domingo) allowedWeekdays.add(0)
+  if (billingDays.segunda) allowedWeekdays.add(1)
+  if (billingDays.terca) allowedWeekdays.add(2)
+  if (billingDays.quarta) allowedWeekdays.add(3)
+  if (billingDays.quinta) allowedWeekdays.add(4)
+  if (billingDays.sexta) allowedWeekdays.add(5)
+  if (billingDays.sabado) allowedWeekdays.add(6)
+  return allowedWeekdays
+}
+
+function addMonths(value: Date, months: number) {
+  const next = new Date(value)
+  next.setMonth(next.getMonth() + months)
+  return next
 }
 
 async function loadHolidaySet() {

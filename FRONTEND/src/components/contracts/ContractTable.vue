@@ -38,6 +38,7 @@
             <th>Cliente / Empresa</th>
             <th>Valor</th>
             <th>Vl. Parcela</th>
+              <th>Aluguel</th>
             <th>Quitado</th>
             <th>Recebido</th>
             <th>Aberto</th>
@@ -48,10 +49,10 @@
         </thead>
         <tbody>
           <tr v-if="props.loading">
-            <td colspan="10">Carregando contratos...</td>
+            <td colspan="12">Carregando contratos...</td>
           </tr>
           <tr v-else-if="props.result.items.length === 0">
-            <td colspan="10">Nenhum contrato encontrado.</td>
+            <td colspan="12">Nenhum contrato encontrado.</td>
           </tr>
           <tr v-for="contract in props.result.items" :key="contract.contratos_id" class="data-table__row" @dblclick="handleRowDoubleClick(contract.contratos_id)">
             <td>{{ contract.contratos_id }}</td>
@@ -59,6 +60,11 @@
             <td>{{ contract.cliente_nome || '-' }}</td>
             <td>{{ formatCurrency(contract.valor_final) }}</td>
             <td>{{ formatCurrency(contract.valor_parcela) }}</td>
+            <td>
+              <span :class="['pill', contract.aluguel ? 'pill--warning' : 'pill--default']">
+                {{ contract.aluguel ? 'SIM' : 'NAO' }}
+              </span>
+            </td>
             <td>
               <span :class="['pill', contract.quitado ? 'pill--success' : 'pill--warning']">
                 {{ contract.quitado ? 'QUITADO' : 'ABERTO' }}
