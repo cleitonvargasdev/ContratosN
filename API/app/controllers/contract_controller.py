@@ -28,7 +28,6 @@ from app.services.contract_service import ContractService
 
 router = APIRouter(dependencies=[Depends(get_current_active_user)])
 public_router = APIRouter()
-TEST_CONTRACT_PDF_URL = "https://drive.google.com/uc?export=download&id=1KgW_4Q7OZojxtLZl3yesGzypIIgJhjf7"
 
 
 def get_contract_service(session: AsyncSession = Depends(get_db_session)) -> ContractService:
@@ -63,9 +62,6 @@ def _validate_contract_pdf_token(token: str, contract_id: int) -> None:
 
 
 def _build_public_contract_pdf_url(request: Request, contract_id: int) -> str:
-    if TEST_CONTRACT_PDF_URL:
-        return TEST_CONTRACT_PDF_URL
-
     token = _create_contract_pdf_token(contract_id)
     route_path = request.app.url_path_for("print_contract_public", contract_id=str(contract_id))
     base_url = (settings.public_api_base_url or str(request.base_url)).rstrip("/")
