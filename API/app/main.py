@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
 from app.api.v1.router import api_router
+from app.controllers.webhook_controller import router as webhook_router
 from app.core.config import settings
 from app.db.session import AsyncSessionLocal
 from app.services.parameter_service import ParameterService
@@ -44,6 +45,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=settings.api_v1_prefix)
+app.include_router(webhook_router, prefix="/webhooks", tags=["webhooks"])
 
 
 async def _parameter_scheduler_loop() -> None:
