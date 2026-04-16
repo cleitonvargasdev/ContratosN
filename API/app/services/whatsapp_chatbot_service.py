@@ -1,3 +1,4 @@
+import logging
 import json
 import re
 import unicodedata
@@ -21,6 +22,7 @@ GREETING_WORDS = {"oi", "ola", "olá", "bom dia", "boa tarde", "boa noite", "ini
 BACK_WORDS = {"0", "voltar"}
 NAME_STOPWORDS = {"da", "das", "de", "do", "dos", "e"}
 SESSION_TIMEOUT = timedelta(minutes=30)
+logger = logging.getLogger(__name__)
 
 
 class WhatsAppChatbotService:
@@ -32,11 +34,13 @@ class WhatsAppChatbotService:
     async def handle_webhook_event(self, request: Request, payload: dict[str, Any]) -> dict[str, Any]:
         event = self._extract_event(payload)
         if event is None:
+            logger.info("Webhook WhatsApp ignorado. payload_type=%s payload_summary=%s", type(payload).__name__, self._summarize_payload(payload))
             return {"success": True, "ignored": True}
 
         phone = event["phone"]
         chat_id = event["chat_id"]
         text = event["text"]
+        logger.info("Webhook WhatsApp recebido. chat_id=%s phone=%s text=%s", chat_id, phone, text[:80])
 
         chatbot_session = await self.repository.get_session_by_chat_id(chat_id)
         if chatbot_session is None:
@@ -431,21 +435,67 @@ class WhatsAppChatbotService:
         contracts = await self.repository.list_contracts_for_client(client_id)
         return contracts[0] if contracts else None
 
-    def _extract_event(self, payload: dict[str, Any]) -> dict[str, str] | None:
-        if not isinstance(payload, dict):
+    def _extract_event(self, payload: Any) -> dict[str, str] | None:
+        candidate = self._find_message_candidate(payload)
+        if not isinstance(candidate, dict):
             return None
-        if payload.get("fromme") or payload.get("frominternal"):
+        if candidate.get("fromme") or candidate.get("frominternal"):
             return None
-        if str(payload.get("type") or "").lower() != "text":
+        if str(candidate.get("type") or "").lower() != "text":
             return None
 
-        text = str(payload.get("text") or "").strip()
-        chat = payload.get("chat") or {}
-        chat_id = str(chat.get("id") or "").strip()
-        phone = str(chat.get("phone") or "").strip()
+        text = str(candidate.get("text") or "").strip()
+        chat = candidate.get("chat") or {}
+        chat_id = str(chat.get("id") or candidate.get("chatid") or candidate.get("chatId") or "").strip()
+        phone = str(chat.get("phone") or candidate.get("phone") or "").strip()
+        if not phone and chat_id.endswith("@s.whatsapp.net"):
+            phone = self._extract_digits(chat_id)
+            if phone.startswith("55") and len(phone) > 11:
+                phone = phone[2:]
+
         if not text or not chat_id or not phone:
             return None
         return {"text": text, "chat_id": chat_id, "phone": phone}
+
+    def _find_message_candidate(self, payload: Any) -> dict[str, Any] | None:
+        if isinstance(payload, dict):
+            if self._looks_like_message_payload(payload):
+                return payload
+
+            for key in ("data", "message", "messages", "event", "events", "result", "payload"):
+                nested = payload.get(key)
+                candidate = self._find_message_candidate(nested)
+                if candidate is not None:
+                    return candidate
+
+        if isinstance(payload, list):
+            for item in payload:
+                candidate = self._find_message_candidate(item)
+                if candidate is not None:
+                    return candidate
+
+        return None
+
+    @staticmethod
+    def _looks_like_message_payload(payload: dict[str, Any]) -> bool:
+        return any(key in payload for key in ("text", "chat", "chatid", "chatId", "fromme", "frominternal", "type"))
+
+    def _summarize_payload(self, payload: Any) -> str:
+        if isinstance(payload, dict):
+            top_keys = sorted(str(key) for key in payload.keys())
+            summary = {"keys": top_keys[:10]}
+            for key in ("type", "event", "chatid", "chatId", "phone", "fromme", "frominternal"):
+                if key in payload:
+                    summary[key] = payload.get(key)
+            chat = payload.get("chat")
+            if isinstance(chat, dict):
+                summary["chat_keys"] = sorted(str(key) for key in chat.keys())[:10]
+            return json.dumps(summary, ensure_ascii=True)
+
+        if isinstance(payload, list):
+            return json.dumps({"list_length": len(payload)}, ensure_ascii=True)
+
+        return json.dumps({"value": str(payload)[:120]}, ensure_ascii=True)
 
     def _build_public_contract_pdf_url(self, request: Request, contract_id: int) -> str:
         token = create_access_token(

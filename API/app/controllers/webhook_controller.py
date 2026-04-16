@@ -17,7 +17,7 @@ def get_whatsapp_chatbot_service(session: AsyncSession = Depends(get_db_session)
 @router.post("/webhook", summary="Receber eventos do QuePasa")
 async def receive_quepasa_webhook(
     request: Request,
-    payload: dict[str, Any],
+    payload: Any,
     service: WhatsAppChatbotService = Depends(get_whatsapp_chatbot_service),
 ) -> dict[str, Any]:
     return await service.handle_webhook_event(request, payload)
