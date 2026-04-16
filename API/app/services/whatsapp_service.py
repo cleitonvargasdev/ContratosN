@@ -306,11 +306,14 @@ class WhatsAppService:
 		json_body: dict[str, Any] | None = None
 		if body:
 			try:
-				parsed_body = json.loads(body)
+				body_template = decrypt_secret(body)
+				parsed_body = json.loads(body_template)
 			except ValueError as exc:
 				raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Body da API WhatsApp invalido para {funcionalidade}.") from exc
 			if isinstance(parsed_body, dict):
-				json_body = parsed_body
+				resolved_body = self._resolve_json_placeholders(parsed_body, placeholders)
+				if isinstance(resolved_body, dict):
+					json_body = resolved_body
 
 		return {"url": url, "headers": headers, "json": json_body}
 
@@ -346,6 +349,21 @@ class WhatsAppService:
 		for key, replacement in placeholders.items():
 			formatted = formatted.replace(f"{{{key}}}", replacement)
 		return decrypt_secret(formatted)
+
+	@classmethod
+	def _resolve_json_placeholders(cls, value: Any, placeholders: dict[str, str]) -> Any:
+		if isinstance(value, dict):
+			return {key: cls._resolve_json_placeholders(item, placeholders) for key, item in value.items()}
+		if isinstance(value, list):
+			return [cls._resolve_json_placeholders(item, placeholders) for item in value]
+		if isinstance(value, str):
+			for key, replacement in placeholders.items():
+				placeholder = f"{{{key}}}"
+				if value == placeholder:
+					return replacement
+				value = value.replace(placeholder, replacement)
+			return value
+		return value
 
 	async def _request_provider_endpoint(
 		self,
