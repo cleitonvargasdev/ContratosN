@@ -100,6 +100,29 @@ class WhatsAppService:
 			"chatid": chatid,
 		}
 
+	async def send_text_to_chatid(self, chatid: str, text: str) -> dict[str, Any]:
+		config = await self._get_whatsapp_config(required_user=True, required_token=True)
+		clean_chatid = self._clean_text(chatid)
+		if not clean_chatid:
+			raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="ChatId invalido para envio.")
+		request_config = await self._build_api_request_config(
+			"mensagem",
+			config,
+			extra_placeholders={"chatid": clean_chatid, "text": text},
+		)
+		async with httpx.AsyncClient(timeout=self.timeout) as client:
+			response = await client.post(request_config["url"], headers=request_config["headers"], json=request_config["json"])
+		response = self._validate_provider_response(response)
+		data = self._parse_json_response(response)
+		if data.get("success") is False:
+			message = self._extract_error_message(data) or "Falha ao enviar mensagem pelo WhatsApp."
+			raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=message)
+		return {
+			"success": True,
+			"message": self._extract_error_message(data) or "Mensagem enviada com sucesso.",
+			"chatid": clean_chatid,
+		}
+
 	async def send_document_message(self, phone_number: str, document_url: str, text: str) -> dict[str, Any]:
 		config = await self._get_whatsapp_config(required_user=True, required_token=True)
 		chatid = self._build_chatid(

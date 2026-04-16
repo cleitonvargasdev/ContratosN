@@ -92,7 +92,7 @@ class WhatsAppChatbotService:
 
         chatbot_session.last_interaction_at = datetime.now(UTC)
         await self.repository.save_session(chatbot_session)
-        await self.whatsapp_service.send_text_message(phone, response_text)
+        await self.whatsapp_service.send_text_to_chatid(chat_id, response_text)
         return {"success": True, "ignored": False, "chat_id": chat_id, "state": chatbot_session.current_state}
 
     async def _handle_awaiting_name(self, chatbot_session: WhatsAppChatbotSession, text: str) -> str:
