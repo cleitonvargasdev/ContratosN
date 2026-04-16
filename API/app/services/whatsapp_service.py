@@ -302,7 +302,7 @@ class WhatsAppService:
 			if formatted_key and formatted_value:
 				headers[formatted_key] = formatted_value
 
-		body = self._format_api_value(record.body, placeholders)
+		body = self._clean_text(record.body)
 		json_body: dict[str, Any] | None = None
 		if body:
 			try:
