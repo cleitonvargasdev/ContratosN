@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 ENV_FILE = ROOT_DIR / ".env"
+ENV_LOCAL_FILE = ROOT_DIR / ".env.local"
 
 
 class Settings(BaseSettings):
@@ -42,7 +43,11 @@ class Settings(BaseSettings):
         alias="CORS_ALLOW_ORIGIN_REGEX",
     )
 
-    model_config = SettingsConfigDict(env_file=str(ENV_FILE), env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=tuple(str(path) for path in (ENV_FILE, ENV_LOCAL_FILE) if path.exists()),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     @property
     def sqlalchemy_database_uri(self) -> str:

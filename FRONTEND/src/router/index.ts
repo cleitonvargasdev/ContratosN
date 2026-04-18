@@ -18,6 +18,7 @@ import ParametersView from '@/views/parameters/ParametersView.vue'
 import ModulePlaceholderView from '@/views/shared/ModulePlaceholderView.vue'
 import ProfilesFormView from '@/views/access-control/ProfilesFormView.vue'
 import ProfilesListView from '@/views/access-control/ProfilesListView.vue'
+import SolicitationsListView from '@/views/solicitations/SolicitationsListView.vue'
 import BairrosFormView from '@/views/localities/BairrosFormView.vue'
 import BairrosListView from '@/views/localities/BairrosListView.vue'
 import CidadesFormView from '@/views/localities/CidadesFormView.vue'
@@ -239,6 +240,12 @@ const routes = [
         path: 'contas-whatsapp',
         name: 'whatsapp-connection',
         component: WhatsAppConnectionView,
+      },
+      {
+        path: 'solicitacoes',
+        name: 'solicitations',
+        component: SolicitationsListView,
+        meta: { resource: 'solicitacoes', action: 'read' },
       },
       {
         path: 'envios-whatsapp',

@@ -55,6 +55,7 @@ const moduleLabels: Record<string, string> = {
 const standaloneLabels: Record<string, string> = {
   parameters: 'Parametros',
   'whatsapp-connection': 'Contas WhatsApp',
+  solicitations: 'Solicitações',
   'whatsapp-dispatches': 'Envios WhatsApp',
 }
 

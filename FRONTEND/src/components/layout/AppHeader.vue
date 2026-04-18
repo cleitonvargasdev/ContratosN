@@ -19,6 +19,19 @@
         </svg>
       </div>
       <button
+        v-if="canReadSolicitations"
+        class="topbar__action-button"
+        type="button"
+        title="Solicitações de empréstimo"
+        aria-label="Solicitações de empréstimo"
+        @click="handleOpenSolicitations"
+      >
+        <span v-if="pendingSolicitationsCount" class="topbar__action-badge">{{ pendingSolicitationsCount }}</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 3h10.59A2 2 0 0 1 17 3.59L20.41 7A2 2 0 0 1 21 8.41V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 2v14h14V9h-4a2 2 0 0 1-2-2V5H5Zm10 0v2h2.59L15 5ZM7 11h10v2H7v-2Zm0 4h7v2H7v-2Z" />
+        </svg>
+      </button>
+      <button
         class="topbar__action-button"
         type="button"
         title="Notificações e chat interno"
@@ -50,12 +63,13 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useAuthController } from '@/controllers/useAuthController'
 import { useChatController } from '@/controllers/useChatController'
 import ChatDrawer from '@/components/layout/ChatDrawer.vue'
+import { getSolicitationPendingCount } from '@/services/solicitationService'
 import { getWhatsAppStatus } from '@/services/whatsappService'
 
 const auth = useAuthController()
@@ -65,14 +79,22 @@ const whatsAppStatus = reactive({
   connected: false,
   message: 'WhatsApp desconectado.',
 })
+const pendingSolicitationsCount = ref(0)
+const canReadSolicitations = computed(() => auth.hasPermission('solicitacoes', 'read'))
 
 let statusPollTimer: number | null = null
 
 onMounted(() => {
   void chat.initialize()
   void loadWhatsAppStatus()
+  if (canReadSolicitations.value) {
+    void loadSolicitationsCount()
+  }
   statusPollTimer = window.setInterval(() => {
     void loadWhatsAppStatus()
+    if (canReadSolicitations.value) {
+      void loadSolicitationsCount()
+    }
   }, 15000)
 })
 
@@ -94,8 +116,21 @@ async function loadWhatsAppStatus() {
   }
 }
 
+async function loadSolicitationsCount() {
+  try {
+    const response = await getSolicitationPendingCount()
+    pendingSolicitationsCount.value = response.pendentes
+  } catch {
+    pendingSolicitationsCount.value = 0
+  }
+}
+
 async function handleToggleChat() {
   await chat.toggleDrawer()
+}
+
+function handleOpenSolicitations() {
+  void router.push({ name: 'solicitations' })
 }
 
 function handleLogout() {

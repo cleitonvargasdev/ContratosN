@@ -585,6 +585,7 @@ import type {
 import type { CidadeOption } from '@/models/location'
 import type { FeriadoOption } from '@/models/location'
 import type { PaymentPlanOption } from '@/models/paymentPlan'
+import type { SolicitationContractDraft } from '@/models/solicitation'
 import type { User } from '@/models/user'
 import {
   createContractInstallment,
@@ -614,6 +615,7 @@ const props = defineProps<{
   canDelete: boolean
   initialContract?: Contract | null
   initialClientId?: number | null
+  initialContractDraft?: SolicitationContractDraft | null
 }>()
 
 const emit = defineEmits<{
@@ -854,6 +856,14 @@ watch(
   { immediate: true },
 )
 
+watch(
+  () => props.initialContractDraft,
+  (draft) => {
+    applyInitialContractDraft(draft)
+  },
+  { immediate: true },
+)
+
 async function loadOptions() {
   const [clientsResponse, plansResponse, usersResponse, jurosResponse, comissaoResponse] = await Promise.all([
     listClients({ page: 1, page_size: 100, ativo: true }),
@@ -981,6 +991,50 @@ function syncPlanDefaults() {
   form.valor_parcela = formatDecimalValue(selectedPlan.valor_parcela)
   if (!form.valor_final) {
     form.valor_final = formatDecimalValue(selectedPlan.valor_final)
+  }
+}
+
+function applyInitialContractDraft(draft?: SolicitationContractDraft | null) {
+  if (props.mode !== 'create' || props.initialContract || !draft) {
+    return
+  }
+
+  form.cliente_id = draft.cliente_id ?? props.initialClientId ?? form.cliente_id
+  form.usuario_id_vendedor = draft.usuario_id_vendedor ?? form.usuario_id_vendedor
+  form.plano_id = draft.plano_id ?? form.plano_id
+  form.regra_juros_id = draft.regra_juros_id === null ? form.regra_juros_id : String(draft.regra_juros_id)
+  form.qtde_dias = formatIntegerValue(draft.qtde_dias ?? draft.numero_parcelas)
+  form.percent_juros = draft.percent_juros === null ? form.percent_juros : formatDecimalValue(draft.percent_juros)
+  form.valor_empretismo = draft.valor_empretismo === null ? form.valor_empretismo : formatDecimalValue(draft.valor_empretismo)
+  form.valor_parcela = draft.valor_parcela === null ? form.valor_parcela : formatDecimalValue(draft.valor_parcela)
+  form.recorrencia = Boolean(draft.recorrencia)
+  form.aluguel = Boolean(draft.aluguel)
+
+  billingDays.sabado = Boolean(draft.cobranca_sabado)
+  billingDays.domingo = Boolean(draft.cobranca_domingo)
+  billingDays.feriado = Boolean(draft.cobranca_feriado)
+  billingDays.mensal = Boolean(draft.cobranca_mensal)
+  billingDays.quinzenal = Boolean(draft.cobranca_quinzenal)
+  billingDays.segunda = Boolean(draft.cobranca_segunda)
+  billingDays.terca = Boolean(draft.cobranca_terca)
+  billingDays.quarta = Boolean(draft.cobranca_quarta)
+  billingDays.quinta = Boolean(draft.cobranca_quinta)
+  billingDays.sexta = Boolean(draft.cobranca_sexta)
+
+  if (!hasSelectedBillingDays()) {
+    if (draft.frequencia_pagamento === 'Mensal') {
+      billingDays.mensal = true
+    } else if (draft.frequencia_pagamento === 'Quinzenal') {
+      billingDays.quinzenal = true
+    } else {
+      resetBillingDays()
+    }
+  }
+
+  const installmentValue = toLocaleNumberOrNull(form.valor_parcela) ?? 0
+  const installmentsCount = toIntegerOrNull(form.qtde_dias) ?? 0
+  if (!form.valor_final && installmentValue > 0 && installmentsCount > 0) {
+    form.valor_final = formatDecimalValue(installmentValue * installmentsCount)
   }
 }
 
@@ -1896,6 +1950,10 @@ function resetBillingDays() {
   billingDays.quarta = defaultBillingDays.quarta
   billingDays.quinta = defaultBillingDays.quinta
   billingDays.sexta = defaultBillingDays.sexta
+}
+
+function hasSelectedBillingDays() {
+  return Object.values(billingDays).some(Boolean)
 }
 
 function toStringValue(value: number | null | undefined) {

@@ -37,14 +37,15 @@ export function useClientsController() {
     }
   }
 
-  async function submitClient(payload: ClientInput): Promise<void> {
+  async function submitClient(payload: ClientInput): Promise<Client> {
     state.saving = true
     state.error = ''
     state.success = ''
 
     try {
-      await createClient(payload)
+      state.currentClient = await createClient(payload)
       state.success = 'Cliente cadastrado com sucesso.'
+      return state.currentClient
     } catch (error) {
       state.error = error instanceof Error ? error.message : 'Falha ao cadastrar cliente'
       throw error

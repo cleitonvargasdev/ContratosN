@@ -9,6 +9,30 @@ $env:PYTHONPATH='d:/PROJETOINI/API'
 d:/PROJETOINI/API/.venv/Scripts/python.exe -m uvicorn app.main:app --reload --port 8007
 ```
 
+## Ambientes local e Ubuntu sem troca manual
+
+O backend agora carrega os arquivos nesta ordem:
+
+- `.env`
+- `.env.local`
+
+No Ubuntu, basta manter apenas o `.env` de producao, como ja esta hoje.
+
+No PC local, use `.env.local` para sobrescrever somente o que for local, sem mexer no arquivo de producao. Exemplo:
+
+```env
+CORS_ALLOW_ORIGINS=http://127.0.0.1:5174,http://localhost:5174,http://127.0.0.1:5173,http://localhost:5173
+PUBLIC_API_BASE_URL=http://127.0.0.1:8007
+```
+
+Modelo pronto: [.env.local.example](.env.local.example)
+
+Importante:
+
+- o `.env.local` e ignorado pelo git
+- no frontend local, o Vite ja faz isso automaticamente com os proprios arquivos `.env*`
+- depois de alterar `.env.local`, reinicie a API local para recarregar as configuracoes
+
 ## Docker Ubuntu
 
 Este projeto agora sobe o site Vue e a API em Docker, com Nginx na frente usando o mesmo dominio.

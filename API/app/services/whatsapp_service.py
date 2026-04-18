@@ -76,6 +76,7 @@ class WhatsAppService:
 
 	async def send_text_message(self, phone_number: str, text: str) -> dict[str, Any]:
 		config = await self._get_whatsapp_config(required_user=True, required_token=True)
+		await self._ensure_active_connection(config)
 		chatid = self._build_chatid(
 			phone_number,
 			country_code=config["country_code"],
@@ -102,6 +103,7 @@ class WhatsAppService:
 
 	async def send_text_to_chatid(self, chatid: str, text: str) -> dict[str, Any]:
 		config = await self._get_whatsapp_config(required_user=True, required_token=True)
+		await self._ensure_active_connection(config)
 		clean_chatid = self._clean_text(chatid)
 		if not clean_chatid:
 			raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="ChatId invalido para envio.")
@@ -125,6 +127,7 @@ class WhatsAppService:
 
 	async def send_document_message(self, phone_number: str, document_url: str, text: str) -> dict[str, Any]:
 		config = await self._get_whatsapp_config(required_user=True, required_token=True)
+		await self._ensure_active_connection(config)
 		chatid = self._build_chatid(
 			phone_number,
 			country_code=config["country_code"],
@@ -253,6 +256,31 @@ class WhatsAppService:
 			"status": status_text,
 			"message": message,
 		}
+
+	async def _ensure_active_connection(self, config: dict[str, Any]) -> None:
+		api_health = await self._get_api_health_status(config)
+		if not api_health["available"]:
+			raise HTTPException(
+				status_code=status.HTTP_400_BAD_REQUEST,
+				detail="Nao existe conexao ativa com WhatsApp.",
+			)
+
+		payload = await self._get_info_payload(config)
+		connected_phone = self._extract_connected_phone(payload)
+		verified = self._extract_verified(payload)
+		connected = self._is_connected(
+			payload,
+			config["expected_phones"],
+			config["country_code"],
+			config["ninth_digit_rules"],
+			connected_phone,
+			verified,
+		)
+		if not connected:
+			raise HTTPException(
+				status_code=status.HTTP_400_BAD_REQUEST,
+				detail="Nao existe conexao ativa com WhatsApp.",
+			)
 
 	async def _fetch_qr_code_data_url(self) -> tuple[str, str | None]:
 		response = await self._request_qr_code_endpoint()

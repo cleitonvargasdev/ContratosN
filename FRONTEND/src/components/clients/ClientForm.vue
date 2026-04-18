@@ -396,6 +396,7 @@ import { computed, reactive, ref, watch } from 'vue'
 
 import type { CobradorOption, Client, ClientInput, RegraJurosOption } from '@/models/client'
 import type { BairroOption, CidadeOption, UFOption } from '@/models/location'
+import type { SolicitationClientDraft } from '@/models/solicitation'
 import { showClientScoreLogPopup } from '@/services/alertService'
 import { listCobradorOptions, listClientScoreLogs, listRegraJurosOptions } from '@/services/clientService'
 import { listBairrosByCidade, listCitiesByUf, listUfs, lookupAddressByCep, lookupCepByAddress } from '@/services/locationService'
@@ -408,6 +409,7 @@ const props = defineProps<{
   error: string
   success: string
   initialClient?: Client | null
+  initialDraft?: SolicitationClientDraft | null
 }>()
 
 const emit = defineEmits<{
@@ -498,6 +500,14 @@ watch(
   () => props.initialClient,
   (client) => {
     void syncClientIntoForm(client)
+  },
+  { immediate: true },
+)
+
+watch(
+  () => props.initialDraft,
+  (draft) => {
+    syncDraftIntoForm(draft)
   },
   { immediate: true },
 )
@@ -697,6 +707,22 @@ async function syncClientIntoForm(client?: Client | null) {
   } finally {
     syncingForm = false
   }
+}
+
+function syncDraftIntoForm(draft?: SolicitationClientDraft | null) {
+  if (props.mode !== 'create' || props.initialClient || !draft) {
+    return
+  }
+
+  resetForm()
+  form.nome = draft.nome ?? ''
+  form.cpf_cnpj = formatDocument(draft.cpf_cnpj)
+  form.telefone = formatPhone(draft.telefone)
+  form.celular01 = formatPhone(draft.celular01)
+  form.flag_whatsapp = draft.flag_whatsapp
+  form.contato_responsavel = draft.nome ?? ''
+  form.cel_responsavel = formatPhone(draft.celular01 || draft.telefone)
+  form.flag_whatsapp_responsavel = draft.flag_whatsapp
 }
 
 async function submitForm() {

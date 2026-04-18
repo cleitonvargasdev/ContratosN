@@ -9,6 +9,7 @@ from app.controllers.contract_controller import public_router as contracts_publi
 from app.controllers.location_controller import router as location_router
 from app.controllers.parameter_controller import router as parameters_router
 from app.controllers.payment_plan_controller import router as payment_plan_router
+from app.controllers.solicitation_controller import router as solicitation_router
 from app.controllers.user_controller import router as users_router, ws_router as users_ws_router
 from app.controllers.whatsapp_controller import router as whatsapp_router
 
@@ -19,6 +20,7 @@ api_router.include_router(access_control_router, prefix="/acesso", tags=["acesso
 api_router.include_router(location_router, prefix="/localidades", tags=["localidades"])
 api_router.include_router(api_config_router, prefix="/apis", tags=["apis"])
 api_router.include_router(clients_router, prefix="/clientes", tags=["clientes"])
+api_router.include_router(solicitation_router, prefix="/solicitacoes", tags=["solicitacoes"])
 api_router.include_router(contracts_public_router, prefix="/contratos", tags=["contratos"])
 api_router.include_router(contracts_router, prefix="/contratos", tags=["contratos"])
 api_router.include_router(parameters_router, prefix="/parametros", tags=["parametros"])
