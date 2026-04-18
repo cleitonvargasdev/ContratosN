@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.timezone import get_local_timezone
 from app.models.accounts_receivable import ContaReceber
 from app.models.client import Cliente
 from app.models.client_score_log import ClientScoreLog
@@ -13,7 +14,7 @@ from app.models.parameter import Parametro
 class ClientMetricsService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
-        self.local_timezone = datetime.now().astimezone().tzinfo or UTC
+        self.local_timezone = get_local_timezone()
 
     async def refresh_client_metrics(self, client_id: int | None) -> Cliente | None:
         if client_id is None:

@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.timezone import get_local_timezone
 from app.core.secrets import encrypt_secret, secret_matches, secret_needs_reencryption
 from app.repositories.api_config_repository import ApiConfigRepository
 from app.models.accounts_receivable import ContaReceber
@@ -24,7 +25,7 @@ class ParameterService:
         self.api_config_repository = ApiConfigRepository(session)
         self.location_service = LocationService(session)
         self.client_metrics_service = ClientMetricsService(session)
-        self.local_timezone = datetime.now().astimezone().tzinfo or UTC
+        self.local_timezone = get_local_timezone()
 
     async def get_parameters(self) -> Parametro:
         parameter = await self.repository.get_singleton()

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.accounts_receivable import ContaReceber
 from app.models.contract import Contrato
 from app.models.receipt import Recebimento
+from app.core.timezone import get_local_timezone
 from app.repositories.accounts_receivable_repository import AccountsReceivableRepository
 from app.repositories.client_repository import ClientRepository
 from app.repositories.location_repository import LocationRepository
@@ -41,7 +42,7 @@ class AccountsReceivableService:
         self.location_repository = LocationRepository(session)
         self.client_metrics_service = ClientMetricsService(session)
         self.whatsapp_service = WhatsAppService(session)
-        self.local_timezone = datetime.now().astimezone().tzinfo or UTC
+        self.local_timezone = get_local_timezone()
 
     async def send_installment_whatsapp_message(self, installment_id: int) -> dict[str, object]:
         installment, contract, client = await self._get_installment_context(installment_id)

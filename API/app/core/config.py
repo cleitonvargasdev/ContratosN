@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     jwt_access_token_expire_minutes: int = Field(default=60, alias="JWT_ACCESS_TOKEN_EXPIRE_MINUTES")
     jwt_refresh_token_expire_minutes: int = Field(default=10080, alias="JWT_REFRESH_TOKEN_EXPIRE_MINUTES")
+    app_timezone: str = Field(default="America/Sao_Paulo", alias="APP_TIMEZONE")
     api_key_header_name: str = Field(default="X-API-Key", alias="API_KEY_HEADER_NAME")
     cepaberto_token: str | None = Field(default=None, alias="CEPABERTO_TOKEN")
     quepasa_apiwpp_url: str = Field(default="https://apiwpp.vstec.net", alias="QUEPASA_APIWPP_URL")

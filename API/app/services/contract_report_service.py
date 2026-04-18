@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime
 from io import BytesIO
 
 from fastapi import HTTPException, status
@@ -17,6 +17,7 @@ from app.models.contract import Contrato
 from app.models.location import Bairro, Cidade
 from app.models.parameter import Parametro
 from app.models.receipt import Recebimento
+from app.core.timezone import get_local_timezone
 from app.services.whatsapp_service import WhatsAppService
 
 
@@ -28,7 +29,7 @@ class ContractReportService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.whatsapp_service = WhatsAppService(session)
-        self.local_timezone = datetime.now().astimezone().tzinfo or UTC
+        self.local_timezone = get_local_timezone()
 
     async def generate_contract_pdf(self, contract_id: int) -> tuple[bytes, str]:
         contract, client, parameter = await self._load_contract_context(contract_id)
