@@ -6,6 +6,7 @@ from app.models.client import Cliente
 from app.models.client_score_log import ClientScoreLog
 from app.models.contract import Contrato
 from app.models.location import Bairro, Cidade, Feriado, UF
+from app.models.negotiation import Negociacao, NegociacaoContrato
 from app.models.parameter import Parametro
 from app.models.payment_plan import PaymentPlan
 from app.models.receipt import Recebimento
@@ -40,4 +41,6 @@ __all__ = [
 	"Solicitacao",
 	"WhatsAppDispatchBatch",
 	"WhatsAppDispatchItem",
+	"Negociacao",
+	"NegociacaoContrato",
 ]

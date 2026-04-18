@@ -33,6 +33,7 @@ export interface Parameter {
   score_pontos_atraso_quitacao_contrato: number
   score_pontos_pagamento_em_dia: number
   score_pontos_quitacao_em_dia: number
+  score_pontos_negociacao: number
   score_atualizacao_automatica: boolean
   score_agendamentos: ParameterScheduleEntry[]
   score_atualizacao_ultima_execucao: string | null
@@ -84,6 +85,7 @@ export interface ParameterInput {
   score_pontos_atraso_quitacao_contrato: number
   score_pontos_pagamento_em_dia: number
   score_pontos_quitacao_em_dia: number
+  score_pontos_negociacao: number
   score_atualizacao_automatica: boolean
   score_agendamentos: ParameterScheduleEntry[]
   whatsapp_cobranca_automatica: boolean

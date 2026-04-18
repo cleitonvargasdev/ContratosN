@@ -80,6 +80,7 @@ class ParameterBase(BaseModel):
     score_pontos_atraso_quitacao_contrato: int = Field(default=30)
     score_pontos_pagamento_em_dia: int = Field(default=5)
     score_pontos_quitacao_em_dia: int = Field(default=20)
+    score_pontos_negociacao: int = Field(default=0)
     score_atualizacao_automatica: bool = False
     score_agendamentos: list[ParameterScheduleEntry] = Field(default_factory=list)
     score_atualizacao_ultima_execucao: datetime | None = None
@@ -154,6 +155,7 @@ class ParameterBase(BaseModel):
         "score_pontos_atraso_quitacao_contrato",
         "score_pontos_pagamento_em_dia",
         "score_pontos_quitacao_em_dia",
+        "score_pontos_negociacao",
         "whatsapp_cobranca_dias_antes",
         "whatsapp_cobranca_dias_depois",
         "pais_whatsapp",

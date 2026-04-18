@@ -1,0 +1,48 @@
+
+Daqui para frente, quando você fizer novas alterações:
+
+commit e push no GitHub
+no Ubuntu, em /var/www/apicontratos/ContratosN/API, rode git pull origin main
+rode docker compose up -d --build api se mudar backend
+rode docker compose up -d --build web se mudar frontend
+
+
+
+Sim. Como seu deploy ficou em /var/www/apicontratos/ContratosN/ com as pastas API/ e FRONTEND, o fluxo de atualização daqui para frente deve ser por git pull + rebuild dos containers.
+
+O modelo certo é este:
+
+Fluxo normal
+
+Você altera localmente.
+Faz git add, commit e push para o GitHub.
+No Ubuntu, entra na pasta do projeto.
+Faz git pull na pasta que mudou.
+Rebuilda e sobe de novo com Docker.
+Se a alteração for só na API:
+cd /var/www/apicontratos/ContratosN/API
+git pull origin main
+docker compose up -d --build api
+docker compose logs --tail=200 -f api
+
+cd /var/www/apicontratos/ContratosN/FRONTEND
+git pull origin main
+
+cd /var/www/apicontratos/ContratosN/API
+docker compose up -d --build web
+docker compose logs --tail=200 -f web
+
+Se mudou API e frontend juntos, faça os dois git pull e depois:
+
+cd /var/www/apicontratos/ContratosN/API
+docker compose up -d --build
+
+3. Atualizar quando houver migration no banco
+Use quando você criou uma nova migration Alembic no API/alembic/versions/.
+
+No Ubuntu:
+
+cd /var/www/apicontratos/ContratosN/API
+git pull origin main
+docker compose up -d --build api
+docker compose logs --tail=300 -f api

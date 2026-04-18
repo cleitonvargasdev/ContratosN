@@ -200,6 +200,7 @@ const baseSections: SidebarSection[] = [
     icon: 'contract',
     links: [
       { label: 'Contratos', to: '/contratos', resource: 'contratos', action: 'read', icon: 'contract' },
+      { label: 'Negociação', to: '/negociacoes', resource: 'contratos', action: 'read', icon: 'wallet' },
       { label: 'Solicitações', to: '/solicitacoes', resource: 'solicitacoes', action: 'read', icon: 'history' },
       { label: 'Mapa de Ocorrências', to: '/modulos/movimentacoes/mapa-de-ocorrencias?titulo=Mapa%20de%20Ocorr%C3%AAncias&grupo=Movimenta%C3%A7%C3%B5es', icon: 'map' },
       { label: 'Desbloqueio', to: '/modulos/movimentacoes/desbloqueio?titulo=Desbloqueio&grupo=Movimenta%C3%A7%C3%B5es', icon: 'unlock' },

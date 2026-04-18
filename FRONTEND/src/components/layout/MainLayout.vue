@@ -44,6 +44,7 @@ const moduleLabels: Record<string, string> = {
   users: 'Usuarios',
   clients: 'Clientes',
   contracts: 'Contratos',
+  negotiations: 'Negociações',
   'payment-plans': 'Planos Pagamentos',
   profiles: 'Perfis',
   ufs: 'UFs',
@@ -84,7 +85,7 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => {
     ]
   }
 
-  const routeMatch = routeName.match(/^(.*)-(list|create|edit)$/)
+  const routeMatch = routeName.match(/^(.*)-(list|create|edit|view)$/)
   if (!routeMatch) {
     return [
       { label: 'Dashboard', to: { name: 'dashboard' } },

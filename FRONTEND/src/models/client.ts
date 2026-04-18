@@ -138,6 +138,7 @@ export interface ClientListFilters {
   page_size: number
   nome?: string
   cpf_cnpj?: string
+  endereco?: string
   ativo?: boolean
 }
 
@@ -159,4 +160,11 @@ export interface ClientScoreLog {
   regra_pontos: number | null
   quantidade_referencia: number | null
   detalhe_calculo: string | null
+}
+
+export interface ClientScoreLogListResponse {
+  items: readonly ClientScoreLog[]
+  total: number
+  page: number
+  page_size: number
 }

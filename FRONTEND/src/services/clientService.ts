@@ -1,4 +1,13 @@
-import type { CobradorOption, Client, ClientInput, ClientListFilters, ClientListResponse, ClientScoreLog, RegraComissaoOption, RegraJurosOption } from '@/models/client'
+import type {
+  CobradorOption,
+  Client,
+  ClientInput,
+  ClientListFilters,
+  ClientListResponse,
+  ClientScoreLogListResponse,
+  RegraComissaoOption,
+  RegraJurosOption,
+} from '@/models/client'
 import { apiFetch } from '@/services/http'
 
 export async function listClients(filters: ClientListFilters): Promise<ClientListResponse> {
@@ -8,6 +17,7 @@ export async function listClients(filters: ClientListFilters): Promise<ClientLis
 
   if (filters.nome) params.set('nome', filters.nome)
   if (filters.cpf_cnpj) params.set('cpf_cnpj', filters.cpf_cnpj.replace(/\D/g, ''))
+  if (filters.endereco) params.set('endereco', filters.endereco)
   if (typeof filters.ativo === 'boolean') params.set('ativo', String(filters.ativo))
 
   return apiFetch<ClientListResponse>(`/clientes/?${params.toString()}`)
@@ -25,8 +35,15 @@ export async function getClientById(clientId: number): Promise<Client> {
   return apiFetch<Client>(`/clientes/${clientId}`)
 }
 
-export async function listClientScoreLogs(clientId: number): Promise<ClientScoreLog[]> {
-  return apiFetch<ClientScoreLog[]>(`/clientes/${clientId}/score-log`)
+export async function listClientScoreLogs(clientId: number, page = 1, pageSize = 8): Promise<ClientScoreLogListResponse> {
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+  return apiFetch<ClientScoreLogListResponse>(`/clientes/${clientId}/score-log?${params.toString()}`)
+}
+
+export async function reprocessClientScore(clientId: number): Promise<Client> {
+  return apiFetch<Client>(`/clientes/${clientId}/score-log/reprocessar`, {
+    method: 'POST',
+  })
 }
 
 export async function updateClient(clientId: number, payload: ClientInput): Promise<Client> {

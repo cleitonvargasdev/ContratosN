@@ -46,6 +46,7 @@ class ParameterService:
             score_pontos_atraso_quitacao_contrato=30,
             score_pontos_pagamento_em_dia=5,
             score_pontos_quitacao_em_dia=20,
+            score_pontos_negociacao=0,
             score_atualizacao_automatica=False,
             score_agendamentos=[],
             whatsapp_cobranca_automatica=False,

@@ -47,6 +47,21 @@ SCHEDULE_RULE_FIELDS = (
     "cobranca_quinzenal",
 )
 
+CONTRACT_BOOLEAN_DEFAULTS = {
+    "aluguel": False,
+    "recorrencia": False,
+    "cobranca_segunda": True,
+    "cobranca_terca": True,
+    "cobranca_quarta": True,
+    "cobranca_quinta": True,
+    "cobranca_sexta": True,
+    "cobranca_sabado": False,
+    "cobranca_domingo": False,
+    "cobranca_feriado": False,
+    "cobranca_mensal": False,
+    "cobranca_quinzenal": False,
+}
+
 
 class ContractService:
     def __init__(self, session: AsyncSession) -> None:
@@ -125,6 +140,11 @@ class ContractService:
         totals = self.accounts_repository.build_contract_totals(installments)
 
         has_changes = False
+        for field, default_value in CONTRACT_BOOLEAN_DEFAULTS.items():
+            if getattr(contract, field) is None:
+                setattr(contract, field, default_value)
+                has_changes = True
+
         for field in ("valor_final", "valor_recebido", "valor_em_aberto", "valor_em_atraso", "quitado"):
             new_value = totals[field]
             if getattr(contract, field) != new_value:

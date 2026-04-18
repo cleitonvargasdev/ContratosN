@@ -386,6 +386,83 @@
     <p v-if="lookupMessage" class="feedback feedback--info">{{ lookupMessage }}</p>
     <p v-if="responsibleLookupMessage" class="feedback feedback--info">{{ responsibleLookupMessage }}</p>
     <p v-if="mapMessage" class="feedback feedback--info">{{ mapMessage }}</p>
+
+    <Teleport to="body">
+      <div v-if="scoreLogModal.open" class="modal-backdrop" @click.self="closeScoreLogModal">
+        <section class="modal-card modal-card--score-log">
+          <header class="panel__header panel__header--stacked">
+            <div>
+              <h3 class="panel__title">Histórico do score{{ scoreLogModal.clientName ? ` • ${scoreLogModal.clientName}` : '' }}</h3>
+            </div>
+            <button class="secondary-button" type="button" :disabled="scoreLogModal.loading || scoreLogModal.reprocessing" @click="handleReprocessScoreLog">
+              {{ scoreLogModal.reprocessing ? 'Reprocessando...' : 'Reprocessar score' }}
+            </button>
+          </header>
+
+          <p v-if="scoreLogModal.error" class="feedback feedback--error">{{ scoreLogModal.error }}</p>
+          <p v-if="scoreLogModal.message" class="feedback feedback--success">{{ scoreLogModal.message }}</p>
+
+          <div class="table-wrap score-log-table-wrap">
+            <table class="data-table data-table--cadastro">
+              <thead>
+                <tr>
+                  <th>Data/Hora</th>
+                  <th>Evento</th>
+                  <th>Cálculo</th>
+                  <th>Anterior</th>
+                  <th>Variação</th>
+                  <th>Atual</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="scoreLogModal.loading">
+                  <td colspan="6">Carregando histórico...</td>
+                </tr>
+                <tr v-else-if="scoreLogModal.result.items.length === 0">
+                  <td colspan="6">Nenhum processamento de score registrado.</td>
+                </tr>
+                <tr v-for="log in scoreLogModal.result.items" :key="log.id" class="data-table__row">
+                  <td>{{ formatScoreLogDateTime(log.data_hora_evento) }}</td>
+                  <td>{{ log.evento }}</td>
+                  <td>{{ buildScoreLogDetail(log) }}</td>
+                  <td>{{ log.pontuacao_anterior }}</td>
+                  <td>
+                    <span :class="['pill', log.variacao_pontos >= 0 ? 'pill--success' : 'pill--danger']">{{ formatScoreDelta(log.variacao_pontos) }}</span>
+                  </td>
+                  <td>{{ log.pontuacao_atual }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <footer class="pagination-compact score-log-pagination">
+            <div class="pagination-compact__meta">
+              <label class="pagination-compact__label" for="score-log-page-size">Itens por pagina:</label>
+              <select id="score-log-page-size" v-model="scoreLogPageSizeValue" class="pagination-compact__select" @change="changeScoreLogPageSize">
+                <option value="8">8</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+
+            <div class="pagination-compact__status">{{ scoreLogRangeLabel }}</div>
+
+            <div class="pagination-compact__actions">
+              <button class="pagination-compact__button" type="button" :disabled="scoreLogModal.result.page <= 1 || scoreLogModal.loading" @click="changeScoreLogPage(1)">&#171;</button>
+              <button class="pagination-compact__button" type="button" :disabled="scoreLogModal.result.page <= 1 || scoreLogModal.loading" @click="changeScoreLogPage(scoreLogModal.result.page - 1)">&#8249;</button>
+              <button class="pagination-compact__button" type="button" :disabled="scoreLogModal.result.page >= scoreLogTotalPages || scoreLogModal.loading" @click="changeScoreLogPage(scoreLogModal.result.page + 1)">&#8250;</button>
+              <button class="pagination-compact__button" type="button" :disabled="scoreLogModal.result.page >= scoreLogTotalPages || scoreLogModal.loading" @click="changeScoreLogPage(scoreLogTotalPages)">&#187;</button>
+            </div>
+          </footer>
+
+          <div class="form-actions">
+            <button class="ghost-button" type="button" @click="closeScoreLogModal">Fechar</button>
+          </div>
+        </section>
+      </div>
+    </Teleport>
+
     <p v-if="success" class="feedback feedback--success">{{ success }}</p>
     <p v-if="error" class="feedback feedback--error">{{ error }}</p>
   </section>
@@ -394,11 +471,10 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 
-import type { CobradorOption, Client, ClientInput, RegraJurosOption } from '@/models/client'
+import type { CobradorOption, Client, ClientInput, ClientScoreLog, ClientScoreLogListResponse, RegraJurosOption } from '@/models/client'
 import type { BairroOption, CidadeOption, UFOption } from '@/models/location'
 import type { SolicitationClientDraft } from '@/models/solicitation'
-import { showClientScoreLogPopup } from '@/services/alertService'
-import { listCobradorOptions, listClientScoreLogs, listRegraJurosOptions } from '@/services/clientService'
+import { listCobradorOptions, listClientScoreLogs, listRegraJurosOptions, reprocessClientScore } from '@/services/clientService'
 import { listBairrosByCidade, listCitiesByUf, listUfs, lookupAddressByCep, lookupCepByAddress } from '@/services/locationService'
 
 const turnoOptions = ['Integral', 'Manhã', 'Tarde', 'Noite'] as const
@@ -433,7 +509,23 @@ const responsibleLookupLoading = ref(false)
 const lookupMessage = ref('')
 const responsibleLookupMessage = ref('')
 const mapMessage = ref('')
+const scoreLogPageSizeValue = ref('8')
 let syncingForm = false
+
+const scoreLogModal = reactive({
+  open: false,
+  loading: false,
+  reprocessing: false,
+  error: '',
+  message: '',
+  clientName: '',
+  result: {
+    items: [] as ClientScoreLog[],
+    total: 0,
+    page: 1,
+    page_size: 8,
+  } as ClientScoreLogListResponse,
+})
 
 const form = reactive({
   nome: '',
@@ -493,6 +585,16 @@ const scorePercentage = computed(() => (normalizedScore.value / 1000) * 100)
 const scoreRingStyle = computed(() => ({
   background: `conic-gradient(#f97316 0 ${scorePercentage.value}%, rgba(36, 48, 59, 0.12) ${scorePercentage.value}% 100%)`,
 }))
+const scoreLogTotalPages = computed(() => Math.max(1, Math.ceil(scoreLogModal.result.total / scoreLogModal.result.page_size)))
+const scoreLogRangeLabel = computed(() => {
+  if (scoreLogModal.result.total === 0) {
+    return '0-0 de 0'
+  }
+
+  const start = (scoreLogModal.result.page - 1) * scoreLogModal.result.page_size + 1
+  const end = Math.min(scoreLogModal.result.page * scoreLogModal.result.page_size, scoreLogModal.result.total)
+  return `${start}-${end} de ${scoreLogModal.result.total}`
+})
 
 void initializeOptions()
 
@@ -737,9 +839,70 @@ async function handleOpenScoreLog() {
   if (!currentClientId.value) {
     return
   }
+  scoreLogModal.open = true
+  scoreLogModal.clientName = form.nome || props.initialClient?.nome || 'Cliente'
+  scoreLogModal.error = ''
+  scoreLogModal.message = ''
+  await loadScoreLogPage(1)
+}
 
-  const logs = await listClientScoreLogs(currentClientId.value)
-  await showClientScoreLogPopup(form.nome || props.initialClient?.nome || 'Cliente', logs)
+async function loadScoreLogPage(page: number) {
+  if (!currentClientId.value) {
+    return
+  }
+
+  scoreLogModal.loading = true
+  scoreLogModal.error = ''
+  try {
+    scoreLogModal.result = await listClientScoreLogs(currentClientId.value, page, scoreLogModal.result.page_size)
+    scoreLogPageSizeValue.value = String(scoreLogModal.result.page_size)
+  } catch (error) {
+    scoreLogModal.error = error instanceof Error ? error.message : 'Falha ao carregar histórico do score'
+  } finally {
+    scoreLogModal.loading = false
+  }
+}
+
+function changeScoreLogPage(page: number) {
+  if (page < 1 || page > scoreLogTotalPages.value || scoreLogModal.loading) {
+    return
+  }
+  void loadScoreLogPage(page)
+}
+
+function changeScoreLogPageSize() {
+  scoreLogModal.result.page_size = Number(scoreLogPageSizeValue.value)
+  void loadScoreLogPage(1)
+}
+
+function closeScoreLogModal() {
+  scoreLogModal.open = false
+}
+
+async function handleReprocessScoreLog() {
+  if (!currentClientId.value || scoreLogModal.loading || scoreLogModal.reprocessing) {
+    return
+  }
+
+  const confirmed = window.confirm('Reprocessar o score do zero? Isso apaga o histórico atual e recria os logs com base no histórico do cliente.')
+  if (!confirmed) {
+    return
+  }
+
+  scoreLogModal.reprocessing = true
+  scoreLogModal.error = ''
+  scoreLogModal.message = ''
+
+  try {
+    const updatedClient = await reprocessClientScore(currentClientId.value)
+    form.score = updatedClient.score ?? form.score
+    scoreLogModal.message = 'Score reprocessado com sucesso.'
+    await loadScoreLogPage(1)
+  } catch (error) {
+    scoreLogModal.error = error instanceof Error ? error.message : 'Falha ao reprocessar score'
+  } finally {
+    scoreLogModal.reprocessing = false
+  }
 }
 
 async function handleCepBlur() {
@@ -1170,6 +1333,34 @@ function formatMoneyField(field: 'limite_credito') {
 function formatPercentField() {
   form.percent_comissao = formatMoney(parseMoney(form.percent_comissao))
 }
+
+function formatScoreLogDateTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
+function formatScoreDelta(value: number) {
+  return `${value >= 0 ? '+' : ''}${value} pts`
+}
+
+function buildScoreLogDetail(log: ClientScoreLog) {
+  if (log.detalhe_calculo) {
+    return log.detalhe_calculo
+  }
+  if (log.regra_pontos !== null && log.quantidade_referencia !== null) {
+    return `${log.regra_pontos} pts x ${log.quantidade_referencia}`
+  }
+  return '-'
+}
 </script>
 
 <style scoped>
@@ -1182,6 +1373,21 @@ function formatPercentField() {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+}
+
+.modal-card--score-log {
+  width: min(980px, calc(100vw - 2rem));
+  max-height: min(88vh, 760px);
+  display: grid;
+  gap: 0.9rem;
+}
+
+.score-log-table-wrap {
+  max-height: min(58vh, 460px);
+}
+
+.score-log-pagination {
+  margin-top: 0;
 }
 
 .client-card {

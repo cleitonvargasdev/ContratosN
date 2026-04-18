@@ -1,6 +1,6 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.timezone import get_local_timezone
@@ -8,6 +8,7 @@ from app.models.accounts_receivable import ContaReceber
 from app.models.client import Cliente
 from app.models.client_score_log import ClientScoreLog
 from app.models.contract import Contrato
+from app.models.negotiation import Negociacao
 from app.models.parameter import Parametro
 
 
@@ -16,7 +17,7 @@ class ClientMetricsService:
         self.session = session
         self.local_timezone = get_local_timezone()
 
-    async def refresh_client_metrics(self, client_id: int | None) -> Cliente | None:
+    async def refresh_client_metrics(self, client_id: int | None, *, rebuild_score_log: bool = False) -> Cliente | None:
         if client_id is None:
             return None
 
@@ -39,13 +40,22 @@ class ClientMetricsService:
             )
             installments = list(installment_result.scalars().all())
 
-        metrics, score_context = self._build_metrics(contracts, installments, parameter)
+        negotiation_result = await self.session.execute(
+            select(Negociacao)
+            .where(Negociacao.cliente_id == client_id)
+            .order_by(Negociacao.data_negociacao.asc(), Negociacao.negociacao_id.asc())
+        )
+        negotiations = list(negotiation_result.scalars().all())
+
+        metrics, score_context, score_events = self._build_metrics(contracts, installments, negotiations, parameter)
         previous_score = int(client.score) if client.score is not None else int(metrics["score"])
         for field, value in metrics.items():
             setattr(client, field, value)
 
         current_score = int(metrics["score"])
-        if current_score != previous_score:
+        if rebuild_score_log:
+            await self._rebuild_score_logs(client.clientes_id, score_context, score_events)
+        elif current_score != previous_score:
             score_snapshot = self._build_score_log_snapshot(current_score - previous_score, score_context)
             self._append_score_log(
                 client.clientes_id,
@@ -58,6 +68,9 @@ class ClientMetricsService:
             )
 
         return client
+
+    async def reprocess_client_score(self, client_id: int | None) -> Cliente | None:
+        return await self.refresh_client_metrics(client_id, rebuild_score_log=True)
 
     async def refresh_all_clients(self) -> int:
         result = await self.session.execute(select(Cliente.clientes_id).order_by(Cliente.clientes_id.asc()))
@@ -74,10 +87,13 @@ class ClientMetricsService:
         self,
         contracts: list[Contrato],
         installments: list[ContaReceber],
+        negotiations: list[Negociacao],
         parameter: Parametro | None,
-    ) -> tuple[dict[str, object], dict[str, int]]:
-        today = datetime.now(self.local_timezone).date()
+    ) -> tuple[dict[str, object], dict[str, int], list[dict[str, object]]]:
+        now_utc = datetime.now(UTC)
+        today = now_utc.astimezone(self.local_timezone).date()
         installments_by_contract: dict[int, list[ContaReceber]] = {}
+        generated_contract_ids = {item.contrato_gerado_id for item in negotiations if item.contrato_gerado_id is not None}
         total_open = 0.0
         total_overdue = 0.0
         total_open_count = 0
@@ -88,6 +104,18 @@ class ClientMetricsService:
         installment_delay_sum = 0
         installment_delay_count = 0
         on_time_payments = 0
+        score_events: list[dict[str, object]] = []
+
+        initial_score = int(parameter.score_valor_inicial) if parameter and parameter.score_valor_inicial is not None else 1000
+        points_late_installment = abs(int(parameter.score_pontos_atraso_parcela)) if parameter and parameter.score_pontos_atraso_parcela is not None else 15
+        points_late_contract = (
+            abs(int(parameter.score_pontos_atraso_quitacao_contrato))
+            if parameter and parameter.score_pontos_atraso_quitacao_contrato is not None
+            else 30
+        )
+        points_on_time_payment = abs(int(parameter.score_pontos_pagamento_em_dia)) if parameter and parameter.score_pontos_pagamento_em_dia is not None else 5
+        points_on_time_contract = abs(int(parameter.score_pontos_quitacao_em_dia)) if parameter and parameter.score_pontos_quitacao_em_dia is not None else 20
+        points_negotiation = int(parameter.score_pontos_negociacao) if parameter and parameter.score_pontos_negociacao is not None else 0
 
         for installment in installments:
             contract_id = installment.contratos_id
@@ -117,8 +145,22 @@ class ClientMetricsService:
 
                     installment_delay_sum += overdue_days
                     installment_delay_count += 1
+                    if points_late_installment > 0:
+                        score_events.append(
+                            {
+                                "event_name": "Atraso pag. parcela",
+                                "score_delta": -(overdue_days * points_late_installment),
+                                "rule_points": -points_late_installment,
+                                "quantity_reference": overdue_days,
+                                "calculation_detail": (
+                                    f"-{points_late_installment} pts x {overdue_days} dia(s) de atraso na parcela "
+                                    f"{installment.parcela_nro or '-'} do contrato {contract_id or '-'}"
+                                ),
+                                "event_datetime": now_utc,
+                            }
+                        )
 
-            if due_date is not None and installment.data_recebimento is not None:
+            if due_date is not None and installment.data_recebimento is not None and float(installment.valor_recebido or 0) > 0:
                 payment_date = self._to_local_date(installment.data_recebimento)
                 delay_days = max(((payment_date - due_date).days if payment_date is not None else 0), 0)
                 installment_delay_sum += delay_days
@@ -126,46 +168,110 @@ class ClientMetricsService:
                 paid_delay_days = delay_days
                 if float(installment.valor_recebido or 0) > 0 and delay_days == 0:
                     on_time_payments += 1
+                    if points_on_time_payment > 0:
+                        score_events.append(
+                            {
+                                "event_name": "Pagamento",
+                                "score_delta": points_on_time_payment,
+                                "rule_points": points_on_time_payment,
+                                "quantity_reference": 1,
+                                "calculation_detail": (
+                                    f"+{points_on_time_payment} pts x 1 pagamento em dia na parcela "
+                                    f"{installment.parcela_nro or '-'} do contrato {contract_id or '-'}"
+                                ),
+                                "event_datetime": installment.data_recebimento,
+                            }
+                        )
+                elif delay_days > 0 and points_late_installment > 0:
+                    score_events.append(
+                        {
+                            "event_name": "Atraso pag. parcela",
+                            "score_delta": -(delay_days * points_late_installment),
+                            "rule_points": -points_late_installment,
+                            "quantity_reference": delay_days,
+                            "calculation_detail": (
+                                f"-{points_late_installment} pts x {delay_days} dia(s) de atraso na parcela "
+                                f"{installment.parcela_nro or '-'} do contrato {contract_id or '-'}"
+                            ),
+                            "event_datetime": installment.data_recebimento,
+                        }
+                    )
 
             if paid_delay_days > 0:
                 overdue_installment_days += paid_delay_days
 
         on_time_contracts = 0
         late_settled_contracts = 0
+        negotiated_events = len({item.negociacao_id for item in negotiations if item.negociacao_id is not None})
         contract_delay_sum = 0
         contract_delay_count = 0
 
         for contract in contracts:
             contract_installments = installments_by_contract.get(contract.contratos_id, [])
-            last_payment = max(
-                (item.data_recebimento for item in contract_installments if item.data_recebimento is not None),
+            last_positive_payment = max(
+                (
+                    item.data_recebimento
+                    for item in contract_installments
+                    if item.data_recebimento is not None and float(item.valor_recebido or 0) > 0
+                ),
                 default=None,
                 key=self._normalize_datetime,
             )
+
+            is_original_negotiated_contract = contract.negociacao_id is not None and contract.contratos_id not in generated_contract_ids
+            if is_original_negotiated_contract:
+                continue
 
             if not contract.quitado and contract.data_final is not None and contract.data_final.date() < today:
                 delay_days = (today - contract.data_final.date()).days
                 contract_delay_sum += delay_days
                 contract_delay_count += 1
 
-            if contract.quitado and contract.data_final is not None and last_payment is not None:
-                delay_days = max((last_payment.date() - contract.data_final.date()).days, 0)
+            if contract.quitado and contract.data_final is not None and last_positive_payment is not None:
+                delay_days = max((last_positive_payment.date() - contract.data_final.date()).days, 0)
                 contract_delay_sum += delay_days
                 contract_delay_count += 1
                 if delay_days == 0:
                     on_time_contracts += 1
+                    if points_on_time_contract > 0:
+                        score_events.append(
+                            {
+                                "event_name": "Quitação",
+                                "score_delta": points_on_time_contract,
+                                "rule_points": points_on_time_contract,
+                                "quantity_reference": 1,
+                                "calculation_detail": f"+{points_on_time_contract} pts x 1 quitação em dia do contrato {contract.contratos_id}",
+                                "event_datetime": last_positive_payment,
+                            }
+                        )
                 else:
                     late_settled_contracts += 1
+                    if points_late_contract > 0:
+                        score_events.append(
+                            {
+                                "event_name": "Atraso quit. contrato",
+                                "score_delta": -points_late_contract,
+                                "rule_points": -points_late_contract,
+                                "quantity_reference": 1,
+                                "calculation_detail": f"-{points_late_contract} pts x 1 quitação com atraso do contrato {contract.contratos_id}",
+                                "event_datetime": last_positive_payment,
+                            }
+                        )
 
-        initial_score = int(parameter.score_valor_inicial) if parameter and parameter.score_valor_inicial is not None else 1000
-        points_late_installment = abs(int(parameter.score_pontos_atraso_parcela)) if parameter and parameter.score_pontos_atraso_parcela is not None else 15
-        points_late_contract = (
-            abs(int(parameter.score_pontos_atraso_quitacao_contrato))
-            if parameter and parameter.score_pontos_atraso_quitacao_contrato is not None
-            else 30
-        )
-        points_on_time_payment = abs(int(parameter.score_pontos_pagamento_em_dia)) if parameter and parameter.score_pontos_pagamento_em_dia is not None else 5
-        points_on_time_contract = abs(int(parameter.score_pontos_quitacao_em_dia)) if parameter and parameter.score_pontos_quitacao_em_dia is not None else 20
+        for negotiation in negotiations:
+            if points_negotiation == 0:
+                continue
+            sign = "+" if points_negotiation >= 0 else "-"
+            score_events.append(
+                {
+                    "event_name": "Negociação",
+                    "score_delta": points_negotiation,
+                    "rule_points": points_negotiation,
+                    "quantity_reference": 1,
+                    "calculation_detail": f"{sign}{abs(points_negotiation)} pts x 1 negociação gerada",
+                    "event_datetime": negotiation.data_negociacao,
+                }
+            )
 
         media_atraso_parcelas = round(installment_delay_sum / installment_delay_count, 6) if installment_delay_count else 0.0
         media_atraso_contratos = round(contract_delay_sum / contract_delay_count, 6) if contract_delay_count else 0.0
@@ -173,12 +279,14 @@ class ClientMetricsService:
         contract_penalty = late_settled_contracts * points_late_contract
         payment_bonus = on_time_payments * points_on_time_payment
         contract_bonus = on_time_contracts * points_on_time_contract
+        negotiation_adjustment = negotiated_events * points_negotiation
 
         score = initial_score
         score -= installment_penalty
         score -= contract_penalty
         score += payment_bonus
         score += contract_bonus
+        score += negotiation_adjustment
         score = max(score, 0)
 
         return (
@@ -199,16 +307,59 @@ class ClientMetricsService:
                 "points_late_contract": points_late_contract,
                 "points_on_time_payment": points_on_time_payment,
                 "points_on_time_contract": points_on_time_contract,
+                "points_negotiation": points_negotiation,
+                "initial_score": initial_score,
                 "overdue_installment_days": overdue_installment_days,
                 "late_settled_contracts": late_settled_contracts,
                 "on_time_payments": on_time_payments,
                 "on_time_contracts": on_time_contracts,
+                "negotiated_events": negotiated_events,
                 "installment_penalty": installment_penalty,
                 "contract_penalty": contract_penalty,
                 "payment_bonus": payment_bonus,
                 "contract_bonus": contract_bonus,
+                "negotiation_adjustment": negotiation_adjustment,
             },
+            score_events,
         )
+
+    async def _rebuild_score_logs(
+        self,
+        client_id: int,
+        score_context: dict[str, int],
+        score_events: list[dict[str, object]],
+    ) -> None:
+        await self.session.execute(delete(ClientScoreLog).where(ClientScoreLog.cliente_id == client_id))
+
+        current_score = max(int(score_context["initial_score"]), 0)
+        final_score = current_score
+        for event in sorted(score_events, key=self._sort_score_event_key):
+            final_score = max(final_score + int(event["score_delta"]), 0)
+
+        self._append_score_log(
+            client_id,
+            current_score,
+            final_score - current_score,
+            "Reprocessamento score",
+            calculation_detail=(
+                f"Pontuação inicial do parâmetro: {current_score} pts; resultado final reprocessado: {final_score} pts"
+            ),
+            event_datetime=datetime.now(UTC),
+        )
+
+        for event in sorted(score_events, key=self._sort_score_event_key):
+            score_delta = int(event["score_delta"])
+            self._append_score_log(
+                client_id,
+                current_score,
+                score_delta,
+                str(event["event_name"]),
+                rule_points=int(event["rule_points"]) if event["rule_points"] is not None else None,
+                quantity_reference=int(event["quantity_reference"]) if event["quantity_reference"] is not None else None,
+                calculation_detail=str(event["calculation_detail"]) if event["calculation_detail"] is not None else None,
+                event_datetime=event.get("event_datetime"),
+            )
+            current_score = max(current_score + score_delta, 0)
 
     def _append_score_log(
         self,
@@ -220,12 +371,14 @@ class ClientMetricsService:
         rule_points: int | None = None,
         quantity_reference: int | None = None,
         calculation_detail: str | None = None,
+        event_datetime: object | None = None,
+        current_score_override: int | None = None,
     ) -> None:
-        current_score = max(previous_score + score_delta, 0)
+        current_score = max(current_score_override if current_score_override is not None else previous_score + score_delta, 0)
         self.session.add(
             ClientScoreLog(
                 cliente_id=client_id,
-                data_hora_evento=datetime.now(UTC),
+                data_hora_evento=self._ensure_utc_datetime(event_datetime),
                 evento=event_name,
                 pontuacao_anterior=max(previous_score, 0),
                 variacao_pontos=score_delta,
@@ -265,6 +418,16 @@ class ClientMetricsService:
                 "quantity_reference": quantity,
                 "calculation_detail": f"+{rule} pts x {quantity} quitação(ões) em dia",
             }
+        if pure_event == "Negociação":
+            quantity = score_context["negotiated_events"]
+            rule = score_context["points_negotiation"]
+            sign = "+" if rule >= 0 else "-"
+            return {
+                "event_name": pure_event,
+                "rule_points": rule,
+                "quantity_reference": quantity,
+                "calculation_detail": f"{sign}{abs(rule)} pts x {quantity} negociação(ões)",
+            }
         if pure_event == "Atraso pag. parcela":
             quantity = score_context["overdue_installment_days"]
             rule = score_context["points_late_installment"]
@@ -301,6 +464,11 @@ class ClientMetricsService:
             detail_parts.append(
                 f"+{score_context['points_on_time_contract']} pts x {score_context['on_time_contracts']} quitação(ões) em dia"
             )
+        if score_context["negotiation_adjustment"]:
+            sign = "+" if score_context["points_negotiation"] >= 0 else "-"
+            detail_parts.append(
+                f"{sign}{abs(score_context['points_negotiation'])} pts x {score_context['negotiated_events']} negociação(ões)"
+            )
 
         return {
             "event_name": pure_event,
@@ -314,18 +482,24 @@ class ClientMetricsService:
         if score_delta > 0:
             matches_payment = score_context["points_on_time_payment"] > 0 and score_delta % score_context["points_on_time_payment"] == 0
             matches_contract = score_context["points_on_time_contract"] > 0 and score_delta % score_context["points_on_time_contract"] == 0
+            matches_negotiation = score_context["points_negotiation"] > 0 and score_delta % score_context["points_negotiation"] == 0
             if matches_payment and not matches_contract:
                 return "Pagamento"
             if matches_contract and not matches_payment:
                 return "Quitação"
+            if matches_negotiation and not matches_payment and not matches_contract:
+                return "Negociação"
         elif score_delta < 0:
             magnitude = abs(score_delta)
             matches_installment = score_context["points_late_installment"] > 0 and magnitude % score_context["points_late_installment"] == 0
             matches_contract = score_context["points_late_contract"] > 0 and magnitude % score_context["points_late_contract"] == 0
+            matches_negotiation = score_context["points_negotiation"] < 0 and magnitude % abs(score_context["points_negotiation"]) == 0
             if matches_installment and not matches_contract:
                 return "Atraso pag. parcela"
             if matches_contract and not matches_installment:
                 return "Atraso quit. contrato"
+            if matches_negotiation and not matches_installment and not matches_contract:
+                return "Negociação"
 
         return "Reprocessamento score"
 
@@ -336,6 +510,20 @@ class ClientMetricsService:
         if value.tzinfo is None or value.utcoffset() is None:
             return value
         return value.astimezone(UTC).replace(tzinfo=None)
+
+    @staticmethod
+    def _ensure_utc_datetime(value: object | None) -> datetime:
+        if isinstance(value, datetime):
+            if value.tzinfo is None or value.utcoffset() is None:
+                return value.replace(tzinfo=UTC)
+            return value.astimezone(UTC)
+        return datetime.now(UTC)
+
+    @classmethod
+    def _sort_score_event_key(cls, event: dict[str, object]) -> tuple[datetime, str, int]:
+        event_datetime = cls._ensure_utc_datetime(event.get("event_datetime"))
+        score_delta = int(event.get("score_delta") or 0)
+        return (event_datetime, str(event.get("event_name") or ""), score_delta)
 
     def _to_local_date(self, value: datetime | None):
         if value is None:

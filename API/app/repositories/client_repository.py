@@ -18,6 +18,8 @@ class ClientRepository:
             filters.append(Cliente.nome.ilike(f"%{params.nome}%"))
         if params.cpf_cnpj:
             filters.append(Cliente.cpf_cnpj == params.cpf_cnpj)
+        if params.endereco:
+            filters.append(Cliente.endereco.ilike(f"%{params.endereco}%"))
         if params.ativo is not None:
             filters.append(Cliente.ativo == params.ativo)
 

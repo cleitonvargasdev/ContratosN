@@ -94,6 +94,7 @@
           <label class="field-group"><span>Pts atraso quitação</span><input v-model.number="form.score_pontos_atraso_quitacao_contrato" class="field" type="number" /></label>
           <label class="field-group"><span>Pts pagto em dia</span><input v-model.number="form.score_pontos_pagamento_em_dia" class="field" type="number" /></label>
           <label class="field-group"><span>Pts quitação em dia</span><input v-model.number="form.score_pontos_quitacao_em_dia" class="field" type="number" /></label>
+          <label class="field-group"><span>Pts Negociação</span><input v-model.number="form.score_pontos_negociacao" class="field" type="number" /></label>
           <div class="field-group field-group--score-toggle">
             <span>Atualização</span>
             <div class="score-actions automation-controls-row__actions">
@@ -124,14 +125,14 @@
           </div>
           <div class="field-group field-group--span-3">
             <span>Execução</span>
-            <div class="execution-strip">
-              <div class="execution-strip__item execution-strip__item--status">
+            <div class="execution-summary">
+              <div class="execution-summary__line">
                 <span class="schedule-status__badge" :class="statusBadgeClass(form.score_ultima_execucao_sucesso)">{{ statusLabel(form.score_ultima_execucao_sucesso) }}</span>
-                <span class="execution-strip__text">{{ formatDateTime(form.score_atualizacao_ultima_execucao) }}</span>
+                <span class="execution-summary__text">{{ formatDateTime(form.score_atualizacao_ultima_execucao) }}</span>
               </div>
-              <div class="execution-strip__item execution-strip__item--next">
-                <span class="schedule-status__badge schedule-status__badge--warning">Próxima execução</span>
-                <span class="execution-strip__text">{{ formatDateTime(form.score_atualizacao_proxima_execucao) }}</span>
+              <div class="execution-summary__line execution-summary__line--next">
+                <span class="execution-summary__label">Próxima:</span>
+                <span class="execution-summary__text">{{ formatDateTime(form.score_atualizacao_proxima_execucao) }}</span>
               </div>
             </div>
             <div v-if="form.score_ultimo_erro" class="schedule-status">
@@ -179,14 +180,14 @@
           </div>
           <div class="field-group field-group--span-2">
             <span>Execução</span>
-            <div class="execution-strip">
-              <div class="execution-strip__item execution-strip__item--status">
+            <div class="execution-summary">
+              <div class="execution-summary__line">
                 <span class="schedule-status__badge" :class="statusBadgeClass(form.whatsapp_ultima_execucao_sucesso)">{{ statusLabel(form.whatsapp_ultima_execucao_sucesso) }}</span>
-                <span class="execution-strip__text">{{ formatDateTime(form.whatsapp_cobranca_ultima_execucao) }}</span>
+                <span class="execution-summary__text">{{ formatDateTime(form.whatsapp_cobranca_ultima_execucao) }}</span>
               </div>
-              <div class="execution-strip__item execution-strip__item--next">
-                <span class="schedule-status__badge schedule-status__badge--warning">Próxima execução</span>
-                <span class="execution-strip__text">{{ formatDateTime(form.whatsapp_cobranca_proxima_execucao) }}</span>
+              <div class="execution-summary__line execution-summary__line--next">
+                <span class="execution-summary__label">Próxima:</span>
+                <span class="execution-summary__text">{{ formatDateTime(form.whatsapp_cobranca_proxima_execucao) }}</span>
               </div>
             </div>
             <div v-if="form.whatsapp_ultimo_erro" class="schedule-status">
@@ -366,6 +367,7 @@ const form = reactive({
   score_pontos_atraso_quitacao_contrato: 30,
   score_pontos_pagamento_em_dia: 5,
   score_pontos_quitacao_em_dia: 20,
+  score_pontos_negociacao: 0,
   score_atualizacao_automatica: false,
   score_agendamentos: [] as ParameterScheduleEntry[],
   score_atualizacao_ultima_execucao: '',
@@ -521,6 +523,7 @@ async function syncParametersIntoForm(parameters?: Parameter | null) {
   form.score_pontos_atraso_quitacao_contrato = parameters.score_pontos_atraso_quitacao_contrato
   form.score_pontos_pagamento_em_dia = parameters.score_pontos_pagamento_em_dia
   form.score_pontos_quitacao_em_dia = parameters.score_pontos_quitacao_em_dia
+  form.score_pontos_negociacao = parameters.score_pontos_negociacao
   form.score_atualizacao_automatica = parameters.score_atualizacao_automatica
   form.score_agendamentos = [...parameters.score_agendamentos]
   form.score_atualizacao_ultima_execucao = parameters.score_atualizacao_ultima_execucao ?? ''
@@ -703,6 +706,7 @@ function buildPayload(): ParameterInput {
     score_pontos_atraso_quitacao_contrato: Number(form.score_pontos_atraso_quitacao_contrato || 0),
     score_pontos_pagamento_em_dia: Number(form.score_pontos_pagamento_em_dia || 0),
     score_pontos_quitacao_em_dia: Number(form.score_pontos_quitacao_em_dia || 0),
+    score_pontos_negociacao: Number(form.score_pontos_negociacao || 0),
     score_atualizacao_automatica: form.score_atualizacao_automatica,
     score_agendamentos: [...form.score_agendamentos],
     whatsapp_cobranca_automatica: form.whatsapp_cobranca_automatica,
@@ -821,12 +825,12 @@ function formatSchedule(schedule: ParameterScheduleEntry) {
 
 function statusLabel(value: boolean | null) {
   if (value === true) {
-    return 'Realizada com sucesso'
+    return 'Realizado'
   }
   if (value === false) {
-    return 'Executada com erro'
+    return 'Erro'
   }
-  return 'Ainda não executada'
+  return 'Pendente'
 }
 
 function statusBadgeClass(value: boolean | null) {
@@ -841,13 +845,19 @@ function statusBadgeClass(value: boolean | null) {
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) {
-    return 'Ainda não executado'
+    return '-'
   }
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) {
     return value
   }
-  return date.toLocaleString('pt-BR')
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
 }
 
 function emptyToNull(value: string | null | undefined) {
@@ -1293,13 +1303,13 @@ function generateWhatsappToken() {
   font-size: 0.82rem;
 }
 
-.execution-strip {
+.execution-summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
-.execution-strip__item {
+.execution-summary__line {
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -1310,13 +1320,18 @@ function generateWhatsappToken() {
   background: rgba(255, 255, 255, 0.82);
 }
 
-.execution-strip__item--next {
-  justify-content: flex-end;
+.execution-summary__line--next {
   background: rgba(255, 247, 237, 0.92);
   border-color: rgba(249, 115, 22, 0.18);
 }
 
-.execution-strip__text {
+.execution-summary__label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #9a3412;
+}
+
+.execution-summary__text {
   font-size: 0.82rem;
   color: rgba(15, 23, 42, 0.78);
   font-weight: 600;
@@ -1357,16 +1372,12 @@ function generateWhatsappToken() {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .execution-strip {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .automation-controls-row {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .execution-strip__item--next {
-    justify-content: flex-start;
+  .execution-summary {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .settings-card__header {

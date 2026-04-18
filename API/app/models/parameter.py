@@ -40,6 +40,7 @@ class Parametro(Base):
     score_pontos_atraso_quitacao_contrato: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
     score_pontos_pagamento_em_dia: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
     score_pontos_quitacao_em_dia: Mapped[int] = mapped_column(Integer, nullable=False, default=20)
+    score_pontos_negociacao: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     score_atualizacao_automatica: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     score_agendamentos: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
     score_atualizacao_ultima_execucao: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

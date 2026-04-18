@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_active_user, get_db_session, get_pagination_params, require_permission
 from app.models.user import User
-from app.schemas.client import ClientCobradorOptionRead, ClientCreate, ClientListParams, ClientListResponse, ClientRead, ClientScoreLogRead, ClientUpdate
+from app.schemas.client import ClientCobradorOptionRead, ClientCreate, ClientListParams, ClientListResponse, ClientRead, ClientScoreLogListResponse, ClientUpdate
 from app.schemas.pagination import PaginationParams
 from app.schemas.rules import RegraComissaoOptionRead, RegraJurosOptionRead
 from app.services.client_service import ClientService
@@ -52,11 +52,12 @@ async def list_clients(
     pagination: PaginationParams = Depends(get_pagination_params),
     nome: Annotated[str | None, Query(description="Filtra por parte do nome.")] = None,
     cpf_cnpj: Annotated[str | None, Query(description="Filtra por CPF/CNPJ.")] = None,
+    endereco: Annotated[str | None, Query(description="Filtra por parte do endereco.")] = None,
     ativo: Annotated[bool | None, Query(description="Filtra por status ativo/inativo.")] = None,
     _: User = Depends(require_permission("clientes", "read")),
     service: ClientService = Depends(get_client_service),
 ) -> ClientListResponse:
-    params = ClientListParams(page=pagination.page, page_size=pagination.page_size, nome=nome, cpf_cnpj=cpf_cnpj, ativo=ativo)
+    params = ClientListParams(page=pagination.page, page_size=pagination.page_size, nome=nome, cpf_cnpj=cpf_cnpj, endereco=endereco, ativo=ativo)
     return await service.list_clients(params)
 
 
@@ -72,16 +73,29 @@ async def get_client(
     return client
 
 
-@router.get("/{client_id}/score-log", response_model=list[ClientScoreLogRead], summary="Listar historico do score do cliente")
+@router.get("/{client_id}/score-log", response_model=ClientScoreLogListResponse, summary="Listar historico do score do cliente")
 async def list_client_score_logs(
     client_id: int,
+    pagination: PaginationParams = Depends(get_pagination_params),
     _: User = Depends(require_permission("clientes", "read")),
     service: ClientService = Depends(get_client_service),
-) -> list[ClientScoreLogRead]:
+) -> ClientScoreLogListResponse:
     client = await service.get_client(client_id)
     if client is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
-    return await service.list_client_score_logs(client_id)
+    return await service.list_client_score_logs(client_id, page=pagination.page, page_size=pagination.page_size)
+
+
+@router.post("/{client_id}/score-log/reprocessar", response_model=ClientRead, summary="Reprocessar score do cliente")
+async def reprocess_client_score(
+    client_id: int,
+    _: User = Depends(require_permission("clientes", "update")),
+    service: ClientService = Depends(get_client_service),
+) -> ClientRead:
+    client = await service.reprocess_client_score(client_id)
+    if client is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
+    return client
 
 
 @router.post("/", response_model=ClientRead, status_code=status.HTTP_201_CREATED, summary="Criar cliente")

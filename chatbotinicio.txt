@@ -1,0 +1,35 @@
+Quero cria a partir do quepasa um chatbot para o cliente consultar contratos e parcelas via whatsapp, ode criar a estrutura, preencher dados pré para realizar as consultas: 
+Exemplo cliente manda oi, bom dia, boa tarde boa noite ou qualquer saudação que abre uma consulta. Resposta: Olá, bom dia ou boa tarde ou boa noite! dependendo do horário. Depois solicite Nome completo, depois CPF ou CNPJ, diante desses dois dados faça uma busca no banco para verificar o cliente, essa busca do nome pode ser aproximada nao precisa ser identica, pode consultar parcial talvez menos um sobrenome ou preposição. Ai devolve a informação de cadastro encontrato ou não localizado- e jogue para a opção 2-Soliciatar um emprestimo, pode incluir telefone na busca tambem. lembrando que o nono digito pode não vir no webhook. ai pergunta se o cliente quer 
+1 -Consultar um contrato.
+2-Solicitar um empréstimo
+3-Não receber mais whataspp
+4-Sair
+
+Caso 1- Devolva: 
+1-Quitado
+2-Aberto
+3-Sair
+0-Voltar
+
+Caso 1- Devolva a Lista dos contratos Quitados
+Caso 2- Devolva a Lista dos contratos Abertos
+E qual número do contrato você quer falar?
+
+se ela digitar Sair, sair, ok, encerrar, fim, encerre a sessão.
+Se quitado: Valor do contrato inicial, Valor Pago Quantidade PArcelas, valor Parcela, e data quitação.
+Se aberto:
+Se informar o numero do contrato, verifique se esta na lista enviado e devolva Data do contrato, valor Pago, valor Parcela, Valor em baerto, data da proxima parcela em aberto.
+
+Para ambos pergunte Deseja o PDF do Contrato?
+1-Sim
+2-Não
+3-Sair
+0-Voltar
+Faça a ação escolhida.
+
+2-Solicitar um empréstimo:
+Pergunte: Qual  o valor Pretendido: 
+Depois: -1-Diario, 2-Semanal,3- Mensal 4-Sair 0-Voltar
+Depois em quantas parcelas: 
+Caso não seja cliente peça o telefone para contato, e CPF ou CNPJ
+Depois salve em uma tabela a ser criada Solicitacoes, com ou sem vinculo de cliente, se com valor pretendido e numero de parcelas, mas coloque na solicitacao telefone, CPF/CNPJ, DAta/hora da solicitacao, tipo (APP, Whatsapp), Telefone), Vendedor_id, valor parcela, taxa_juros, Contrato_ID, Usuario_ID_PArovou, Datahora_aprovacao.  

@@ -12,6 +12,9 @@ import ContractsEditView from '@/views/contracts/ContractsEditView.vue'
 import ContractsListView from '@/views/contracts/ContractsListView.vue'
 import DashboardHomeView from '@/views/dashboard/DashboardHomeView.vue'
 import LoginView from '@/views/auth/LoginView.vue'
+import NegotiationsCreateView from '@/views/negotiations/NegotiationsCreateView.vue'
+import NegotiationsListView from '@/views/negotiations/NegotiationsListView.vue'
+import NegotiationsViewView from '@/views/negotiations/NegotiationsViewView.vue'
 import PaymentPlansFormView from '@/views/payment-plans/PaymentPlansFormView.vue'
 import PaymentPlansListView from '@/views/payment-plans/PaymentPlansListView.vue'
 import ParametersView from '@/views/parameters/ParametersView.vue'
@@ -122,6 +125,24 @@ const routes = [
         name: 'contracts-edit',
         component: ContractsEditView,
         meta: { resource: 'contratos', action: 'update' },
+      },
+      {
+        path: 'negociacoes',
+        name: 'negotiations-list',
+        component: NegotiationsListView,
+        meta: { resource: 'contratos', action: 'read' },
+      },
+      {
+        path: 'negociacoes/novo',
+        name: 'negotiations-create',
+        component: NegotiationsCreateView,
+        meta: { resource: 'contratos', action: 'create' },
+      },
+      {
+        path: 'negociacoes/:id',
+        name: 'negotiations-view',
+        component: NegotiationsViewView,
+        meta: { resource: 'contratos', action: 'read' },
       },
       {
         path: 'planos-pagamentos',

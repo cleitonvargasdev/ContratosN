@@ -187,6 +187,10 @@ class ClientScoreLogRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ClientScoreLogListResponse(PaginatedResponse[ClientScoreLogRead]):
+    model_config = ConfigDict()
+
+
 class ClientCobradorOptionRead(BaseModel):
     id: int
     nome: str
@@ -197,6 +201,7 @@ class ClientCobradorOptionRead(BaseModel):
 class ClientListParams(PaginationParams):
     nome: str | None = None
     cpf_cnpj: str | None = None
+    endereco: str | None = None
     ativo: bool | None = None
 
 

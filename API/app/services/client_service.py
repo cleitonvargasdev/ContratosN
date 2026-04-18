@@ -9,7 +9,8 @@ from app.models.client_score_log import ClientScoreLog
 from app.models.parameter import Parametro
 from app.models.user import User
 from app.repositories.client_repository import ClientRepository
-from app.schemas.client import ClientCobradorOptionRead, ClientCreate, ClientListParams, ClientListResponse, ClientScoreLogRead, ClientUpdate
+from app.schemas.client import ClientCobradorOptionRead, ClientCreate, ClientListParams, ClientListResponse, ClientScoreLogListResponse, ClientScoreLogRead, ClientUpdate
+from app.services.client_metrics_service import ClientMetricsService
 from app.services.location_service import LocationService
 
 
@@ -17,6 +18,7 @@ class ClientService:
     def __init__(self, session: AsyncSession) -> None:
         self.repository = ClientRepository(session)
         self.location_service = LocationService(session)
+        self.client_metrics_service = ClientMetricsService(session)
 
     async def list_clients(self, params: ClientListParams) -> ClientListResponse:
         clients, total = await self.repository.list_all(params)
@@ -25,14 +27,28 @@ class ClientService:
     async def get_client(self, client_id: int) -> Cliente | None:
         return await self.repository.get_by_id(client_id)
 
-    async def list_client_score_logs(self, client_id: int) -> list[ClientScoreLogRead]:
+    async def list_client_score_logs(self, client_id: int, *, page: int, page_size: int) -> ClientScoreLogListResponse:
+        total = await self.repository.session.scalar(
+            select(func.count())
+            .select_from(ClientScoreLog)
+            .where(ClientScoreLog.cliente_id == client_id)
+        )
         result = await self.repository.session.execute(
             select(ClientScoreLog)
             .where(ClientScoreLog.cliente_id == client_id)
             .order_by(ClientScoreLog.data_hora_evento.desc(), ClientScoreLog.id.desc())
-            .limit(200)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
         )
-        return [ClientScoreLogRead.model_validate(item) for item in result.scalars().all()]
+        items = [ClientScoreLogRead.model_validate(item) for item in result.scalars().all()]
+        return ClientScoreLogListResponse(items=items, total=int(total or 0), page=page, page_size=page_size)
+
+    async def reprocess_client_score(self, client_id: int) -> Cliente | None:
+        client = await self.client_metrics_service.reprocess_client_score(client_id)
+        if client is None:
+            return None
+        await self.repository.session.commit()
+        return await self.repository.get_by_id(client_id)
 
     async def list_active_cobradores(self) -> list[ClientCobradorOptionRead]:
         result = await self.repository.session.execute(
