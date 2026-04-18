@@ -155,8 +155,8 @@ class AccountsReceivableService:
         installments = [
             ContaReceber(
                 contratos_id=contract_id,
-                vencimento_original=item.vencimento,
-                vencimentol=item.vencimento,
+                vencimento_original=self._normalize_due_datetime(item.vencimento),
+                vencimentol=self._normalize_due_datetime(item.vencimento),
                 valor_base=item.valor_total,
                 valor_total=item.valor_total,
                 valor_recebido=0,
@@ -250,8 +250,8 @@ class AccountsReceivableService:
 
         installment = ContaReceber(
             contratos_id=contract_id,
-            vencimento_original=payload.vencimento,
-            vencimentol=payload.vencimento,
+            vencimento_original=self._normalize_due_datetime(payload.vencimento),
+            vencimentol=self._normalize_due_datetime(payload.vencimento),
             valor_base=round(base_value, 4),
             valor_total=total_value,
             valor_recebido=0,
@@ -291,8 +291,8 @@ class AccountsReceivableService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Valores da parcela nao podem ser negativos")
 
         installment.parcela_nro = payload.parcela_nro
-        installment.vencimento_original = payload.vencimento
-        installment.vencimentol = payload.vencimento
+        installment.vencimento_original = self._normalize_due_datetime(payload.vencimento)
+        installment.vencimentol = self._normalize_due_datetime(payload.vencimento)
         installment.valor_base = round(base_value, 4)
         installment.valor_juros = round(interest_value, 4)
         installment.valor_total = total_value
@@ -642,6 +642,9 @@ class AccountsReceivableService:
             return value.replace(tzinfo=self.local_timezone)
         return value.astimezone(self.local_timezone)
 
+    def _normalize_due_datetime(self, value: datetime | None) -> datetime | None:
+        return self._normalize_input_datetime(value)
+
     def _add_months(self, value: datetime, months: int) -> datetime:
         month_index = value.month - 1 + months
         year = value.year + month_index // 12
@@ -682,7 +685,7 @@ class AccountsReceivableService:
         return cls._normalize_datetime_for_compare(left) == cls._normalize_datetime_for_compare(right)
 
     def _build_installment_read(self, installment: ContaReceber) -> ContractInstallmentRead:
-        due_date = installment.vencimentol or installment.vencimento_original
+        due_date = self._normalize_due_datetime(installment.vencimentol or installment.vencimento_original)
         weekday = None
         if due_date is not None:
             weekday = WEEKDAY_LABELS[due_date.weekday()]
@@ -691,8 +694,8 @@ class AccountsReceivableService:
             id=installment.id,
             contratos_id=installment.contratos_id,
             parcela_nro=installment.parcela_nro,
-            vencimento_original=installment.vencimento_original,
-            vencimentol=installment.vencimentol,
+            vencimento_original=self._normalize_due_datetime(installment.vencimento_original),
+            vencimentol=self._normalize_due_datetime(installment.vencimentol),
             valor_base=installment.valor_base,
             valor_total=installment.valor_total,
             valor_recebido=installment.valor_recebido,

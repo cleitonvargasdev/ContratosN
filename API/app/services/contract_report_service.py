@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from io import BytesIO
 
 from fastapi import HTTPException, status
@@ -28,6 +28,7 @@ class ContractReportService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.whatsapp_service = WhatsAppService(session)
+        self.local_timezone = datetime.now().astimezone().tzinfo or UTC
 
     async def generate_contract_pdf(self, contract_id: int) -> tuple[bytes, str]:
         contract, client, parameter = await self._load_contract_context(contract_id)
@@ -286,8 +287,9 @@ class ContractReportService:
     def _format_currency(value: float) -> str:
         return f"R$ {value:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
 
-    @staticmethod
-    def _format_date(value: datetime | None) -> str:
+    def _format_date(self, value: datetime | None) -> str:
         if value is None:
             return "-"
+        if value.tzinfo is not None and value.utcoffset() is not None:
+            value = value.astimezone(self.local_timezone)
         return value.strftime("%d/%m/%Y")
