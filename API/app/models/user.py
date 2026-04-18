@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.access_control_catalog import merge_catalog_permissions
 from app.db.base import Base
 
 if TYPE_CHECKING:
@@ -113,7 +114,7 @@ class User(Base):
                 current.can_update = current.can_update or permission.can_update
                 current.can_delete = current.can_delete or permission.can_delete
 
-        return [aggregated[key] for key in sorted(aggregated)]
+            return [EffectiveProfilePermission(**item) for item in merge_catalog_permissions(aggregated.values())]
 
     @property
     def api_key_info(self) -> "UserApiKey | None":

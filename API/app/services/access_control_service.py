@@ -3,30 +3,13 @@ from __future__ import annotations
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.access_control_catalog import RESOURCE_CATALOG, merge_catalog_permissions
 from app.core.config import settings
 from app.core.security import build_api_key_prefix, generate_api_key_value, hash_api_key_value
 from app.models.access_control import Profile, ProfilePermission
 from app.repositories.access_control_repository import AccessControlRepository
 from app.repositories.user_repository import UserRepository
-from app.schemas.access_control import PermissionResourceRead, ProfileCreate, ProfilePermissionWrite, ProfileRead, ProfileUpdate, UserApiKeyInfo, UserApiKeySecret
-
-
-RESOURCE_CATALOG: tuple[PermissionResourceRead, ...] = (
-    PermissionResourceRead(resource_key="acesso_web", resource_label="Acesso Web", resource_group="Sistema", supported_actions=["read"]),
-    PermissionResourceRead(resource_key="dashboard", resource_label="Dashboard", resource_group="Sistema", supported_actions=["read"]),
-    PermissionResourceRead(resource_key="usuarios", resource_label="Usuarios", resource_group="Cadastros", supported_actions=["create", "read", "update", "delete"]),
-    PermissionResourceRead(resource_key="clientes", resource_label="Clientes", resource_group="Cadastros", supported_actions=["create", "read", "update", "delete"]),
-    PermissionResourceRead(resource_key="solicitacoes", resource_label="Solicitacoes", resource_group="Cadastros", supported_actions=["read", "update"]),
-    PermissionResourceRead(resource_key="contratos", resource_label="Contratos", resource_group="Cadastros", supported_actions=["create", "read", "update", "delete"]),
-    PermissionResourceRead(resource_key="apis", resource_label="APIs", resource_group="Cadastros", supported_actions=["create", "read", "update", "delete"]),
-    PermissionResourceRead(resource_key="usuarios_api_keys", resource_label="Chaves de API dos usuarios", resource_group="Seguranca", supported_actions=["read", "update"]),
-    PermissionResourceRead(resource_key="perfis", resource_label="Perfis e permissoes", resource_group="Seguranca", supported_actions=["create", "read", "update", "delete"]),
-    PermissionResourceRead(resource_key="planos_pagamentos", resource_label="Planos de Pagamento", resource_group="Cadastros", supported_actions=["create", "read", "update", "delete"]),
-    PermissionResourceRead(resource_key="localidades_ufs", resource_label="UFs", resource_group="Cadastros", supported_actions=["create", "read", "update", "delete"]),
-    PermissionResourceRead(resource_key="localidades_cidades", resource_label="Cidades", resource_group="Cadastros", supported_actions=["create", "read", "update", "delete"]),
-    PermissionResourceRead(resource_key="localidades_bairros", resource_label="Bairros", resource_group="Cadastros", supported_actions=["create", "read", "update", "delete"]),
-    PermissionResourceRead(resource_key="localidades_feriados", resource_label="Feriados", resource_group="Cadastros", supported_actions=["create", "read", "update", "delete"]),
-)
+from app.schemas.access_control import PermissionResourceRead, ProfileCreate, ProfilePermissionRead, ProfilePermissionWrite, ProfileRead, ProfileUpdate, UserApiKeyInfo, UserApiKeySecret
 
 
 class AccessControlService:
@@ -36,13 +19,13 @@ class AccessControlService:
         self.user_repository = UserRepository(session)
 
     async def list_profiles(self, term: str | None = None) -> list[ProfileRead]:
-        return [ProfileRead.model_validate(item) for item in await self.repository.list_profiles(term)]
+        return [self._to_profile_read(item) for item in await self.repository.list_profiles(term)]
 
     async def get_profile(self, profile_id: int) -> ProfileRead | None:
         record = await self.repository.get_profile_by_id(profile_id)
         if record is None:
             return None
-        return ProfileRead.model_validate(record)
+        return self._to_profile_read(record)
 
     async def create_profile(self, payload: ProfileCreate) -> ProfileRead:
         if await self.repository.get_profile_by_name(payload.nome):
@@ -51,7 +34,7 @@ class AccessControlService:
         profile = Profile(nome=payload.nome, descricao=payload.descricao, ativo=payload.ativo)
         profile.permissions = self._build_permission_entities(payload.permissions)
         saved = await self.repository.create_profile(profile)
-        return ProfileRead.model_validate(saved)
+        return self._to_profile_read(saved)
 
     async def update_profile(self, profile_id: int, payload: ProfileUpdate) -> ProfileRead | None:
         profile = await self.repository.get_profile_by_id(profile_id)
@@ -74,7 +57,7 @@ class AccessControlService:
             profile.permissions = self._build_permission_entities(payload.permissions)
 
         saved = await self.repository.save_profile(profile)
-        return ProfileRead.model_validate(saved)
+        return self._to_profile_read(saved)
 
     async def delete_profile(self, profile_id: int) -> bool:
         profile = await self.repository.get_profile_by_id(profile_id)
@@ -130,3 +113,9 @@ class AccessControlService:
                 )
             )
         return entities
+
+    @staticmethod
+    def _to_profile_read(profile: Profile) -> ProfileRead:
+        payload = ProfileRead.model_validate(profile).model_dump()
+        payload["permissions"] = [ProfilePermissionRead(**item) for item in merge_catalog_permissions(profile.permissions)]
+        return ProfileRead(**payload)
