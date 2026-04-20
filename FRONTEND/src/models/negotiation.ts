@@ -28,7 +28,7 @@ export interface Negotiation {
   cobranca_feriado: boolean
   cobranca_mensal: boolean
   cobranca_quinzenal: boolean
-  contratos_originais: NegotiationContractItem[]
+  contratos_originais: readonly NegotiationContractItem[]
 }
 
 export interface NegotiationListFilters {

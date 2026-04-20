@@ -183,7 +183,7 @@ export async function infoAlert(message: string): Promise<void> {
   })
 }
 
-export async function showClientScoreLogPopup(clientName: string, logs: ClientScoreLog[]): Promise<void> {
+export async function showClientScoreLogPopup(clientName: string, logs: readonly ClientScoreLog[]): Promise<void> {
   const title = clientName.trim() ? `Histórico do score • ${escapeHtml(clientName)}` : 'Histórico do score'
   const html = logs.length === 0
     ? '<p class="swal-empty-state" style="margin:0; text-align:left;">Nenhum processamento de score registrado.</p>'

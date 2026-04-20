@@ -1812,7 +1812,7 @@ async function handleOpenClientScoreLog(client: Client) {
   }
 
   const logs = await listClientScoreLogs(client.clientes_id)
-  await showClientScoreLogPopup(client.nome || 'Cliente', logs)
+  await showClientScoreLogPopup(client.nome || 'Cliente', logs.items)
 }
 
 async function hydrateClientCities() {

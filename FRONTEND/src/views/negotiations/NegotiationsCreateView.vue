@@ -196,7 +196,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
-import type { Client } from '@/models/client'
+import type { Client, ClientListResponse } from '@/models/client'
 import type { OpenContractForNegotiation } from '@/models/negotiation'
 import { confirmActionAlert, errorAlert, successAlert } from '@/services/alertService'
 import { listClients } from '@/services/clientService'
@@ -220,7 +220,7 @@ const clientSearch = reactive({
     total: 0,
     page: 1,
     page_size: 8,
-  },
+  } as ClientListResponse,
 })
 
 const form = reactive({
