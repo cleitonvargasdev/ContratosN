@@ -48,27 +48,35 @@
           <thead>
             <tr>
               <th>ID</th>
+              <th>DT/Hora</th>
               <th>Nome</th>
               <th>Telefone</th>
               <th>Documento</th>
               <th>Valor-Parcelas</th>
+              <th>Tipo</th>
               <th>Sit</th>
               <th class="actions-column">Ações</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="solicitations.state.loading">
-              <td colspan="6">Carregando solicitações...</td>
+              <td colspan="8">Carregando solicitações...</td>
             </tr>
             <tr v-else-if="solicitations.state.result.items.length === 0">
-              <td colspan="6">Nenhuma solicitação encontrada.</td>
+              <td colspan="8">Nenhuma solicitação encontrada.</td>
             </tr>
             <tr v-for="item in solicitations.state.result.items" :key="item.id" class="data-table__row solicitation-row">
               <td>{{ item.id }}</td>
-              <td>{{ item.cliente_nome || item.nome_informado || '-' }}</td>
+              <td>{{ formatDateTime(item.datahora_solicitacao) }}</td>
+              <td>
+                <span :class="['solicitation-name-chip', item.cliente_id ? 'solicitation-name-chip--client' : 'solicitation-name-chip--lead']">
+                  {{ item.cliente_nome || item.nome_informado || '-' }}
+                </span>
+              </td>
               <td>{{ formatPhone(item.telefone) }}</td>
               <td>{{ formatDocument(item.cpf_cnpj) }}</td>
               <td>{{ formatValueInstallments(item.valor_pretendido, item.numero_parcelas) }}</td>
+              <td>{{ formatType(item.frequencia_pagamento) }}</td>
               <td>
                 <select class="field solicitation-status-select" :value="normalizeStatusSelectValue(item.status)" disabled>
                   <option value="PENDENTE">Pendente</option>
@@ -79,7 +87,7 @@
               <td class="actions-cell">
                 <div class="solicitation-actions">
                   <button
-                    v-if="canApproveSolicitation(item.status)"
+                    v-if="canApproveSolicitation(item.status, item.cliente_id)"
                     class="icon-action icon-action--success"
                     type="button"
                     title="Aprovar solicitação"
@@ -100,6 +108,18 @@
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 7h2v8h-2v-8Zm4 0h2v8h-2v-8ZM7 10h2v8H7v-8Zm-1 10h12l1-12H5l1 12Z" fill="currentColor"/>
+                    </svg>
+                  </button>
+                  <button
+                    v-if="canCreateClient(item.status, item.cliente_id)"
+                    class="icon-action icon-action--message"
+                    type="button"
+                    title="Cadastrar cliente"
+                    aria-label="Cadastrar cliente"
+                    @click="handleCreateClient(item.id)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4Zm-6 0c2.21 0 4-1.79 4-4S11.21 4 9 4 5 5.79 5 8s1.79 4 4 4Zm0 2c-2.67 0-8 1.34-8 4v2h10v-2c0-1.13.39-2.17 1.02-3.02C11.06 14.36 9.86 14 9 14Zm11-1h-2v-2h-2v2h-2v2h2v2h2v-2h2v-2Z" fill="currentColor"/>
                     </svg>
                   </button>
                   <button
@@ -243,12 +263,11 @@ async function handleCreateContract(solicitationId: number) {
 }
 
 async function handleApprove(solicitationId: number, clientId: number | null) {
-  if (clientId) {
-    await handleCreateContract(solicitationId)
+  if (!clientId) {
     return
   }
 
-  await handleCreateClient(solicitationId)
+  await handleCreateContract(solicitationId)
 }
 
 function handleOpenExistingContract(contractId: number) {
@@ -289,12 +308,16 @@ function normalizeStatusSelectValue(status: string) {
   return 'PENDENTE'
 }
 
-function canApproveSolicitation(status: string) {
-  return normalizeStatus(status) === 'pendente'
+function canApproveSolicitation(status: string, clientId: number | null) {
+  return normalizeStatus(status) === 'pendente' && Boolean(clientId)
 }
 
 function canRejectSolicitation(status: string) {
   return normalizeStatus(status) === 'pendente'
+}
+
+function canCreateClient(status: string, clientId: number | null) {
+  return normalizeStatus(status) === 'pendente' && !clientId
 }
 
 function canOpenExistingContract(status: string, contractId: number | null) {
@@ -313,6 +336,30 @@ function formatValueInstallments(value: number | null, installments: number | nu
   const formattedValue = formatCurrency(value)
   const formattedInstallments = typeof installments === 'number' && installments > 0 ? `${installments}X` : '-'
   return `${formattedValue} - ${formattedInstallments}`
+}
+
+function formatType(value: string | null) {
+  if (!value) {
+    return '-'
+  }
+
+  return value
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) {
+    return '-'
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(date)
 }
 
 function formatDocument(value: string | null) {
@@ -392,6 +439,25 @@ function formatPhone(value: string | null) {
   background: transparent;
 }
 
+.solicitation-name-chip {
+  border-radius: 999px;
+  display: inline-flex;
+  max-width: 220px;
+  overflow: hidden;
+  padding: 6px 10px;
+  text-overflow: ellipsis;
+}
+
+.solicitation-name-chip--client {
+  background: rgba(31, 157, 104, 0.14);
+  color: #176f4a;
+}
+
+.solicitation-name-chip--lead {
+  background: rgba(220, 38, 38, 0.14);
+  color: #b42318;
+}
+
 .solicitation-status-select {
   min-width: 130px;
   color: #24303b;
@@ -433,7 +499,8 @@ function formatPhone(value: string | null) {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 120px;
 }
 
 .icon-action--success {
@@ -445,13 +512,13 @@ function formatPhone(value: string | null) {
   background: rgba(31, 157, 104, 0.2);
 }
 
-.icon-action--pending {
-  background: rgba(249, 115, 22, 0.12);
-  color: #c86718;
+.icon-action--message {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
 }
 
-.icon-action--pending:hover {
-  background: rgba(249, 115, 22, 0.2);
+.icon-action--message:hover {
+  background: rgba(59, 130, 246, 0.2);
 }
 
 @media (max-width: 860px) {
