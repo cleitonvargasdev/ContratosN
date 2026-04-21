@@ -14,6 +14,7 @@ from app.models.contract import Contrato
 from app.models.whatsapp_chatbot import Solicitacao, WhatsAppChatbotSession
 from app.repositories.accounts_receivable_repository import AccountsReceivableRepository
 from app.repositories.whatsapp_chatbot_repository import WhatsAppChatbotRepository
+from app.services.whatsapp_chatbot_session_cleanup_service import CHATBOT_SESSION_TIMEOUT
 from app.services.whatsapp_service import WhatsAppService
 
 
@@ -21,7 +22,6 @@ EXIT_WORDS = {"sair", "ok", "encerrar", "encerre", "fim", "finalizar"}
 GREETING_WORDS = {"oi", "ola", "olá", "bom dia", "boa tarde", "boa noite", "iniciar", "inicio", "início"}
 BACK_WORDS = {"0", "voltar"}
 NAME_STOPWORDS = {"da", "das", "de", "do", "dos", "e"}
-SESSION_TIMEOUT = timedelta(minutes=30)
 logger = logging.getLogger(__name__)
 
 
@@ -571,7 +571,7 @@ class WhatsAppChatbotService:
         last_interaction_at = chatbot_session.last_interaction_at
         if last_interaction_at is None:
             return False
-        return datetime.now(UTC) - last_interaction_at >= SESSION_TIMEOUT
+        return datetime.now(UTC) - last_interaction_at >= CHATBOT_SESSION_TIMEOUT
 
     @staticmethod
     def _extract_digits(value: str) -> str:

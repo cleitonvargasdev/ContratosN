@@ -1,6 +1,8 @@
 from collections.abc import Sequence
 
-from sqlalchemy import func, or_, select
+from datetime import datetime
+
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.accounts_receivable import ContaReceber
@@ -27,6 +29,17 @@ class WhatsAppChatbotRepository:
         await self.session.commit()
         await self.session.refresh(chatbot_session)
         return chatbot_session
+
+    async def close_inactive_sessions(self, cutoff: datetime) -> int:
+        result = await self.session.execute(
+            update(WhatsAppChatbotSession)
+            .where(WhatsAppChatbotSession.current_state != "CLOSED")
+            .where(WhatsAppChatbotSession.last_interaction_at.is_not(None))
+            .where(WhatsAppChatbotSession.last_interaction_at <= cutoff)
+            .values(current_state="CLOSED", closed_at=func.now())
+        )
+        await self.session.commit()
+        return int(result.rowcount or 0)
 
     async def get_client_by_id(self, client_id: int | None) -> Cliente | None:
         if client_id is None:

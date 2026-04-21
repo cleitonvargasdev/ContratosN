@@ -9,6 +9,7 @@ from app.controllers.webhook_controller import router as webhook_router
 from app.core.config import settings
 from app.db.session import AsyncSessionLocal
 from app.services.parameter_service import ParameterService
+from app.services.whatsapp_chatbot_session_cleanup_service import WhatsAppChatbotSessionCleanupService
 
 
 app = FastAPI(
@@ -59,9 +60,21 @@ async def _parameter_scheduler_loop() -> None:
         await asyncio.sleep(60)
 
 
+async def _chatbot_session_cleanup_loop() -> None:
+    while True:
+        try:
+            async with AsyncSessionLocal() as session:
+                service = WhatsAppChatbotSessionCleanupService(session)
+                await service.close_inactive_sessions()
+        except Exception:
+            pass
+        await asyncio.sleep(600)
+
+
 @app.on_event("startup")
 async def start_parameter_scheduler() -> None:
     app.state.parameter_scheduler_task = asyncio.create_task(_parameter_scheduler_loop())
+    app.state.chatbot_session_cleanup_task = asyncio.create_task(_chatbot_session_cleanup_loop())
 
 
 @app.on_event("shutdown")
@@ -71,6 +84,14 @@ async def stop_parameter_scheduler() -> None:
         task.cancel()
         try:
             await task
+        except asyncio.CancelledError:
+            pass
+
+    chatbot_cleanup_task = getattr(app.state, "chatbot_session_cleanup_task", None)
+    if chatbot_cleanup_task is not None:
+        chatbot_cleanup_task.cancel()
+        try:
+            await chatbot_cleanup_task
         except asyncio.CancelledError:
             pass
 
