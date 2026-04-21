@@ -537,15 +537,21 @@ class WhatsAppChatbotService:
 
     def _format_contract_list_message(self, contracts: list[dict[str, Any]], *, quitado: bool) -> str:
         title = "Contratos quitados" if quitado else "Contratos abertos"
-        lines = [title + ":"]
+        contract_width = max(len("Contrato"), *(len(str(item["contract_id"])) for item in contracts))
+        date_width = len("Data")
+        value_width = max(len("Valor"), *(len(self._format_currency(item["valor_parcela"])) for item in contracts))
+
+        table_lines = [
+            f"{'Contrato':>{contract_width}} - {'Data':<{date_width}} - {'Valor':>{value_width}}",
+        ]
         for item in contracts:
-            lines.append(
-                f"{item['contract_id']} - {self._format_date(item['data_contrato'])} - "
-                f"Parcela {self._format_currency(item['valor_parcela'])} - "
-                f"Pago {self._format_currency(item['valor_pago'])} - "
-                f"Aberto {self._format_currency(item['valor_em_aberto'])}"
+            table_lines.append(
+                f"{str(item['contract_id']):>{contract_width}} - "
+                f"{self._format_compact_date(item['data_contrato']):<{date_width}} - "
+                f"{self._format_currency(item['valor_parcela']):>{value_width}}"
             )
-        lines.append("Qual numero do contrato voce quer consultar?")
+
+        lines = [title + ":", "```", *table_lines, "```", "Qual numero do contrato voce quer consultar?"]
         return "\n".join(lines)
 
     def _close_session(self, chatbot_session: WhatsAppChatbotSession, message: str | None = None) -> str:
@@ -632,6 +638,12 @@ class WhatsAppChatbotService:
         if value is None:
             return "Nao informado"
         return value.astimezone().strftime("%d/%m/%Y") if value.tzinfo else value.strftime("%d/%m/%Y")
+
+    @staticmethod
+    def _format_compact_date(value: datetime | None) -> str:
+        if value is None:
+            return "--/--/--"
+        return value.astimezone().strftime("%d/%m/%y") if value.tzinfo else value.strftime("%d/%m/%y")
 
     @staticmethod
     def _parse_decimal(value: str) -> float | None:

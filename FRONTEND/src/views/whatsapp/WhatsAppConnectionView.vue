@@ -54,9 +54,10 @@
         <h3 id="whatsapp-qr-title">Conectar WhatsApp</h3>
         <img class="whatsapp-qr-box__image" :src="controller.state.qrCodeDataUrl" alt="QR Code para conectar o WhatsApp" />
         <div class="whatsapp-qr-box__meta">
-          <strong>{{ controller.state.countdown }}s</strong>
+          <strong>Verificando conexao automaticamente</strong>
           <span>Escaneie com o Telefone 1.</span>
-          <span>Após 15 segundos o popup fecha e o status é consultado novamente.</span>
+          <span>O status da conexão é testado a cada 3 segundos, sem sobrepor tentativas.</span>
+          <span>Assim que conectar, esta tela fecha sozinha.</span>
         </div>
         <button class="ghost-button" type="button" @click="handleCloseQrPopup">Fechar</button>
       </div>

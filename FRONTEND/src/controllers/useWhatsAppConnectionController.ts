@@ -8,14 +8,13 @@ export function useWhatsAppConnectionController() {
     loading: false,
     connecting: false,
     error: '',
-    countdown: 0,
     qrCodeDataUrl: '',
     qrMessage: '',
     status: null as WhatsAppConnectionStatus | null,
   })
 
   let timerId: number | null = null
-  let tickBusy = false
+  let statusRequestBusy = false
 
   async function loadStatus(): Promise<void> {
     state.loading = true
@@ -44,7 +43,6 @@ export function useWhatsAppConnectionController() {
     try {
       const response = await connectWhatsApp()
       state.qrCodeDataUrl = response.qr_code_data_url
-      state.countdown = 15
       state.qrMessage = response.message ?? ''
       if (state.status) {
         state.status = {
@@ -55,11 +53,10 @@ export function useWhatsAppConnectionController() {
           connected: false,
         }
       }
-      startTimer()
+      scheduleStatusPoll()
     } catch (error) {
       state.error = error instanceof Error ? error.message : 'Falha ao gerar o QR Code do WhatsApp'
       state.qrCodeDataUrl = ''
-      state.countdown = 0
       state.qrMessage = state.error
       throw error
     } finally {
@@ -67,51 +64,40 @@ export function useWhatsAppConnectionController() {
     }
   }
 
-  function startTimer(): void {
+  function scheduleStatusPoll(): void {
     clearTimer()
-    timerId = window.setInterval(() => {
-      void tick()
-    }, 1000)
-  }
-
-  async function tick(): Promise<void> {
-    if (tickBusy) {
+    if (!state.qrCodeDataUrl) {
       return
     }
-    tickBusy = true
-    try {
-      if (state.countdown > 0) {
-        state.countdown -= 1
-      }
-
-      if (state.countdown <= 0) {
-        clearTimer()
-        await finalizeConnectionFlow()
-      }
-    } finally {
-      tickBusy = false
-    }
+    timerId = window.setTimeout(() => {
+      void pollConnectionStatus()
+    }, 3000)
   }
 
-  async function finalizeConnectionFlow(): Promise<void> {
-    try {
-      state.status = await getWhatsAppStatus()
-    } catch {
-      // Mantem o fechamento do popup mesmo quando a consulta final falha.
+  async function pollConnectionStatus(): Promise<void> {
+    if (statusRequestBusy || !state.qrCodeDataUrl) {
+      return
     }
-    resetQrState()
+    statusRequestBusy = true
+    try {
+      await loadStatus()
+    } finally {
+      statusRequestBusy = false
+      if (state.qrCodeDataUrl && !state.status?.connected) {
+        scheduleStatusPoll()
+      }
+    }
   }
 
   function resetQrState(): void {
     clearTimer()
     state.qrCodeDataUrl = ''
-    state.countdown = 0
     state.qrMessage = ''
   }
 
   function clearTimer(): void {
     if (timerId !== null) {
-      window.clearInterval(timerId)
+      window.clearTimeout(timerId)
       timerId = null
     }
   }
