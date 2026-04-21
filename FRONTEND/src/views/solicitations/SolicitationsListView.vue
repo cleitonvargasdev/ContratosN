@@ -48,10 +48,11 @@
           <thead>
             <tr>
               <th>ID</th>
-              <th>Solicitação</th>
-              <th>Documento / Frequência</th>
-              <th>Valor / Parcelas</th>
-              <th>Status</th>
+              <th>Nome</th>
+              <th>Telefone</th>
+              <th>Documento</th>
+              <th>Valor-Parcelas</th>
+              <th>Sit</th>
               <th class="actions-column">Ações</th>
             </tr>
           </thead>
@@ -64,75 +65,50 @@
             </tr>
             <tr v-for="item in solicitations.state.result.items" :key="item.id" class="data-table__row solicitation-row">
               <td>{{ item.id }}</td>
+              <td>{{ item.cliente_nome || item.nome_informado || '-' }}</td>
+              <td>{{ formatPhone(item.telefone) }}</td>
+              <td>{{ formatDocument(item.cpf_cnpj) }}</td>
+              <td>{{ formatValueInstallments(item.valor_pretendido, item.numero_parcelas) }}</td>
               <td>
-                <div class="two-line-cell">
-                  <strong>{{ item.cliente_nome || item.nome_informado || '-' }}</strong>
-                  <span>{{ formatPhone(item.telefone) }} • {{ formatDateTime(item.datahora_solicitacao) }}</span>
-                </div>
-              </td>
-              <td>
-                <div class="two-line-cell">
-                  <strong>{{ formatDocument(item.cpf_cnpj) }}</strong>
-                  <span>{{ item.frequencia_pagamento || '-' }}</span>
-                </div>
-              </td>
-              <td>
-                <div class="two-line-cell">
-                  <strong>{{ formatCurrency(item.valor_pretendido) }}</strong>
-                  <span>{{ (item.numero_parcelas ?? '-') + ' parcelas' }}</span>
-                </div>
-              </td>
-              <td>
-                <div class="two-line-cell two-line-cell--badges">
-                  <span :class="['pill', solicitationClientPillClass(item.cliente_id)]">{{ item.cliente_id ? 'Cliente' : 'Não Cliente' }}</span>
-                  <span :class="['pill', solicitationStatusPillClass(item.status)]">{{ item.status }}</span>
-                </div>
+                <select class="field solicitation-status-select" :value="normalizeStatusSelectValue(item.status)" disabled>
+                  <option value="PENDENTE">Pendente</option>
+                  <option value="APROVADO">Aprovado</option>
+                  <option value="REJEITADO">Rejeitado</option>
+                </select>
               </td>
               <td class="actions-cell">
                 <div class="solicitation-actions">
                   <button
-                    v-if="!item.cliente_id"
+                    v-if="canApproveSolicitation(item.status)"
                     class="icon-action icon-action--success"
                     type="button"
-                    title="Cadastrar cliente"
-                    aria-label="Cadastrar cliente"
-                    @click="handleCreateClient(item.id)"
+                    title="Aprovar solicitação"
+                    aria-label="Aprovar solicitação"
+                    @click="handleApprove(item.id, item.cliente_id)"
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4Zm-6 0c2.21 0 4-1.79 4-4S11.21 4 9 4 5 5.79 5 8s1.79 4 4 4Zm0 2c-2.67 0-8 1.34-8 4v2h10v-2c0-1.13.39-2.17 1.02-3.02C11.06 14.36 9.86 14 9 14Zm6 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.98 1.97 3.45V20h8v-2c0-2.66-5.33-4-8-4Z" fill="currentColor"/>
+                      <path d="M9.55 18.2 3.85 12.5l1.4-1.4 4.3 4.3 9.2-9.2 1.4 1.4-10.6 10.6Z" fill="currentColor"/>
                     </svg>
                   </button>
                   <button
-                    v-if="item.cliente_id"
-                    class="icon-action icon-action--message"
+                    v-if="canRejectSolicitation(item.status)"
+                    class="icon-action icon-action--danger"
                     type="button"
-                    title="Gerar contrato"
-                    aria-label="Gerar contrato"
-                    @click="handleCreateContract(item.id)"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M7 3.75A1.75 1.75 0 0 0 5.25 5.5v13A1.75 1.75 0 0 0 7 20.25h10a1.75 1.75 0 0 0 1.75-1.75v-9.19a1.75 1.75 0 0 0-.51-1.24l-3.56-3.56A1.75 1.75 0 0 0 13.44 4H7Zm6.25 1.9 3.1 3.1h-2.35a.75.75 0 0 1-.75-.75V5.65ZM12 10.25a.75.75 0 0 1 .75.75v1.25H14a.75.75 0 0 1 0 1.5h-1.25V15a.75.75 0 0 1-1.5 0v-1.25H10a.75.75 0 0 1 0-1.5h1.25V11a.75.75 0 0 1 .75-.75Z" fill="currentColor"/>
-                    </svg>
-                  </button>
-                  <button
-                    v-if="item.status === 'PENDENTE'"
-                    class="icon-action icon-action--pending"
-                    type="button"
-                    title="Marcar como rejeitado"
-                    aria-label="Marcar como rejeitado"
+                    title="Reprovar solicitação"
+                    aria-label="Reprovar solicitação"
                     @click="handleReject(item.id)"
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.4 4.29 19.71 2.88 18.3 9.17 12 2.88 5.71 4.29 4.29l6.3 6.3 6.29-6.3z" fill="currentColor"/>
+                      <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 7h2v8h-2v-8Zm4 0h2v8h-2v-8ZM7 10h2v8H7v-8Zm-1 10h12l1-12H5l1 12Z" fill="currentColor"/>
                     </svg>
                   </button>
                   <button
-                    v-if="item.contrato_id"
+                    v-if="canOpenExistingContract(item.status, item.contrato_id)"
                     class="icon-action"
                     type="button"
                     title="Abrir contrato"
                     aria-label="Abrir contrato"
-                    @click="handleOpenExistingContract(item.contrato_id)"
+                    @click="handleOpenExistingContract(item.contrato_id!)"
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z" fill="currentColor"/>
@@ -266,6 +242,15 @@ async function handleCreateContract(solicitationId: number) {
   }
 }
 
+async function handleApprove(solicitationId: number, clientId: number | null) {
+  if (clientId) {
+    await handleCreateContract(solicitationId)
+    return
+  }
+
+  await handleCreateClient(solicitationId)
+}
+
 function handleOpenExistingContract(contractId: number) {
   void router.push({
     name: 'contracts-edit',
@@ -297,15 +282,23 @@ function normalizeStatus(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'pendente'
 }
 
-function solicitationStatusPillClass(status: string) {
+function normalizeStatusSelectValue(status: string) {
   const normalized = normalizeStatus(status)
-  if (normalized === 'aprovado') return 'pill--success'
-  if (normalized === 'rejeitado') return 'pill--danger'
-  return 'pill--pending'
+  if (normalized === 'aprovado') return 'APROVADO'
+  if (normalized === 'rejeitado') return 'REJEITADO'
+  return 'PENDENTE'
 }
 
-function solicitationClientPillClass(clientId: number | null) {
-  return clientId ? 'pill--success' : 'pill--danger'
+function canApproveSolicitation(status: string) {
+  return normalizeStatus(status) === 'pendente'
+}
+
+function canRejectSolicitation(status: string) {
+  return normalizeStatus(status) === 'pendente'
+}
+
+function canOpenExistingContract(status: string, contractId: number | null) {
+  return normalizeStatus(status) === 'aprovado' && typeof contractId === 'number' && contractId > 0
 }
 
 function formatCurrency(value: number | null) {
@@ -316,20 +309,10 @@ function formatCurrency(value: number | null) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
-function formatDateTime(value: string | null) {
-  if (!value) {
-    return '-'
-  }
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-
-  return new Intl.DateTimeFormat('pt-BR', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  }).format(date)
+function formatValueInstallments(value: number | null, installments: number | null) {
+  const formattedValue = formatCurrency(value)
+  const formattedInstallments = typeof installments === 'number' && installments > 0 ? `${installments}X` : '-'
+  return `${formattedValue} - ${formattedInstallments}`
 }
 
 function formatDocument(value: string | null) {
@@ -400,8 +383,26 @@ function formatPhone(value: string | null) {
   vertical-align: middle;
 }
 
+.solicitation-table :deep(th),
+.solicitation-table :deep(td) {
+  white-space: nowrap;
+}
+
 .solicitation-row td {
   background: transparent;
+}
+
+.solicitation-status-select {
+  min-width: 130px;
+  color: #24303b;
+  opacity: 1;
+  cursor: default;
+}
+
+.solicitation-status-select:disabled {
+  color: #24303b;
+  opacity: 1;
+  background: #f7fafc;
 }
 
 .two-line-cell {
