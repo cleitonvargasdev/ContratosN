@@ -551,7 +551,7 @@ class WhatsAppChatbotService:
                 f"{self._format_currency(item['valor_parcela']):>{value_width}}"
             )
 
-        lines = [title + ":", "```", *table_lines, "```", "Qual numero do contrato voce quer consultar?"]
+        lines = [title + ":", *table_lines, "Qual numero do contrato voce quer consultar?"]
         return "\n".join(lines)
 
     def _close_session(self, chatbot_session: WhatsAppChatbotSession, message: str | None = None) -> str:
