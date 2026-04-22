@@ -8,6 +8,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.graphics.shapes import Drawing, PolyLine
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -140,33 +141,39 @@ class ContractReportService:
         styles.add(ParagraphStyle(name="CellCenter", parent=styles["Normal"], fontSize=8.5, leading=10, alignment=TA_CENTER))
 
         installment_amount = self._resolve_installment_amount(contract, installments)
-        summary_table = Table(
+        summary_rows = [
             [
-                [
-                    Paragraph(f"<b>Contrato:</b> {contract.contratos_id}", styles["MetaCell"]),
-                    Paragraph(f"<b>Nº de Parcelas:</b> {len(installments)}", styles["MetaCell"]),
-                ],
-                [
-                    Paragraph(f"<b>Cliente:</b> {(client.nome if client and client.nome else '-')}", styles["MetaCell"]),
-                    Paragraph(f"<b>Valor R$:</b> {self._format_currency(installment_amount)}", styles["MetaCell"]),
-                ],
-                [
-                    Paragraph(f"<b>Documento:</b> {(client.cpf_cnpj if client and client.cpf_cnpj else '-')}", styles["MetaCell"]),
-                    Paragraph(f"<b>Telefone:</b> {(client.celular01 if client and client.celular01 else client.telefone if client and client.telefone else '-')}", styles["MetaCell"]),
-                ],
-                [
-                    Paragraph(f"<b>Endereco:</b> {self._build_address(client, bairro_name, cidade_name)}", styles["MetaCell"]),
-                    Paragraph("", styles["MetaCell"]),
-                ],
+                Paragraph(f"<b>Contrato:</b> {contract.contratos_id}", styles["MetaCell"]),
+                Paragraph(f"<b>Nº de Parcelas:</b> {len(installments)}", styles["MetaCell"]),
             ],
-            colWidths=[98 * mm, 98 * mm],
-        )
+            [
+                Paragraph(f"<b>Cliente:</b> {(client.nome if client and client.nome else '-')}", styles["MetaCell"]),
+                Paragraph(f"<b>Valor R$:</b> {self._format_currency(installment_amount)}", styles["MetaCell"]),
+            ],
+            [
+                Paragraph(f"<b>Documento:</b> {(client.cpf_cnpj if client and client.cpf_cnpj else '-')}", styles["MetaCell"]),
+                Paragraph(f"<b>Telefone:</b> {(client.celular01 if client and client.celular01 else client.telefone if client and client.telefone else '-')}", styles["MetaCell"]),
+            ],
+            [
+                Paragraph(f"<b>Endereco:</b> {self._build_address(client, bairro_name, cidade_name)}", styles["MetaCell"]),
+                Paragraph("", styles["MetaCell"]),
+            ],
+        ]
+        observation_text = (contract.obs or "").strip()
+        if observation_text:
+            summary_rows.append([
+                Paragraph(f"<b>Observação:</b> {observation_text}", styles["MetaCell"]),
+                Paragraph("", styles["MetaCell"]),
+            ])
+
+        summary_table = Table(summary_rows, colWidths=[98 * mm, 98 * mm])
         summary_table.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("LEFTPADDING", (0, 0), (-1, -1), 3),
             ("RIGHTPADDING", (0, 0), (-1, -1), 3),
             ("TOPPADDING", (0, 0), (-1, -1), 2),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("SPAN", (0, len(summary_rows) - 1), (1, len(summary_rows) - 1)) if observation_text else ("TOPPADDING", (0, 0), (0, 0), 2),
         ]))
 
         story = [
@@ -179,20 +186,21 @@ class ContractReportService:
         table_header = [[
             Paragraph("<b>Parc.</b>", styles["CellCenter"]),
             Paragraph("<b>Vencimento</b>", styles["CellCenter"]),
-            Paragraph("<b>Valor / PG</b>", styles["CellCenter"]),
+            Paragraph("<b>Valor</b>", styles["CellCenter"]),
+            Paragraph("<b>PG</b>", styles["CellCenter"]),
             Paragraph("<b>Data</b>", styles["CellCenter"]),
         ]]
 
-        rows: list[list[Paragraph]] = []
+        rows: list[list[object]] = []
         for installment in installments:
             parcela_nro = int(installment.parcela_nro or 0)
             latest_payment = latest_receipts.get(parcela_nro)
             value_text = self._format_currency(float(installment.valor_total or installment.valor_base or contract.valor_parcela or 0))
-            value_pg = value_text if not installment.quitado else f"<b>PG</b> {value_text}"
             rows.append([
                 Paragraph(str(parcela_nro or "-"), styles["CellCenter"]),
                 Paragraph(self._format_date(installment.vencimentol or installment.vencimento_original), styles["CellCenter"]),
-                Paragraph(value_pg, styles["CellCenter"]),
+                Paragraph(value_text, styles["CellCenter"]),
+                self._build_payment_ok_mark() if installment.quitado else Paragraph("-", styles["CellCenter"]),
                 Paragraph(self._format_date(latest_payment), styles["CellCenter"]),
             ])
 
@@ -207,9 +215,9 @@ class ContractReportService:
         document.build(story, onFirstPage=self._draw_page_frame, onLaterPages=self._draw_page_frame)
         return buffer.getvalue()
 
-    def _build_installments_dual_table(self, table_header: list[list[Paragraph]], left_rows: list[list[Paragraph]], right_rows: list[list[Paragraph]]) -> Table:
+    def _build_installments_dual_table(self, table_header: list[list[object]], left_rows: list[list[object]], right_rows: list[list[object]]) -> Table:
         left_table = self._build_installment_table(table_header + left_rows)
-        right_table = self._build_installment_table(table_header + right_rows if right_rows else table_header + [[Paragraph("", left_table._cellvalues[0][0].style), Paragraph("", left_table._cellvalues[0][0].style), Paragraph("", left_table._cellvalues[0][0].style), Paragraph("", left_table._cellvalues[0][0].style)]])
+        right_table = self._build_installment_table(table_header + right_rows) if right_rows else Spacer(1, 1)
         wrapper = Table(
             [[left_table, right_table]],
             colWidths=[(A4[0] - (self.PAGE_MARGIN * 2) - self.COLUMN_GAP) / 2, (A4[0] - (self.PAGE_MARGIN * 2) - self.COLUMN_GAP) / 2],
@@ -224,8 +232,8 @@ class ContractReportService:
         return wrapper
 
     @staticmethod
-    def _build_installment_table(table_data: list[list[Paragraph]]) -> Table:
-        table = Table(table_data, colWidths=[11 * mm, 20 * mm, 40 * mm, 17 * mm], repeatRows=1)
+    def _build_installment_table(table_data: list[list[object]]) -> Table:
+        table = Table(table_data, colWidths=[11 * mm, 20 * mm, 29 * mm, 9 * mm, 17 * mm], repeatRows=1)
         table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e5e7eb")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#111827")),
@@ -238,6 +246,13 @@ class ContractReportService:
             ("RIGHTPADDING", (0, 0), (-1, -1), 2),
         ]))
         return table
+
+    @staticmethod
+    def _build_payment_ok_mark() -> Drawing:
+        drawing = Drawing(8, 8)
+        check = PolyLine([1, 4, 3.25, 1.5, 7, 6.5], strokeColor=colors.black, strokeWidth=1.25)
+        drawing.add(check)
+        return drawing
 
     @classmethod
     def _draw_page_frame(cls, canvas, document) -> None:

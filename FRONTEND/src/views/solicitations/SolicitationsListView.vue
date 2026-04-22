@@ -3,8 +3,7 @@
     <section class="panel solicitations-panel">
       <header class="panel__header solicitations-panel__header">
         <div>
-          <p class="eyebrow">Solicitações</p>
-          <h2 class="panel__title">Lista operacional</h2>
+          <h2 class="panel__title">Lista de Solicitações</h2>
         </div>
         <div class="summary-chip">
           <strong>{{ solicitations.state.pendingCount }}</strong>
@@ -13,10 +12,16 @@
       </header>
 
       <div class="solicitations-filters">
-        <label class="field-group">
-          <span>Busca</span>
-          <input v-model="filters.termo" class="field" type="text" placeholder="Nome, telefone ou CPF/CNPJ" @keyup.enter="handleApply" />
-        </label>
+        <div class="solicitations-search-group">
+          <label class="field-group">
+            <span>Busca</span>
+            <input v-model="filters.termo" class="field" type="text" placeholder="Nome, telefone ou CPF/CNPJ" @keyup.enter="handleApply" />
+          </label>
+
+          <div class="solicitations-filters__actions">
+            <button class="primary-button primary-button--success" type="button" @click="handleApply">Atualizar</button>
+          </div>
+        </div>
 
         <label class="field-group">
           <span>Status</span>
@@ -37,10 +42,6 @@
             <option :value="50">50</option>
           </select>
         </label>
-
-        <div class="solicitations-filters__actions">
-          <button class="primary-button primary-button--success" type="button" @click="handleApply">Atualizar</button>
-        </div>
       </div>
 
       <div class="table-wrap">
@@ -54,16 +55,16 @@
               <th>Documento</th>
               <th>Valor-Parcelas</th>
               <th>Tipo</th>
-              <th>Sit</th>
+              <th>Situação</th>
               <th class="actions-column">Ações</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="solicitations.state.loading">
-              <td colspan="8">Carregando solicitações...</td>
+              <td colspan="9">Carregando solicitações...</td>
             </tr>
             <tr v-else-if="solicitations.state.result.items.length === 0">
-              <td colspan="8">Nenhuma solicitação encontrada.</td>
+              <td colspan="9">Nenhuma solicitação encontrada.</td>
             </tr>
             <tr v-for="item in solicitations.state.result.items" :key="item.id" class="data-table__row solicitation-row">
               <td>{{ item.id }}</td>
@@ -78,11 +79,9 @@
               <td>{{ formatValueInstallments(item.valor_pretendido, item.numero_parcelas) }}</td>
               <td>{{ formatType(item.frequencia_pagamento) }}</td>
               <td>
-                <select class="field solicitation-status-select" :value="normalizeStatusSelectValue(item.status)" disabled>
-                  <option value="PENDENTE">Pendente</option>
-                  <option value="APROVADO">Aprovado</option>
-                  <option value="REJEITADO">Rejeitado</option>
-                </select>
+                <span :class="['solicitation-status-chip', `solicitation-status-chip--${normalizeStatus(item.status)}`]">
+                  {{ formatStatus(item.status) }}
+                </span>
               </td>
               <td class="actions-cell">
                 <div class="solicitation-actions">
@@ -301,11 +300,11 @@ function normalizeStatus(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'pendente'
 }
 
-function normalizeStatusSelectValue(status: string) {
+function formatStatus(status: string) {
   const normalized = normalizeStatus(status)
-  if (normalized === 'aprovado') return 'APROVADO'
-  if (normalized === 'rejeitado') return 'REJEITADO'
-  return 'PENDENTE'
+  if (normalized === 'aprovado') return 'Aprovado'
+  if (normalized === 'rejeitado') return 'Rejeitado'
+  return 'Pendente'
 }
 
 function canApproveSolicitation(status: string, clientId: number | null) {
@@ -416,14 +415,20 @@ function formatPhone(value: string | null) {
 .solicitations-filters {
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(0, 1.8fr) minmax(180px, 0.7fr) auto;
+  grid-template-columns: minmax(0, 1.8fr) minmax(180px, 0.7fr) minmax(140px, 0.55fr);
+}
+
+.solicitations-search-group {
+  display: grid;
+  align-items: end;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .solicitations-filters__actions {
   display: flex;
   align-items: flex-end;
 }
-
 
 .solicitation-table :deep(td),
 .solicitation-table :deep(th) {
@@ -440,7 +445,7 @@ function formatPhone(value: string | null) {
 }
 
 .solicitation-name-chip {
-  border-radius: 999px;
+  border-radius: 3px;
   display: inline-flex;
   max-width: 220px;
   overflow: hidden;
@@ -458,17 +463,27 @@ function formatPhone(value: string | null) {
   color: #b42318;
 }
 
-.solicitation-status-select {
-  min-width: 130px;
-  color: #24303b;
-  opacity: 1;
-  cursor: default;
+.solicitation-status-chip {
+  border-radius: 3px;
+  display: inline-flex;
+  min-width: 104px;
+  justify-content: center;
+  padding: 6px 10px;
 }
 
-.solicitation-status-select:disabled {
-  color: #24303b;
-  opacity: 1;
-  background: #f7fafc;
+.solicitation-status-chip--pendente {
+  background: rgba(249, 115, 22, 0.14);
+  color: #c86718;
+}
+
+.solicitation-status-chip--aprovado {
+  background: rgba(31, 157, 104, 0.14);
+  color: #176f4a;
+}
+
+.solicitation-status-chip--rejeitado {
+  background: rgba(220, 38, 38, 0.14);
+  color: #b42318;
 }
 
 .two-line-cell {
@@ -523,11 +538,15 @@ function formatPhone(value: string | null) {
 
 @media (max-width: 860px) {
   .solicitations-filters {
-    grid-template-columns: 1fr 1fr auto;
+    grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 640px) {
+  .solicitations-search-group {
+    grid-template-columns: 1fr;
+  }
+
   .solicitations-filters {
     grid-template-columns: 1fr;
   }
