@@ -12,16 +12,10 @@
       </header>
 
       <div class="solicitations-filters">
-        <div class="solicitations-search-group">
-          <label class="field-group">
-            <span>Busca</span>
-            <input v-model="filters.termo" class="field" type="text" placeholder="Nome, telefone ou CPF/CNPJ" @keyup.enter="handleApply" />
-          </label>
-
-          <div class="solicitations-filters__actions">
-            <button class="primary-button primary-button--success" type="button" @click="handleApply">Atualizar</button>
-          </div>
-        </div>
+        <label class="field-group">
+          <span>Busca</span>
+          <input v-model="filters.termo" class="field" type="text" placeholder="Nome, telefone ou CPF/CNPJ" @keyup.enter="handleApply" />
+        </label>
 
         <label class="field-group">
           <span>Status</span>
@@ -33,15 +27,9 @@
           </select>
         </label>
 
-        <label class="field-group">
-          <span>Itens por página</span>
-          <select v-model.number="pageSize" class="field" @change="handlePageSizeChange">
-            <option :value="8">8</option>
-            <option :value="10">10</option>
-            <option :value="20">20</option>
-            <option :value="50">50</option>
-          </select>
-        </label>
+        <div class="solicitations-filters__actions">
+          <button class="primary-button primary-button--success" type="button" @click="handleApply">Atualizar</button>
+        </div>
       </div>
 
       <div class="table-wrap">
@@ -415,19 +403,13 @@ function formatPhone(value: string | null) {
 .solicitations-filters {
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(0, 1.8fr) minmax(180px, 0.7fr) minmax(140px, 0.55fr);
-}
-
-.solicitations-search-group {
-  display: grid;
-  align-items: end;
-  gap: 12px;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1.8fr) minmax(180px, 0.7fr) auto;
 }
 
 .solicitations-filters__actions {
   display: flex;
   align-items: flex-end;
+  justify-content: flex-end;
 }
 
 .solicitation-table :deep(td),
@@ -543,10 +525,6 @@ function formatPhone(value: string | null) {
 }
 
 @media (max-width: 640px) {
-  .solicitations-search-group {
-    grid-template-columns: 1fr;
-  }
-
   .solicitations-filters {
     grid-template-columns: 1fr;
   }
