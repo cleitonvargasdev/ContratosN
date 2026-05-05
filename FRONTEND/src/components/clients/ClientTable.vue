@@ -37,6 +37,7 @@
             <th>CPF/CNPJ</th>
             <th>Celular</th>
             <th>Responsável</th>
+            <th>Completo</th>
             <th>Score</th>
             <th>Status</th>
             <th class="actions-column">Ações</th>
@@ -45,10 +46,10 @@
         </thead>
         <tbody>
           <tr v-if="props.loading">
-            <td colspan="9">Carregando clientes...</td>
+            <td colspan="10">Carregando clientes...</td>
           </tr>
           <tr v-else-if="props.result.items.length === 0">
-            <td colspan="9">Nenhum cliente encontrado.</td>
+            <td colspan="10">Nenhum cliente encontrado.</td>
           </tr>
           <tr v-for="client in props.result.items" :key="client.clientes_id" class="data-table__row">
             <td>{{ client.clientes_id }}</td>
@@ -65,6 +66,15 @@
               </span>
             </td>
             <td>{{ client.contato_responsavel || '-' }}</td>
+            <td>
+              <button
+                class="completeness-button"
+                type="button"
+                @click="openCompletenessDetails(client.nome, client.cadastro_completo_pendencias)"
+              >
+                {{ client.cadastro_completo ?? `${client.cadastro_completo_percentual ?? 0}%` }}
+              </button>
+            </td>
             <td>
               <span :class="['pill', scorePillClass(client.score)]">{{ client.score ?? 1000 }}</span>
             </td>
@@ -125,6 +135,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import type { ClientListResponse } from '@/models/client'
+import { showClientCompletenessPopup } from '@/services/alertService'
 
 const props = defineProps<{
   result: ClientListResponse
@@ -250,9 +261,35 @@ function scorePillClass(value: number | null | undefined) {
   }
   return 'pill--score-success'
 }
+
+function openCompletenessDetails(clientName: string | null | undefined, missingFields: readonly string[] | undefined) {
+  void showClientCompletenessPopup(clientName ?? '', missingFields ?? [])
+}
 </script>
 
 <style scoped>
+.completeness-button {
+  border: 0;
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.completeness-button:hover {
+  background: rgba(15, 23, 42, 0.14);
+  transform: translateY(-1px);
+}
+
+.completeness-button:focus-visible {
+  outline: 2px solid rgba(15, 23, 42, 0.35);
+  outline-offset: 2px;
+}
+
 .pill--score-success {
   background: rgba(15, 118, 110, 0.12);
   color: #0f766e;

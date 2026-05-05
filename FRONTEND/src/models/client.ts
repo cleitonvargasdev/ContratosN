@@ -55,6 +55,9 @@ export interface Client {
   regra_juros_id: number | null
   media_atraso_parcelas: number | null
   media_atraso_contratos: number | null
+  cadastro_completo_percentual?: number
+  cadastro_completo?: string
+  cadastro_completo_pendencias?: readonly string[]
 }
 
 export interface ClientInput {

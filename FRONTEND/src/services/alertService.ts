@@ -232,6 +232,30 @@ export async function showClientScoreLogPopup(clientName: string, logs: readonly
   })
 }
 
+export async function showClientCompletenessPopup(clientName: string, missingFields: readonly string[]): Promise<void> {
+  const title = clientName.trim() ? `Cadastro incompleto • ${escapeHtml(clientName)}` : 'Cadastro incompleto'
+  const html = missingFields.length === 0
+    ? '<p class="swal-empty-state" style="margin:0; text-align:left;">Cadastro completo. Nenhum campo pendente.</p>'
+    : `
+      <div style="text-align:left;">
+        <p style="margin:0 0 12px;">Campos pendentes de preenchimento:</p>
+        <ul style="margin:0; padding-left:18px;">
+          ${missingFields.map((field) => `<li>${escapeHtml(field)}</li>`).join('')}
+        </ul>
+      </div>
+    `
+
+  await Swal.fire({
+    title,
+    html,
+    confirmButtonText: 'Fechar',
+    buttonsStyling: false,
+    customClass: sharedClasses,
+    background: '#fffaf9',
+    color: '#24303b',
+  })
+}
+
 export async function chatMessageToast(senderName: string, message: string): Promise<void> {
   await Swal.fire({
     title: senderName,
