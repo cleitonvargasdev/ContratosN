@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field, field_validator
 
 from app.schemas.pagination import PaginatedResponse, PaginationParams
 
@@ -20,6 +20,21 @@ def _digits_only(value: object) -> str | None:
         return None
     digits = "".join(char for char in cleaned if char.isdigit())
     return digits or None
+
+
+def _client_completion_requirements(client: "ClientRead") -> list[tuple[str, bool]]:
+    return [
+        ("Nome", bool(client.nome)),
+        ("CPF/CNPJ", bool(client.cpf_cnpj or client.cnpj)),
+        ("Email", bool(client.email)),
+        ("Telefone", bool(client.telefone or client.celular01 or client.celular02)),
+        ("CEP", bool(client.cep)),
+        ("Endereco", bool(client.endereco)),
+        ("Numero", bool(client.nro)),
+        ("Bairro", client.bairro_id is not None),
+        ("Cidade", client.cidade_id is not None),
+        ("UF", bool(client.uf)),
+    ]
 
 
 class ClientBase(BaseModel):
@@ -170,6 +185,26 @@ class ClientRead(ClientBase):
     clientes_id: int
 
     model_config = ConfigDict(from_attributes=True)
+
+    @computed_field(return_type=int)
+    @property
+    def cadastro_completo_percentual(self) -> int:
+        requirements = _client_completion_requirements(self)
+        total = len(requirements)
+        if total == 0:
+            return 0
+        completed = sum(1 for _, is_filled in requirements if is_filled)
+        return round((completed / total) * 100)
+
+    @computed_field(return_type=str)
+    @property
+    def cadastro_completo(self) -> str:
+        return f"{self.cadastro_completo_percentual}%"
+
+    @computed_field(return_type=list[str])
+    @property
+    def cadastro_completo_pendencias(self) -> list[str]:
+        return [field_name for field_name, is_filled in _client_completion_requirements(self) if not is_filled]
 
 
 class ClientScoreLogRead(BaseModel):
