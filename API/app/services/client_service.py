@@ -9,7 +9,7 @@ from app.models.client_score_log import ClientScoreLog
 from app.models.parameter import Parametro
 from app.models.user import User
 from app.repositories.client_repository import ClientRepository
-from app.schemas.client import ClientCobradorOptionRead, ClientCreate, ClientListParams, ClientListResponse, ClientScoreLogListResponse, ClientScoreLogRead, ClientUpdate
+from app.schemas.client import ClientCobradorOptionRead, ClientCreate, ClientListParams, ClientListResponse, ClientRead, ClientScoreLogListResponse, ClientScoreLogRead, ClientUpdate
 from app.services.client_metrics_service import ClientMetricsService
 from app.services.location_service import LocationService
 
@@ -22,7 +22,8 @@ class ClientService:
 
     async def list_clients(self, params: ClientListParams) -> ClientListResponse:
         clients, total = await self.repository.list_all(params)
-        return ClientListResponse(items=list(clients), total=total, page=params.page, page_size=params.page_size)
+        items = [ClientRead.model_validate(client) for client in clients]
+        return ClientListResponse(items=items, total=total, page=params.page, page_size=params.page_size)
 
     async def get_client(self, client_id: int) -> Cliente | None:
         return await self.repository.get_by_id(client_id)
