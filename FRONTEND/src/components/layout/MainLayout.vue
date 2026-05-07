@@ -41,11 +41,13 @@ const route = useRoute()
 
 const moduleLabels: Record<string, string> = {
   'api-configs': 'APIs',
+  brands: 'Marcas',
   users: 'Usuarios',
   clients: 'Clientes',
   contracts: 'Contratos',
   negotiations: 'Negociações',
   'payment-plans': 'Planos Pagamentos',
+  products: 'Produtos',
   profiles: 'Perfis',
   ufs: 'UFs',
   cities: 'Cidades',

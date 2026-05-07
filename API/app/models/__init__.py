@@ -9,6 +9,7 @@ from app.models.location import Bairro, Cidade, Feriado, UF
 from app.models.negotiation import Negociacao, NegociacaoContrato
 from app.models.parameter import Parametro
 from app.models.payment_plan import PaymentPlan
+from app.models.product import Marca, Produto
 from app.models.receipt import Recebimento
 from app.models.rules import RegraComissao, RegraJuros
 from app.models.user import User
@@ -24,6 +25,8 @@ __all__ = [
 	"Bairro",
 	"Feriado",
 	"PaymentPlan",
+	"Marca",
+	"Produto",
 	"Profile",
 	"ProfilePermission",
 	"UserApiKey",

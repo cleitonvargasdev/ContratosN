@@ -31,7 +31,9 @@ app = FastAPI(
         {"name": "chat", "description": "Chat interno com conversas entre usuarios e notificacoes em tempo real."},
         {"name": "localidades", "description": "Consultas de UF, cidade, bairro e resolucao de CEP/endereco."},
         {"name": "apis", "description": "Cadastro de APIs externas vinculadas aos usuarios."},
+        {"name": "marcas", "description": "Operacoes de cadastro, consulta, atualizacao e remocao de marcas de produtos."},
         {"name": "parametros", "description": "Cadastro unico da empresa, score de clientes e automacoes preparatorias."},
+        {"name": "produtos", "description": "Operacoes de cadastro, consulta, atualizacao e remocao de produtos."},
         {"name": "usuarios", "description": "Operacoes de cadastro, consulta, atualizacao e remocao de usuarios."},
     ],
 )

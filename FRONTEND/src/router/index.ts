@@ -7,6 +7,8 @@ import ClientsEditView from '@/views/clients/ClientsEditView.vue'
 import ClientsListView from '@/views/clients/ClientsListView.vue'
 import ApiConfigsFormView from '@/views/apis/ApiConfigsFormView.vue'
 import ApiConfigsListView from '@/views/apis/ApiConfigsListView.vue'
+import BrandsFormView from '@/views/brands/BrandsFormView.vue'
+import BrandsListView from '@/views/brands/BrandsListView.vue'
 import ContractsCreateView from '@/views/contracts/ContractsCreateView.vue'
 import ContractsEditView from '@/views/contracts/ContractsEditView.vue'
 import ContractsListView from '@/views/contracts/ContractsListView.vue'
@@ -18,6 +20,8 @@ import NegotiationsViewView from '@/views/negotiations/NegotiationsViewView.vue'
 import PaymentPlansFormView from '@/views/payment-plans/PaymentPlansFormView.vue'
 import PaymentPlansListView from '@/views/payment-plans/PaymentPlansListView.vue'
 import ParametersView from '@/views/parameters/ParametersView.vue'
+import ProductsFormView from '@/views/products/ProductsFormView.vue'
+import ProductsListView from '@/views/products/ProductsListView.vue'
 import ModulePlaceholderView from '@/views/shared/ModulePlaceholderView.vue'
 import ProfilesFormView from '@/views/access-control/ProfilesFormView.vue'
 import ProfilesListView from '@/views/access-control/ProfilesListView.vue'
@@ -89,6 +93,42 @@ const routes = [
         name: 'users-edit',
         component: UsersEditView,
         meta: { resource: 'usuarios', action: 'update' },
+      },
+      {
+        path: 'marcas',
+        name: 'brands-list',
+        component: BrandsListView,
+        meta: { resource: 'marcas', action: 'read' },
+      },
+      {
+        path: 'marcas/novo',
+        name: 'brands-create',
+        component: BrandsFormView,
+        meta: { resource: 'marcas', action: 'create' },
+      },
+      {
+        path: 'marcas/:id/editar',
+        name: 'brands-edit',
+        component: BrandsFormView,
+        meta: { resource: 'marcas', action: 'update' },
+      },
+      {
+        path: 'produtos',
+        name: 'products-list',
+        component: ProductsListView,
+        meta: { resource: 'produtos', action: 'read' },
+      },
+      {
+        path: 'produtos/novo',
+        name: 'products-create',
+        component: ProductsFormView,
+        meta: { resource: 'produtos', action: 'create' },
+      },
+      {
+        path: 'produtos/:id/editar',
+        name: 'products-edit',
+        component: ProductsFormView,
+        meta: { resource: 'produtos', action: 'update' },
       },
       {
         path: 'clientes',

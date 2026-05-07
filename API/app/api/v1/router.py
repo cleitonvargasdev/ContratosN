@@ -10,6 +10,7 @@ from app.controllers.location_controller import router as location_router
 from app.controllers.negotiation_controller import router as negotiations_router
 from app.controllers.parameter_controller import router as parameters_router
 from app.controllers.payment_plan_controller import router as payment_plan_router
+from app.controllers.product_controller import brands_router, products_router
 from app.controllers.solicitation_controller import router as solicitation_router
 from app.controllers.user_controller import router as users_router, ws_router as users_ws_router
 from app.controllers.whatsapp_controller import router as whatsapp_router
@@ -28,6 +29,8 @@ api_router.include_router(negotiations_router, prefix="/negociacoes", tags=["neg
 api_router.include_router(parameters_router, prefix="/parametros", tags=["parametros"])
 api_router.include_router(whatsapp_router, prefix="/whatsapp", tags=["whatsapp"])
 api_router.include_router(payment_plan_router, prefix="/financeiro", tags=["financeiro"])
+api_router.include_router(brands_router, prefix="/marcas", tags=["marcas"])
+api_router.include_router(products_router, prefix="/produtos", tags=["produtos"])
 api_router.include_router(chat_ws_router, prefix="/chat", tags=["chat"])
 api_router.include_router(chat_router, prefix="/chat", tags=["chat"])
 api_router.include_router(users_ws_router, prefix="/usuarios", tags=["usuarios"])
