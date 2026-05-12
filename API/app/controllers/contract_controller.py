@@ -20,6 +20,7 @@ from app.schemas.accounts_receivable import (
     InstallmentUpdateRequest,
 )
 from app.schemas.contract import ContractCreate, ContractListParams, ContractListResponse, ContractRead, ContractUpdate, ContractWhatsAppDocumentSendResponse
+from app.schemas.contract_commodato import ContractComodatoRead, ContractComodatoWrite
 from app.schemas.pagination import PaginationParams
 from app.services.accounts_receivable_service import AccountsReceivableService
 from app.services.contract_report_service import ContractReportService
@@ -107,6 +108,17 @@ async def print_contract(
     return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
 
 
+@router.get("/{contract_id}/comodato/imprimir", summary="Imprimir comodato")
+async def print_commodato(
+    contract_id: int,
+    _: User = Depends(require_permission("contratos", "read")),
+    service: ContractReportService = Depends(get_contract_report_service),
+) -> Response:
+    pdf_bytes, filename = await service.generate_commodato_pdf(contract_id)
+    headers = {"Content-Disposition": f'inline; filename="{filename}"'}
+    return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
+
+
 @public_router.get("/publico/{contract_id}/imprimir", summary="Imprimir contrato publico", name="print_contract_public", include_in_schema=False)
 async def print_contract_public(
     contract_id: int,
@@ -129,6 +141,37 @@ async def get_contract(
     if contract is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contrato nao encontrado")
     return contract
+
+
+@router.get("/{contract_id}/comodato", response_model=ContractComodatoRead, summary="Buscar comodato do contrato")
+async def get_contract_commodato(
+    contract_id: int,
+    _: User = Depends(require_permission("contratos", "read")),
+    service: ContractService = Depends(get_contract_service),
+) -> ContractComodatoRead:
+    return await service.get_contract_commodato(contract_id)
+
+
+@router.put("/{contract_id}/comodato", response_model=ContractComodatoRead, summary="Salvar comodato do contrato")
+async def save_contract_commodato(
+    contract_id: int,
+    payload: ContractComodatoWrite,
+    _: User = Depends(require_permission("contratos", "update")),
+    service: ContractService = Depends(get_contract_service),
+) -> ContractComodatoRead:
+    return await service.save_contract_commodato(contract_id, payload)
+
+
+@router.delete("/{contract_id}/comodato", status_code=status.HTTP_204_NO_CONTENT, summary="Excluir comodato do contrato")
+async def delete_contract_commodato(
+    contract_id: int,
+    _: User = Depends(require_permission("contratos", "update")),
+    service: ContractService = Depends(get_contract_service),
+) -> Response:
+    deleted = await service.delete_contract_commodato(contract_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comodato nao encontrado")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/{contract_id}/parcelas", response_model=list[ContractInstallmentRead], summary="Listar parcelas do contrato")

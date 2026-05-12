@@ -393,6 +393,22 @@
           <span>Excluir</span>
         </button>
         <button
+          class="primary-button primary-button--accent-soft form-actions__button contract-action-button"
+          :disabled="props.saving || !currentContractId"
+          type="button"
+          @click="openComodatoModal"
+        >
+          <span v-if="comodatoItemsCount > 0" class="contract-action-button__badge">{{ comodatoItemsCount }}</span>
+          <span class="contract-action-button__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M9 21H5a1 1 0 0 1-1-1v-8.5A1.5 1.5 0 0 1 5.5 10H9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" />
+              <path d="M9 11V7.8c0-.62.24-1.22.68-1.66l2.54-2.54a1.15 1.15 0 0 1 1.96.91l-.68 4.24h4.83a1.7 1.7 0 0 1 1.67 2.02l-1.28 6.82A2.1 2.1 0 0 1 16.66 19H9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" />
+              <path d="M9 19V11" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" />
+            </svg>
+          </span>
+          <span>Comodato</span>
+        </button>
+        <button
           v-if="props.mode === 'edit'"
           class="primary-button primary-button--accent-soft form-actions__button contract-action-button"
           :disabled="props.saving || !currentContractId"
@@ -444,7 +460,7 @@
 
             <div class="contract-client-results">
               <button
-                v-for="client in filteredClients"
+                v-for="client in paginatedClients"
                 :key="client.clientes_id"
                 class="contract-client-result"
                 :class="clientScoreClass(client.score)"
@@ -463,6 +479,17 @@
               </button>
               <p v-if="filteredClients.length === 0" class="profile-modal-list__empty">Nenhum cliente encontrado.</p>
             </div>
+
+            <footer v-if="filteredClients.length > 0" class="pagination-compact score-log-pagination">
+              <div class="pagination-compact__status">{{ clientModalRangeLabel }}</div>
+
+              <div class="pagination-compact__actions">
+                <button class="pagination-compact__button" type="button" :disabled="clientModal.page <= 1" @click="changeClientModalPage(1)">&#171;</button>
+                <button class="pagination-compact__button" type="button" :disabled="clientModal.page <= 1" @click="changeClientModalPage(clientModal.page - 1)">&#8249;</button>
+                <button class="pagination-compact__button" type="button" :disabled="clientModal.page >= clientModalTotalPages" @click="changeClientModalPage(clientModal.page + 1)">&#8250;</button>
+                <button class="pagination-compact__button" type="button" :disabled="clientModal.page >= clientModalTotalPages" @click="changeClientModalPage(clientModalTotalPages)">&#187;</button>
+              </div>
+            </footer>
 
             <div class="form-actions">
               <button class="ghost-button" type="button" @click="closeClientModal">Fechar</button>
@@ -566,15 +593,31 @@
         </section>
       </div>
     </Teleport>
+
+    <ContractComodatoModal
+      :open="comodatoModalOpen"
+      :saving="comodatoSaving"
+      :contract-id="currentContractId"
+      :client-options="clientOptions"
+      :contract-client-id="form.cliente_id"
+      :value="contractComodato"
+      @close="closeComodatoModal"
+      @delete="deleteComodato"
+      @print="handlePrintComodato"
+      @save="saveComodato"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
+import ContractComodatoModal from '@/components/contracts/ContractComodatoModal.vue'
 import type { Client, RegraComissaoOption, RegraJurosOption } from '@/models/client'
 import type {
   Contract,
+  ContractComodato,
+  ContractComodatoInput,
   ContractCreateInput,
   ContractInstallment,
   ContractInstallmentGeneratePayload,
@@ -589,11 +632,15 @@ import type { SolicitationContractDraft } from '@/models/solicitation'
 import type { User } from '@/models/user'
 import {
   createContractInstallment,
+  deleteContractComodato,
   deleteReceiptPayment,
   generateContractInstallments,
+  getContractComodato,
   listInstallmentReceipts,
   listContractInstallments,
+  printContractComodatoPdf,
   printContractPdf,
+  saveContractComodato,
   receiveContractInstallment,
   reopenContractInstallment,
   sendInstallmentWhatsAppMessage,
@@ -634,10 +681,13 @@ const regraComissaoOptions = ref<RegraComissaoOption[]>([])
 const persistedInstallments = ref<ContractInstallment[]>([])
 const installmentsLoading = ref(false)
 const installmentsSaving = ref(false)
+const comodatoModalOpen = ref(false)
+const comodatoSaving = ref(false)
+const contractComodato = ref<ContractComodato | null>(null)
 const holidayCache = reactive<Record<string, FeriadoOption[]>>({})
 const previewInstallmentsPayload = ref<ContractInstallmentGeneratePayload | null>(null)
 const generatedInstallments = ref<Array<{ key: string; id: number | null; label: string; dueDate: string; overdueDays: string; weekday: string; baseValue: string; interestValue: string; value: string; receivedValue: string; canPay: boolean; canSettle: boolean; canDeletePayment: boolean; canEdit: boolean; isOverdue: boolean; settleTitle: string; isPaid: boolean; whatsappSent: boolean }>>([])
-const clientModal = reactive({ open: false, term: '' })
+const clientModal = reactive({ open: false, term: '', page: 1, pageSize: 8 })
 const installmentEditModal = reactive({
   open: false,
   mode: 'edit' as 'create' | 'edit',
@@ -751,6 +801,7 @@ const canSendCurrentClientWhatsApp = computed(() => {
 
 const hasNegotiatedContracts = computed(() => Boolean(toNumberOrNull(form.negociacao_id)))
 const currentContractId = computed(() => props.initialContract?.contratos_id ?? null)
+const comodatoItemsCount = computed(() => contractComodato.value?.total_quantidade ?? contractComodato.value?.total_itens ?? 0)
 const contractEditLocked = computed(() => {
   if (props.mode !== 'edit') {
     return false
@@ -783,6 +834,22 @@ const filteredClients = computed(() => {
 
     return haystack.includes(term)
   })
+})
+
+const clientModalTotalPages = computed(() => Math.max(1, Math.ceil(filteredClients.value.length / clientModal.pageSize)))
+const paginatedClients = computed(() => {
+  const start = (clientModal.page - 1) * clientModal.pageSize
+  const end = start + clientModal.pageSize
+  return filteredClients.value.slice(start, end)
+})
+const clientModalRangeLabel = computed(() => {
+  if (filteredClients.value.length === 0) {
+    return '0-0 de 0'
+  }
+
+  const start = (clientModal.page - 1) * clientModal.pageSize + 1
+  const end = Math.min(clientModal.page * clientModal.pageSize, filteredClients.value.length)
+  return `${start}-${end} de ${filteredClients.value.length}`
 })
 
 const sortedPersistedInstallments = computed(() => [...persistedInstallments.value].sort(compareInstallments))
@@ -838,10 +905,12 @@ watch(
     generatedInstallments.value = []
     if (contractId) {
       void loadInstallments(contractId)
+      void loadComodato(contractId)
       return
     }
 
     persistedInstallments.value = []
+    contractComodato.value = null
   },
   { immediate: true },
 )
@@ -863,6 +932,19 @@ watch(
   },
   { immediate: true },
 )
+
+watch(
+  () => clientModal.term,
+  () => {
+    clientModal.page = 1
+  },
+)
+
+watch(filteredClients, () => {
+  if (clientModal.page > clientModalTotalPages.value) {
+    clientModal.page = clientModalTotalPages.value
+  }
+})
 
 async function loadOptions() {
   const [clientsResponse, plansResponse, usersResponse, jurosResponse, comissaoResponse] = await Promise.all([
@@ -1262,6 +1344,85 @@ async function handlePrintContract() {
     window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 60_000)
   } catch (error) {
     await errorAlert(error instanceof Error ? error.message : 'Falha ao imprimir contrato')
+  }
+}
+
+async function loadComodato(contractId: number) {
+  try {
+    contractComodato.value = await getContractComodato(contractId)
+  } catch {
+    contractComodato.value = null
+  }
+}
+
+function openComodatoModal() {
+  if (!currentContractId.value) {
+    void infoAlert('Salve o contrato antes de abrir o comodato.')
+    return
+  }
+
+  comodatoModalOpen.value = true
+}
+
+function closeComodatoModal() {
+  comodatoModalOpen.value = false
+}
+
+async function saveComodato(payload: ContractComodatoInput) {
+  if (!currentContractId.value) {
+    await infoAlert('Salve o contrato antes de incluir produtos em comodato.')
+    return
+  }
+
+  comodatoSaving.value = true
+  try {
+    contractComodato.value = await saveContractComodato(currentContractId.value, payload)
+    comodatoModalOpen.value = false
+    void successAlert('Comodato salvo com sucesso.', 'update')
+  } catch (error) {
+    await errorAlert(error instanceof Error ? error.message : 'Falha ao salvar comodato')
+  } finally {
+    comodatoSaving.value = false
+  }
+}
+
+async function deleteComodato() {
+  if (!currentContractId.value) {
+    await infoAlert('Salve o contrato antes de excluir o comodato.')
+    return
+  }
+
+  comodatoSaving.value = true
+  try {
+    await deleteContractComodato(currentContractId.value)
+    contractComodato.value = null
+    comodatoModalOpen.value = false
+    void successAlert('Comodato excluído com sucesso.', 'delete')
+  } catch (error) {
+    await errorAlert(error instanceof Error ? error.message : 'Falha ao excluir comodato')
+  } finally {
+    comodatoSaving.value = false
+  }
+}
+
+async function handlePrintComodato() {
+  if ((contractComodato.value?.items.length ?? 0) === 0) {
+    await infoAlert('Inclua pelo menos um produto no comodato antes de imprimir.')
+    return
+  }
+
+  if (!currentContractId.value) {
+    await infoAlert('Salve o contrato antes de imprimir o comodato.')
+    return
+  }
+
+  try {
+    const pdfBlob = await printContractComodatoPdf(currentContractId.value)
+    const pdfUrl = URL.createObjectURL(pdfBlob)
+    window.open(pdfUrl, '_blank', 'noopener,noreferrer')
+    window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 60_000)
+  } catch (error) {
+    await errorAlert(error instanceof Error ? error.message : 'Falha ao imprimir comodato')
   }
 }
 
@@ -1794,11 +1955,20 @@ function openClientModal() {
 
   clientModal.open = true
   clientModal.term = ''
+  clientModal.page = 1
 }
 
 function closeClientModal() {
   clientModal.open = false
   clientModal.term = ''
+  clientModal.page = 1
+}
+
+function changeClientModalPage(page: number) {
+  if (page < 1 || page > clientModalTotalPages.value) {
+    return
+  }
+  clientModal.page = page
 }
 
 function selectClient(clientId: number) {
@@ -2446,6 +2616,29 @@ function formatClientAddress(client: Client) {
 </script>
 
 <style scoped>
+.contract-action-button {
+  position: relative;
+}
+
+.contract-action-button__badge {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  display: inline-flex;
+  min-width: 1.3rem;
+  height: 1.3rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+}
+
 .contract-client-result--danger {
   background: rgba(220, 38, 38, 0.1);
   border-color: rgba(220, 38, 38, 0.28);

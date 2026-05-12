@@ -1,5 +1,7 @@
 import type {
   Contract,
+  ContractComodato,
+  ContractComodatoInput,
   ContractCreateInput,
   ContractInstallment,
   ContractInstallmentGeneratePayload,
@@ -131,8 +133,28 @@ export async function printContractPdf(contractId: number): Promise<Blob> {
   return apiFetchBlob(`/contratos/${contractId}/imprimir`)
 }
 
+export async function printContractComodatoPdf(contractId: number): Promise<Blob> {
+  return apiFetchBlob(`/contratos/${contractId}/comodato/imprimir`)
+}
+
 export async function sendContractWhatsAppDocument(contractId: number): Promise<{ success: boolean; message: string; chatid: string; contract_id: number; document_url: string }> {
   return apiFetch<{ success: boolean; message: string; chatid: string; contract_id: number; document_url: string }>(`/contratos/${contractId}/whatsapp-documento`, {
     method: 'POST',
   })
+}
+
+export async function getContractComodato(contractId: number): Promise<ContractComodato> {
+  return apiFetch<ContractComodato>(`/contratos/${contractId}/comodato`)
+}
+
+export async function saveContractComodato(contractId: number, payload: ContractComodatoInput): Promise<ContractComodato> {
+  return apiFetch<ContractComodato>(`/contratos/${contractId}/comodato`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function deleteContractComodato(contractId: number): Promise<void> {
+  return apiFetch<void>(`/contratos/${contractId}/comodato`, { method: 'DELETE' })
 }

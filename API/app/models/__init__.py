@@ -5,6 +5,7 @@ from app.models.chat import ChatMessage, ChatThread, ChatThreadPreference
 from app.models.client import Cliente
 from app.models.client_score_log import ClientScoreLog
 from app.models.contract import Contrato
+from app.models.contract_commodato import ContratoComodato, ContratoComodatoItem
 from app.models.location import Bairro, Cidade, Feriado, UF
 from app.models.negotiation import Negociacao, NegociacaoContrato
 from app.models.parameter import Parametro
@@ -37,6 +38,8 @@ __all__ = [
 	"Cliente",
 	"ClientScoreLog",
 	"Contrato",
+	"ContratoComodato",
+	"ContratoComodatoItem",
 	"Parametro",
 	"RegraJuros",
 	"RegraComissao",

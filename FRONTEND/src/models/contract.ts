@@ -167,3 +167,35 @@ export interface ContractReceipt {
   usuario_id: number | null
   usuario_nome: string | null
 }
+
+export interface ContractComodatoItemRead {
+  item_id: number
+  produto_id: number
+  produto_descricao: string
+  quantidade: number
+  valor_unitario: number | null
+  observacao: string | null
+}
+
+export interface ContractComodato {
+  contrato_id: number
+  avalista_id: number | null
+  avalista_nome: string | null
+  items: readonly ContractComodatoItemRead[]
+  total_itens: number
+  total_quantidade: number
+  pode_imprimir: boolean
+}
+
+export interface ContractComodatoItemInput {
+  item_id: number | null
+  produto_id: number
+  quantidade: number
+  valor_unitario: number | null
+  observacao: string | null
+}
+
+export interface ContractComodatoInput {
+  avalista_id: number | null
+  items: ContractComodatoItemInput[]
+}
