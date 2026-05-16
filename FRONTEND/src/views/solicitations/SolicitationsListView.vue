@@ -72,53 +72,18 @@
                 </span>
               </td>
               <td class="actions-cell">
-                <div class="solicitation-actions">
+                <div class="solicitation-actions" @keydown.esc="closeActionsMenu">
                   <button
-                    v-if="canApproveSolicitation(item.status, item.cliente_id)"
-                    class="icon-action icon-action--success"
+                    class="row-menu-button"
                     type="button"
-                    title="Aprovar solicitação"
-                    aria-label="Aprovar solicitação"
-                    @click="handleApprove(item.id, item.cliente_id)"
+                    title="Abrir ações"
+                    aria-label="Abrir ações"
+                    aria-haspopup="menu"
+                    :aria-expanded="activeMenuId === item.id"
+                    @click.stop="toggleActionsMenu(item, $event)"
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M9.55 18.2 3.85 12.5l1.4-1.4 4.3 4.3 9.2-9.2 1.4 1.4-10.6 10.6Z" fill="currentColor"/>
-                    </svg>
-                  </button>
-                  <button
-                    v-if="canRejectSolicitation(item.status)"
-                    class="icon-action icon-action--danger"
-                    type="button"
-                    title="Reprovar solicitação"
-                    aria-label="Reprovar solicitação"
-                    @click="handleReject(item.id)"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 7h2v8h-2v-8Zm4 0h2v8h-2v-8ZM7 10h2v8H7v-8Zm-1 10h12l1-12H5l1 12Z" fill="currentColor"/>
-                    </svg>
-                  </button>
-                  <button
-                    v-if="canCreateClient(item.status, item.cliente_id)"
-                    class="icon-action icon-action--message"
-                    type="button"
-                    title="Cadastrar cliente"
-                    aria-label="Cadastrar cliente"
-                    @click="handleCreateClient(item.id)"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4Zm-6 0c2.21 0 4-1.79 4-4S11.21 4 9 4 5 5.79 5 8s1.79 4 4 4Zm0 2c-2.67 0-8 1.34-8 4v2h10v-2c0-1.13.39-2.17 1.02-3.02C11.06 14.36 9.86 14 9 14Zm11-1h-2v-2h-2v2h-2v2h2v2h2v-2h2v-2Z" fill="currentColor"/>
-                    </svg>
-                  </button>
-                  <button
-                    v-if="canOpenExistingContract(item.status, item.contrato_id)"
-                    class="icon-action"
-                    type="button"
-                    title="Abrir contrato"
-                    aria-label="Abrir contrato"
-                    @click="handleOpenExistingContract(item.contrato_id!)"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z" fill="currentColor"/>
+                      <path d="M12 7a1.75 1.75 0 1 0 0-3.5A1.75 1.75 0 0 0 12 7Zm0 6.75a1.75 1.75 0 1 0 0-3.5 1.75 1.75 0 0 0 0 3.5Zm0 6.75a1.75 1.75 0 1 0 0-3.5 1.75 1.75 0 0 0 0 3.5Z" fill="currentColor"/>
                     </svg>
                   </button>
                 </div>
@@ -127,6 +92,26 @@
           </tbody>
         </table>
       </div>
+
+      <Teleport to="body">
+        <div v-if="activeMenuId !== null" class="row-actions-menu" :style="menuStyle" role="menu" @click.stop>
+          <button
+            v-for="action in activeMenuActions"
+            :key="action.key"
+            class="row-actions-menu__item"
+            :class="`row-actions-menu__item--${action.tone}`"
+            type="button"
+            role="menuitem"
+            @click="action.run()"
+          >
+            {{ action.label }}
+          </button>
+
+          <span v-if="activeMenuActions.length === 0" class="row-actions-menu__empty">
+            Nenhuma ação disponível
+          </span>
+        </div>
+      </Teleport>
 
       <footer class="pagination-compact">
         <div class="pagination-compact__meta">
@@ -155,13 +140,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useAuthController } from '@/controllers/useAuthController'
 import { useSolicitationsController } from '@/controllers/useSolicitationsController'
 import { confirmActionAlert, errorAlert, successAlert } from '@/services/alertService'
 import { getSolicitationById, rejectSolicitation } from '@/services/solicitationService'
+import type { Solicitation } from '@/models/solicitation'
 
 const auth = useAuthController()
 const router = useRouter()
@@ -173,6 +159,9 @@ const filters = reactive({
 })
 
 const pageSize = ref(8)
+const activeMenuId = ref<number | null>(null)
+const activeMenuActions = ref<ReturnType<typeof getRowActions>>([])
+const menuStyle = ref<Record<string, string>>({})
 
 const currentPage = computed(() => solicitations.state.result.page)
 const totalPages = computed(() => Math.max(1, Math.ceil(solicitations.state.result.total / solicitations.state.result.page_size)))
@@ -187,12 +176,22 @@ const rangeLabel = computed(() => {
 })
 
 onMounted(async () => {
+  document.addEventListener('click', handleDocumentClick)
+  window.addEventListener('resize', closeActionsMenu)
+  window.addEventListener('scroll', closeActionsMenu, true)
+
   if (!auth.hasPermission('solicitacoes', 'read')) {
     await router.replace({ name: 'dashboard' })
     return
   }
 
   await refreshList(1)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleDocumentClick)
+  window.removeEventListener('resize', closeActionsMenu)
+  window.removeEventListener('scroll', closeActionsMenu, true)
 })
 
 async function refreshList(page = currentPage.value) {
@@ -207,18 +206,22 @@ async function refreshList(page = currentPage.value) {
 }
 
 async function handleApply() {
+  closeActionsMenu()
   await refreshList(1)
 }
 
 async function handlePageChange(page: number) {
+  closeActionsMenu()
   await refreshList(page)
 }
 
 async function handlePageSizeChange() {
+  closeActionsMenu()
   await refreshList(1)
 }
 
 async function handleCreateClient(solicitationId: number) {
+  closeActionsMenu()
   try {
     await getSolicitationById(solicitationId)
     void router.push({
@@ -234,6 +237,7 @@ async function handleCreateClient(solicitationId: number) {
 }
 
 async function handleCreateContract(solicitationId: number) {
+  closeActionsMenu()
   try {
     const detail = await getSolicitationById(solicitationId)
     const clientId = detail.cliente_existente?.clientes_id ?? detail.cliente_id
@@ -250,6 +254,7 @@ async function handleCreateContract(solicitationId: number) {
 }
 
 async function handleApprove(solicitationId: number, clientId: number | null) {
+  closeActionsMenu()
   if (!clientId) {
     return
   }
@@ -258,6 +263,7 @@ async function handleApprove(solicitationId: number, clientId: number | null) {
 }
 
 function handleOpenExistingContract(contractId: number) {
+  closeActionsMenu()
   void router.push({
     name: 'contracts-edit',
     params: { id: contractId },
@@ -265,6 +271,7 @@ function handleOpenExistingContract(contractId: number) {
 }
 
 async function handleReject(solicitationId: number) {
+  closeActionsMenu()
   const confirmed = await confirmActionAlert(
     'Marcar como rejeitado?',
     'Essa solicitação sairá da fila de pendentes e ficará marcada como rejeitada.',
@@ -282,6 +289,100 @@ async function handleReject(solicitationId: number) {
   } catch (error) {
     await errorAlert(error instanceof Error ? error.message : 'Falha ao rejeitar a solicitação.')
   }
+}
+
+function toggleActionsMenu(solicitation: Solicitation, event: MouseEvent) {
+  if (activeMenuId.value === solicitation.id) {
+    closeActionsMenu()
+    return
+  }
+
+  const trigger = event.currentTarget
+  if (!(trigger instanceof HTMLElement)) {
+    return
+  }
+
+  const rect = trigger.getBoundingClientRect()
+  activeMenuId.value = solicitation.id
+  activeMenuActions.value = getRowActions(solicitation)
+  menuStyle.value = {
+    position: 'fixed',
+    top: `${rect.bottom + 6}px`,
+    left: `${Math.max(12, rect.right - 190)}px`,
+  }
+}
+
+function closeActionsMenu() {
+  activeMenuId.value = null
+  activeMenuActions.value = []
+}
+
+function handleDocumentClick(event: MouseEvent) {
+  const target = event.target
+  if (!(target instanceof HTMLElement)) {
+    return
+  }
+
+  if (target.closest('.solicitation-actions') || target.closest('.row-actions-menu')) {
+    return
+  }
+
+  closeActionsMenu()
+}
+
+function getRowActions(item: Solicitation) {
+  const actions: Array<{
+    key: string
+    label: string
+    tone: 'default' | 'success' | 'danger' | 'message'
+    run: () => void
+  }> = []
+
+  if (canApproveSolicitation(item.status, item.cliente_id)) {
+    actions.push({
+      key: 'approve',
+      label: 'Aprovar solicitação',
+      tone: 'success',
+      run: () => {
+        void handleApprove(item.id, item.cliente_id)
+      },
+    })
+  }
+
+  if (canRejectSolicitation(item.status)) {
+    actions.push({
+      key: 'reject',
+      label: 'Reprovar solicitação',
+      tone: 'danger',
+      run: () => {
+        void handleReject(item.id)
+      },
+    })
+  }
+
+  if (canCreateClient(item.status, item.cliente_id)) {
+    actions.push({
+      key: 'create-client',
+      label: 'Cadastrar cliente',
+      tone: 'message',
+      run: () => {
+        void handleCreateClient(item.id)
+      },
+    })
+  }
+
+  if (canOpenExistingContract(item.status, item.contrato_id)) {
+    actions.push({
+      key: 'open-contract',
+      label: 'Abrir contrato',
+      tone: 'default',
+      run: () => {
+        handleOpenExistingContract(item.contrato_id!)
+      },
+    })
+  }
+
+  return actions
 }
 
 function normalizeStatus(value: string) {
@@ -494,28 +595,90 @@ function formatPhone(value: string | null) {
 
 .solicitation-actions {
   display: flex;
-  align-items: center;
-  gap: 8px;
   justify-content: flex-end;
-  min-width: 120px;
+  min-width: 56px;
 }
 
-.icon-action--success {
+.row-menu-button {
+  border: 0;
+  border-radius: 3px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.06);
+  color: #425466;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.row-menu-button:hover,
+.row-menu-button[aria-expanded='true'] {
+  background: rgba(15, 23, 42, 0.12);
+  color: #16212b;
+}
+
+.row-menu-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.row-actions-menu {
+  z-index: 20;
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 3px;
+  background: #ffffff;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16);
+  display: grid;
+  gap: 4px;
+}
+
+.row-actions-menu__item {
+  border: 0;
+  border-radius: 3px;
+  padding: 9px 10px;
+  text-align: left;
+  background: transparent;
+  color: #24303b;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.row-actions-menu__item:hover {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.row-actions-menu__item--success {
+  color: #176f4a;
+}
+
+.row-actions-menu__item--success:hover {
   background: rgba(31, 157, 104, 0.12);
-  color: #1f9d68;
 }
 
-.icon-action--success:hover {
-  background: rgba(31, 157, 104, 0.2);
+.row-actions-menu__item--danger {
+  color: #b42318;
 }
 
-.icon-action--message {
-  background: rgba(59, 130, 246, 0.12);
+.row-actions-menu__item--danger:hover {
+  background: rgba(220, 38, 38, 0.12);
+}
+
+.row-actions-menu__item--message {
   color: #2563eb;
 }
 
-.icon-action--message:hover {
-  background: rgba(59, 130, 246, 0.2);
+.row-actions-menu__item--message:hover {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.row-actions-menu__empty {
+  padding: 9px 10px;
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
 @media (max-width: 860px) {

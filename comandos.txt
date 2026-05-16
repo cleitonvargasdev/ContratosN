@@ -1,0 +1,2 @@
+cd /var/www/apicontratos/ContratosN && git pull origin main && cd /var/www/apicontratos/ContratosN/API && docker compose up -d --build
+cd /var/www/apicontratos/ContratosN/API && docker compose build --no-cache web && docker compose up -d --force-recreate web
