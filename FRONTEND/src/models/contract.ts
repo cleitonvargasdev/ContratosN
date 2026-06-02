@@ -136,6 +136,32 @@ export interface InstallmentPaymentPayload {
   juros: number | null
 }
 
+export interface BatchInstallmentReceivePayload {
+  valor_recebido: number
+  data_recebimento: string | null
+}
+
+export interface BatchInstallmentReceivePreviewItem {
+  installment: ContractInstallment
+  saldo_restante: number
+  valor_recebimento: number
+}
+
+export interface BatchInstallmentReceivePreview {
+  contrato_id: number
+  valor_informado: number
+  valor_distribuido: number
+  valor_restante: number
+  parcelas: BatchInstallmentReceivePreviewItem[]
+}
+
+export interface BatchInstallmentReceiveConfirmResult {
+  contrato_id: number
+  valor_informado: number
+  valor_processado: number
+  parcelas_processadas: ContractInstallment[]
+}
+
 export interface InstallmentSettlePayload {
   data_recebimento: string | null
 }

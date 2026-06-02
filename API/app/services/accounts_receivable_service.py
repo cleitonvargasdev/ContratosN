@@ -12,6 +12,10 @@ from app.repositories.accounts_receivable_repository import AccountsReceivableRe
 from app.repositories.client_repository import ClientRepository
 from app.repositories.location_repository import LocationRepository
 from app.schemas.accounts_receivable import (
+    BatchInstallmentReceiveConfirmRead,
+    BatchInstallmentReceivePreviewItem,
+    BatchInstallmentReceivePreviewRead,
+    BatchInstallmentReceivePreviewRequest,
     InstallmentCreateRequest,
     ContractReceiptRead,
     ContractInstallmentGenerateRequest,
@@ -218,6 +222,66 @@ class AccountsReceivableService:
         await self.repository.commit()
         await self.repository.refresh(installment)
         return self._build_installment_read(installment)
+
+    async def preview_batch_receive(
+        self,
+        contract_id: int,
+        payload: BatchInstallmentReceivePreviewRequest,
+    ) -> BatchInstallmentReceivePreviewRead:
+        contract, installments = await self._load_contract_with_installments(contract_id)
+        planned_items, processed_value = self._build_batch_receive_plan(installments, payload.valor_recebido)
+
+        return BatchInstallmentReceivePreviewRead(
+            contrato_id=contract.contratos_id,
+            valor_informado=round(float(payload.valor_recebido or 0), 4),
+            valor_distribuido=round(processed_value, 4),
+            valor_restante=round(max(float(payload.valor_recebido or 0) - processed_value, 0), 4),
+            parcelas=[
+                BatchInstallmentReceivePreviewItem(
+                    installment=self._build_installment_read(installment),
+                    saldo_restante=round(balance_after_payment, 4),
+                    valor_recebimento=round(payment_amount, 4),
+                )
+                for installment, payment_amount, balance_after_payment in planned_items
+            ],
+        )
+
+    async def confirm_batch_receive(
+        self,
+        contract_id: int,
+        payload: BatchInstallmentReceivePreviewRequest,
+        current_user_id: int | None,
+    ) -> BatchInstallmentReceiveConfirmRead:
+        contract, installments = await self._load_contract_with_installments(contract_id)
+        planned_items, processed_value = self._build_batch_receive_plan(installments, payload.valor_recebido)
+
+        if not planned_items:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Nenhuma parcela em aberto pode ser baixada com o valor informado.",
+            )
+
+        processed_installments: list[ContractInstallmentRead] = []
+        for installment, payment_amount, _balance_after_payment in planned_items:
+            processed_installments.append(
+                await self.receive_installment(
+                    installment.id,
+                    InstallmentPaymentCreate(
+                        valor_recebido=payment_amount,
+                        data_recebimento=payload.data_recebimento,
+                        desconto=None,
+                        juros=0,
+                    ),
+                    current_user_id,
+                )
+            )
+
+        return BatchInstallmentReceiveConfirmRead(
+            contrato_id=contract.contratos_id,
+            valor_informado=round(float(payload.valor_recebido or 0), 4),
+            valor_processado=round(processed_value, 4),
+            parcelas_processadas=processed_installments,
+        )
 
     async def create_installment(
         self,
@@ -548,6 +612,62 @@ class AccountsReceivableService:
         installments = await self.repository.list_by_contract(contract_id)
         await self._sync_contract_financials(contract, installments)
         await self.client_metrics_service.refresh_client_metrics(contract.cliente_id)
+
+    async def _load_contract_with_installments(self, contract_id: int) -> tuple[Contrato, list[ContaReceber]]:
+        contract = await self.repository.get_contract_by_id(contract_id)
+        if contract is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contrato nao encontrado")
+
+        installments = list(await self.repository.list_by_contract(contract_id))
+        if await self._sync_contract_financials(contract, installments):
+            await self.client_metrics_service.refresh_client_metrics(contract.cliente_id)
+            await self.repository.commit()
+
+        return contract, installments
+
+    def _build_batch_receive_plan(
+        self,
+        installments: list[ContaReceber],
+        payment_value: float,
+    ) -> tuple[list[tuple[ContaReceber, float, float]], float]:
+        normalized_payment_value = round(float(payment_value or 0), 4)
+        if normalized_payment_value <= 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe um valor maior que zero.")
+
+        remaining_payment = normalized_payment_value
+        planned_items: list[tuple[ContaReceber, float, float]] = []
+
+        for installment in sorted(installments, key=self._build_installment_batch_sort_key):
+            installment_remaining_value = self._get_installment_remaining_value(installment)
+            if installment.quitado or installment_remaining_value <= 0:
+                continue
+
+            payment_amount = round(min(remaining_payment, installment_remaining_value), 4)
+            if payment_amount <= 0:
+                break
+
+            balance_after_payment = round(max(installment_remaining_value - payment_amount, 0), 4)
+            planned_items.append((installment, payment_amount, balance_after_payment))
+            remaining_payment = round(remaining_payment - payment_amount, 4)
+
+            if remaining_payment <= 0:
+                break
+
+        processed_value = round(normalized_payment_value - remaining_payment, 4)
+        return planned_items, processed_value
+
+    def _build_installment_batch_sort_key(self, installment: ContaReceber) -> tuple[datetime, int, int]:
+        due_date = installment.vencimentol or installment.vencimento_original
+        normalized_due_date = self._normalize_datetime_for_compare(due_date)
+        return (
+            normalized_due_date,
+            int(installment.parcela_nro or 0),
+            int(installment.id or 0),
+        )
+
+    @staticmethod
+    def _get_installment_remaining_value(installment: ContaReceber) -> float:
+        return round(max(float(installment.valor_total or 0) - float(installment.valor_recebido or 0), 0), 4)
 
     async def _calculate_next_scheduled_due_date(
         self,

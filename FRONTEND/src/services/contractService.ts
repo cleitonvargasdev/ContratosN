@@ -1,4 +1,7 @@
 import type {
+  BatchInstallmentReceiveConfirmResult,
+  BatchInstallmentReceivePayload,
+  BatchInstallmentReceivePreview,
   Contract,
   ContractComodato,
   ContractComodatoInput,
@@ -75,6 +78,22 @@ export async function createContractInstallment(contractId: number, payload: Ins
 
 export async function receiveContractInstallment(installmentId: number, payload: InstallmentPaymentPayload): Promise<ContractInstallment> {
   return apiFetch<ContractInstallment>(`/contratos/parcelas/${installmentId}/receber`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function previewBatchContractReceive(contractId: number, payload: BatchInstallmentReceivePayload): Promise<BatchInstallmentReceivePreview> {
+  return apiFetch<BatchInstallmentReceivePreview>(`/contratos/${contractId}/parcelas/recebimento-lote/preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function confirmBatchContractReceive(contractId: number, payload: BatchInstallmentReceivePayload): Promise<BatchInstallmentReceiveConfirmResult> {
+  return apiFetch<BatchInstallmentReceiveConfirmResult>(`/contratos/${contractId}/parcelas/recebimento-lote/confirmar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

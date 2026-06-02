@@ -10,6 +10,9 @@ from app.core.config import settings
 from app.core.security import create_access_token
 from app.models.user import User
 from app.schemas.accounts_receivable import (
+    BatchInstallmentReceiveConfirmRead,
+    BatchInstallmentReceivePreviewRead,
+    BatchInstallmentReceivePreviewRequest,
     ContractInstallmentGenerateRequest,
     ContractInstallmentRead,
     ContractReceiptRead,
@@ -211,6 +214,34 @@ async def receive_installment(
     service: AccountsReceivableService = Depends(get_accounts_receivable_service),
 ) -> ContractInstallmentRead:
     return await service.receive_installment(installment_id, payload, current_user.id)
+
+
+@router.post(
+    "/{contract_id}/parcelas/recebimento-lote/preview",
+    response_model=BatchInstallmentReceivePreviewRead,
+    summary="Simular recebimento em lote do contrato",
+)
+async def preview_batch_receive(
+    contract_id: int,
+    payload: BatchInstallmentReceivePreviewRequest,
+    _: User = Depends(require_permission("contratos", "read")),
+    service: AccountsReceivableService = Depends(get_accounts_receivable_service),
+) -> BatchInstallmentReceivePreviewRead:
+    return await service.preview_batch_receive(contract_id, payload)
+
+
+@router.post(
+    "/{contract_id}/parcelas/recebimento-lote/confirmar",
+    response_model=BatchInstallmentReceiveConfirmRead,
+    summary="Confirmar recebimento em lote do contrato",
+)
+async def confirm_batch_receive(
+    contract_id: int,
+    payload: BatchInstallmentReceivePreviewRequest,
+    current_user: User = Depends(require_permission("contratos", "update")),
+    service: AccountsReceivableService = Depends(get_accounts_receivable_service),
+) -> BatchInstallmentReceiveConfirmRead:
+    return await service.confirm_batch_receive(contract_id, payload, current_user.id)
 
 
 @router.put("/parcelas/{installment_id}", response_model=ContractInstallmentRead, summary="Alterar parcela")

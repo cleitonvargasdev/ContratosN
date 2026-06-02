@@ -52,6 +52,16 @@ class InstallmentPaymentCreate(BaseModel):
         return float(value)
 
 
+class BatchInstallmentReceivePreviewRequest(BaseModel):
+    valor_recebido: float
+    data_recebimento: datetime | None = None
+
+    @field_validator("valor_recebido", mode="before")
+    @classmethod
+    def normalize_batch_valor_recebido(cls, value: object) -> float:
+        return float(value)
+
+
 class InstallmentSettleRequest(BaseModel):
     data_recebimento: datetime | None = None
 
@@ -96,6 +106,27 @@ class ContractReceiptRead(BaseModel):
     data_recebimento: datetime | None = None
     usuario_id: int | None = None
     usuario_nome: str | None = None
+
+
+class BatchInstallmentReceivePreviewItem(BaseModel):
+    installment: ContractInstallmentRead
+    saldo_restante: float
+    valor_recebimento: float
+
+
+class BatchInstallmentReceivePreviewRead(BaseModel):
+    contrato_id: int
+    valor_informado: float
+    valor_distribuido: float
+    valor_restante: float
+    parcelas: list[BatchInstallmentReceivePreviewItem]
+
+
+class BatchInstallmentReceiveConfirmRead(BaseModel):
+    contrato_id: int
+    valor_informado: float
+    valor_processado: float
+    parcelas_processadas: list[ContractInstallmentRead]
 
 
 class InstallmentActionResult(BaseModel):

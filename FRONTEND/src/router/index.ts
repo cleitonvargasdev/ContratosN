@@ -12,6 +12,7 @@ import BrandsListView from '@/views/brands/BrandsListView.vue'
 import ContractsCreateView from '@/views/contracts/ContractsCreateView.vue'
 import ContractsEditView from '@/views/contracts/ContractsEditView.vue'
 import ContractsListView from '@/views/contracts/ContractsListView.vue'
+import BatchReceiptView from '@/views/contracts/BatchReceiptView.vue'
 import DashboardHomeView from '@/views/dashboard/DashboardHomeView.vue'
 import LoginView from '@/views/auth/LoginView.vue'
 import NegotiationsCreateView from '@/views/negotiations/NegotiationsCreateView.vue'
@@ -164,6 +165,12 @@ const routes = [
         path: 'contratos/:id/editar',
         name: 'contracts-edit',
         component: ContractsEditView,
+        meta: { resource: 'contratos', action: 'update' },
+      },
+      {
+        path: 'recebimento-lote',
+        name: 'batch-receipt',
+        component: BatchReceiptView,
         meta: { resource: 'contratos', action: 'update' },
       },
       {
