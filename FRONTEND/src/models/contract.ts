@@ -99,6 +99,38 @@ export interface ContractListResponse {
   page_size: number
 }
 
+export interface AccountsReceivableListFilters {
+  page: number
+  page_size: number
+  recebida?: boolean
+  cliente_query?: string
+  data_vencimento_inicial?: string
+  data_vencimento_final?: string
+}
+
+export interface AccountsReceivableListItem {
+  id: number
+  contratos_id: number | null
+  cliente_id: number | null
+  cliente_nome: string | null
+  cliente_cpf_cnpj: string | null
+  parcela_nro: number | null
+  vencimento: string | null
+  valor_total: number | null
+  valor_recebido: number | null
+  valor_em_aberto: number
+  data_recebimento: string | null
+  quitado: boolean | null
+  dia_semana: string | null
+}
+
+export interface AccountsReceivableListResponse {
+  items: readonly AccountsReceivableListItem[]
+  total: number
+  page: number
+  page_size: number
+}
+
 export interface ContractInstallment {
   id: number
   contratos_id: number | null

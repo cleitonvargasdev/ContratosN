@@ -1,4 +1,6 @@
 import type {
+  AccountsReceivableListFilters,
+  AccountsReceivableListResponse,
   BatchInstallmentReceiveConfirmResult,
   BatchInstallmentReceivePayload,
   BatchInstallmentReceivePreview,
@@ -18,6 +20,19 @@ import type {
   InstallmentUpdatePayload,
 } from '@/models/contract'
 import { apiFetch, apiFetchBlob } from '@/services/http'
+
+export async function listAccountsReceivable(filters: AccountsReceivableListFilters): Promise<AccountsReceivableListResponse> {
+  const params = new URLSearchParams()
+  params.set('page', String(filters.page))
+  params.set('page_size', String(filters.page_size))
+
+  if (typeof filters.recebida === 'boolean') params.set('recebida', String(filters.recebida))
+  if (filters.cliente_query) params.set('cliente_query', filters.cliente_query)
+  if (filters.data_vencimento_inicial) params.set('data_vencimento_inicial', filters.data_vencimento_inicial)
+  if (filters.data_vencimento_final) params.set('data_vencimento_final', filters.data_vencimento_final)
+
+  return apiFetch<AccountsReceivableListResponse>(`/contratos/parcelas?${params.toString()}`)
+}
 
 export async function listContracts(filters: ContractListFilters): Promise<ContractListResponse> {
   const params = new URLSearchParams()

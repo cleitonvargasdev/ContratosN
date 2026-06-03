@@ -12,6 +12,9 @@ from app.repositories.accounts_receivable_repository import AccountsReceivableRe
 from app.repositories.client_repository import ClientRepository
 from app.repositories.location_repository import LocationRepository
 from app.schemas.accounts_receivable import (
+    AccountsReceivableListItem,
+    AccountsReceivableListParams,
+    AccountsReceivableListResponse,
     BatchInstallmentReceiveConfirmRead,
     BatchInstallmentReceivePreviewItem,
     BatchInstallmentReceivePreviewRead,
@@ -135,6 +138,21 @@ class AccountsReceivableService:
             await self.client_metrics_service.refresh_client_metrics(contract.cliente_id)
             await self.repository.commit()
         return [self._build_installment_read(item) for item in rows]
+
+    async def list_installments(self, params: AccountsReceivableListParams) -> AccountsReceivableListResponse:
+        if (
+            params.data_vencimento_inicial is not None
+            and params.data_vencimento_final is not None
+            and params.data_vencimento_final < params.data_vencimento_inicial
+        ):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data final deve ser maior ou igual a data inicial.")
+
+        rows, total = await self.repository.list_installments(params)
+        items = [
+            self._build_accounts_receivable_list_item(installment, cliente_id, cliente_nome, cliente_cpf_cnpj)
+            for installment, cliente_id, cliente_nome, cliente_cpf_cnpj in rows
+        ]
+        return AccountsReceivableListResponse(items=items, total=total, page=params.page, page_size=params.page_size)
 
     async def generate_contract_installments(
         self,
@@ -667,6 +685,30 @@ class AccountsReceivableService:
     @staticmethod
     def _get_installment_remaining_value(installment: ContaReceber) -> float:
         return round(max(float(installment.valor_total or 0) - float(installment.valor_recebido or 0), 0), 4)
+
+    def _build_accounts_receivable_list_item(
+        self,
+        installment: ContaReceber,
+        cliente_id: int | None,
+        cliente_nome: str | None,
+        cliente_cpf_cnpj: str | None,
+    ) -> AccountsReceivableListItem:
+        installment_read = self._build_installment_read(installment)
+        return AccountsReceivableListItem(
+            id=installment_read.id,
+            contratos_id=installment_read.contratos_id,
+            cliente_id=cliente_id,
+            cliente_nome=cliente_nome,
+            cliente_cpf_cnpj=cliente_cpf_cnpj,
+            parcela_nro=installment_read.parcela_nro,
+            vencimento=installment_read.vencimentol or installment_read.vencimento_original,
+            valor_total=installment_read.valor_total,
+            valor_recebido=installment_read.valor_recebido,
+            valor_em_aberto=self._get_installment_remaining_value(installment),
+            data_recebimento=installment_read.data_recebimento,
+            quitado=installment_read.quitado,
+            dia_semana=installment_read.dia_semana,
+        )
 
     async def _calculate_next_scheduled_due_date(
         self,

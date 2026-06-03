@@ -1,6 +1,8 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, field_validator
+
+from app.schemas.pagination import PaginatedResponse, PaginationParams
 
 
 class ContractInstallmentRead(BaseModel):
@@ -21,6 +23,41 @@ class ContractInstallmentRead(BaseModel):
     msg_whatsapp: bool = False
     dt_hora_envio: datetime | None = None
     tipo_envio: int | None = None
+
+
+class AccountsReceivableListParams(PaginationParams):
+    recebida: bool | None = None
+    cliente_query: str | None = None
+    data_vencimento_inicial: date | None = None
+    data_vencimento_final: date | None = None
+
+    @field_validator("cliente_query", mode="before")
+    @classmethod
+    def normalize_cliente_query(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        normalized = str(value).strip()
+        return normalized or None
+
+
+class AccountsReceivableListItem(BaseModel):
+    id: int
+    contratos_id: int | None = None
+    cliente_id: int | None = None
+    cliente_nome: str | None = None
+    cliente_cpf_cnpj: str | None = None
+    parcela_nro: int | None = None
+    vencimento: datetime | None = None
+    valor_total: float | None = None
+    valor_recebido: float | None = None
+    valor_em_aberto: float = 0
+    data_recebimento: datetime | None = None
+    quitado: bool | None = None
+    dia_semana: str | None = None
+
+
+class AccountsReceivableListResponse(PaginatedResponse[AccountsReceivableListItem]):
+    model_config = ConfigDict()
 
 
 class ContractInstallmentGenerateItem(BaseModel):

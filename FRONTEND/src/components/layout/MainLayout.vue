@@ -41,6 +41,7 @@ const route = useRoute()
 
 const moduleLabels: Record<string, string> = {
   'api-configs': 'APIs',
+  'accounts-receivable': 'Contas à Receber',
   brands: 'Marcas',
   users: 'Usuarios',
   clients: 'Clientes',

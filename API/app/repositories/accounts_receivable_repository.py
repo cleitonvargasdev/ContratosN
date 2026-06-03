@@ -1,13 +1,15 @@
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import datetime, time, timedelta
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.accounts_receivable import ContaReceber
+from app.models.client import Cliente
 from app.models.contract import Contrato
 from app.models.receipt import Recebimento
 from app.models.user import User
+from app.schemas.accounts_receivable import AccountsReceivableListParams
 
 
 class AccountsReceivableRepository:
@@ -25,6 +27,55 @@ class AccountsReceivableRepository:
             .order_by(ContaReceber.parcela_nro.asc(), ContaReceber.vencimentol.asc(), ContaReceber.id.asc())
         )
         return result.scalars().all()
+
+    async def list_installments(self, params: AccountsReceivableListParams) -> tuple[list[tuple[ContaReceber, int | None, str | None, str | None]], int]:
+        filters = []
+        due_date_expr = func.coalesce(ContaReceber.vencimentol, ContaReceber.vencimento_original)
+
+        if params.recebida is True:
+            filters.append(ContaReceber.quitado.is_(True))
+        elif params.recebida is False:
+            filters.append(or_(ContaReceber.quitado.is_(False), ContaReceber.quitado.is_(None)))
+
+        if params.cliente_query:
+            term = f"%{params.cliente_query}%"
+            normalized_document = func.replace(func.replace(func.replace(func.coalesce(Cliente.cpf_cnpj, ""), ".", ""), "-", ""), "/", "")
+            numeric_query = "".join(char for char in params.cliente_query if char.isdigit())
+            query_filters = [Cliente.nome.ilike(term), Cliente.cpf_cnpj.ilike(term)]
+            if numeric_query:
+                query_filters.append(normalized_document.ilike(f"%{numeric_query}%"))
+            filters.append(or_(*query_filters))
+
+        if params.data_vencimento_inicial is not None:
+            start_due = datetime.combine(params.data_vencimento_inicial, time.min)
+            filters.append(due_date_expr >= start_due)
+
+        if params.data_vencimento_final is not None:
+            end_due_exclusive = datetime.combine(params.data_vencimento_final + timedelta(days=1), time.min)
+            filters.append(due_date_expr < end_due_exclusive)
+
+        stmt = (
+            select(ContaReceber, Contrato.cliente_id, Cliente.nome, Cliente.cpf_cnpj)
+            .outerjoin(Contrato, Contrato.contratos_id == ContaReceber.contratos_id)
+            .outerjoin(Cliente, Cliente.clientes_id == Contrato.cliente_id)
+        )
+        count_stmt = (
+            select(func.count())
+            .select_from(ContaReceber)
+            .outerjoin(Contrato, Contrato.contratos_id == ContaReceber.contratos_id)
+            .outerjoin(Cliente, Cliente.clientes_id == Contrato.cliente_id)
+        )
+
+        if filters:
+            stmt = stmt.where(*filters)
+            count_stmt = count_stmt.where(*filters)
+
+        stmt = stmt.order_by(due_date_expr.asc(), ContaReceber.contratos_id.asc(), ContaReceber.parcela_nro.asc(), ContaReceber.id.asc())
+        stmt = stmt.offset((params.page - 1) * params.page_size).limit(params.page_size)
+
+        result = await self.session.execute(stmt)
+        total = await self.session.scalar(count_stmt)
+        return result.all(), int(total or 0)
 
     async def get_by_id(self, installment_id: int) -> ContaReceber | None:
         result = await self.session.execute(select(ContaReceber).where(ContaReceber.id == installment_id))

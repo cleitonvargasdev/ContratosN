@@ -190,7 +190,7 @@ const baseSections: SidebarSection[] = [
       { label: 'Marcas', to: '/marcas', resource: 'marcas', action: 'read', icon: 'ledger' },
       { label: 'Feriados', to: '/feriados', resource: 'localidades_feriados', action: 'read', icon: 'calendar' },
       { label: 'Contas à Pagar', to: '/modulos/cadastros/contas-a-pagar?titulo=Contas%20%C3%A0%20Pagar&grupo=Cadastros', icon: 'wallet' },
-      { label: 'Contas à Receber', to: '/modulos/cadastros/contas-a-receber?titulo=Contas%20%C3%A0%20Receber&grupo=Cadastros', icon: 'receipt' },
+      { label: 'Contas à Receber', to: '/contas-receber', resource: 'contratos', action: 'read', icon: 'receipt' },
       { label: 'Rotas', to: '/modulos/cadastros/rotas?titulo=Rotas&grupo=Cadastros', icon: 'route' },
       { label: 'Produtos', to: '/produtos', resource: 'produtos', action: 'read', icon: 'box' },
       { label: 'Parâmetros', to: '/parametros', icon: 'sliders' },

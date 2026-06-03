@@ -7,6 +7,7 @@ import ClientsEditView from '@/views/clients/ClientsEditView.vue'
 import ClientsListView from '@/views/clients/ClientsListView.vue'
 import ApiConfigsFormView from '@/views/apis/ApiConfigsFormView.vue'
 import ApiConfigsListView from '@/views/apis/ApiConfigsListView.vue'
+import AccountsReceivableListView from '@/views/accounts-receivable/AccountsReceivableListView.vue'
 import BrandsFormView from '@/views/brands/BrandsFormView.vue'
 import BrandsListView from '@/views/brands/BrandsListView.vue'
 import ContractsCreateView from '@/views/contracts/ContractsCreateView.vue'
@@ -148,6 +149,12 @@ const routes = [
         name: 'clients-edit',
         component: ClientsEditView,
         meta: { resource: 'clientes', action: 'update' },
+      },
+      {
+        path: 'contas-receber',
+        name: 'accounts-receivable-list',
+        component: AccountsReceivableListView,
+        meta: { resource: 'contratos', action: 'read' },
       },
       {
         path: 'contratos',

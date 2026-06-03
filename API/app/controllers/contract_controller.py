@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated
 from urllib.parse import urlparse
 
@@ -10,6 +11,8 @@ from app.core.config import settings
 from app.core.security import create_access_token
 from app.models.user import User
 from app.schemas.accounts_receivable import (
+    AccountsReceivableListParams,
+    AccountsReceivableListResponse,
     BatchInstallmentReceiveConfirmRead,
     BatchInstallmentReceivePreviewRead,
     BatchInstallmentReceivePreviewRequest,
@@ -77,6 +80,27 @@ def _build_public_contract_pdf_url(request: Request, contract_id: int) -> str:
             detail="Configure PUBLIC_API_BASE_URL com uma URL publica acessivel pelo QuePasa para enviar o contrato em PDF.",
         )
     return f"{base_url}{route_path}?token={token}"
+
+
+@router.get("/parcelas", response_model=AccountsReceivableListResponse, summary="Listar contas a receber")
+async def list_accounts_receivable_installments(
+    pagination: PaginationParams = Depends(get_pagination_params),
+    recebida: Annotated[bool | None, Query(description="Filtra parcelas recebidas ou em aberto.")] = None,
+    cliente_query: Annotated[str | None, Query(description="Filtra pelo nome do cliente ou CPF/CNPJ.")] = None,
+    data_vencimento_inicial: Annotated[date | None, Query(description="Data inicial do vencimento.")] = None,
+    data_vencimento_final: Annotated[date | None, Query(description="Data final do vencimento.")] = None,
+    _: User = Depends(require_permission("contratos", "read")),
+    service: AccountsReceivableService = Depends(get_accounts_receivable_service),
+) -> AccountsReceivableListResponse:
+    params = AccountsReceivableListParams(
+        page=pagination.page,
+        page_size=pagination.page_size,
+        recebida=recebida,
+        cliente_query=cliente_query,
+        data_vencimento_inicial=data_vencimento_inicial,
+        data_vencimento_final=data_vencimento_final,
+    )
+    return await service.list_installments(params)
 
 
 @router.get("/", response_model=ContractListResponse, summary="Listar contratos")
