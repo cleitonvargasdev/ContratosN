@@ -118,7 +118,6 @@ class BatchInstallmentReceivePreviewRead(BaseModel):
     contrato_id: int
     valor_informado: float
     valor_distribuido: float
-    valor_restante: float
     parcelas: list[BatchInstallmentReceivePreviewItem]
 
 

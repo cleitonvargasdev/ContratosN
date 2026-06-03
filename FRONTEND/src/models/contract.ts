@@ -151,7 +151,6 @@ export interface BatchInstallmentReceivePreview {
   contrato_id: number
   valor_informado: number
   valor_distribuido: number
-  valor_restante: number
   parcelas: BatchInstallmentReceivePreviewItem[]
 }
 

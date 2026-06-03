@@ -235,7 +235,6 @@ class AccountsReceivableService:
             contrato_id=contract.contratos_id,
             valor_informado=round(float(payload.valor_recebido or 0), 4),
             valor_distribuido=round(processed_value, 4),
-            valor_restante=round(max(float(payload.valor_recebido or 0) - processed_value, 0), 4),
             parcelas=[
                 BatchInstallmentReceivePreviewItem(
                     installment=self._build_installment_read(installment),

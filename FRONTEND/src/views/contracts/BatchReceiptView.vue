@@ -43,10 +43,6 @@
         <strong>{{ formatCurrency(preview?.valor_distribuido ?? 0) }}</strong>
         <span>Distribuído</span>
       </article>
-      <article class="summary-chip">
-        <strong>{{ formatCurrency(preview?.valor_restante ?? 0) }}</strong>
-        <span>Restante</span>
-      </article>
     </div>
 
     <p v-if="message" :class="['feedback', message.kind === 'error' ? 'feedback--error' : 'feedback--info']">{{ message.text }}</p>
