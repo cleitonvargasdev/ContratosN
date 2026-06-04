@@ -25,7 +25,7 @@ from app.schemas.accounts_receivable import (
     InstallmentSettleRequest,
     InstallmentUpdateRequest,
 )
-from app.schemas.contract import ContractCreate, ContractListParams, ContractListResponse, ContractRead, ContractUpdate, ContractWhatsAppDocumentSendResponse
+from app.schemas.contract import BatchReceiptContractSearchParams, BatchReceiptContractSearchResponse, ContractCreate, ContractListParams, ContractListResponse, ContractRead, ContractUpdate, ContractWhatsAppDocumentSendResponse
 from app.schemas.contract_commodato import ContractComodatoRead, ContractComodatoWrite
 from app.schemas.pagination import PaginationParams
 from app.services.accounts_receivable_service import AccountsReceivableService
@@ -86,6 +86,7 @@ def _build_public_contract_pdf_url(request: Request, contract_id: int) -> str:
 async def list_accounts_receivable_installments(
     pagination: PaginationParams = Depends(get_pagination_params),
     recebida: Annotated[bool | None, Query(description="Filtra parcelas recebidas ou em aberto.")] = None,
+    cliente_ativo: Annotated[bool | None, Query(description="Filtra pelo status ativo/inativo do cliente.")] = None,
     cliente_query: Annotated[str | None, Query(description="Filtra pelo nome do cliente ou CPF/CNPJ.")] = None,
     data_vencimento_inicial: Annotated[date | None, Query(description="Data inicial do vencimento.")] = None,
     data_vencimento_final: Annotated[date | None, Query(description="Data final do vencimento.")] = None,
@@ -96,6 +97,7 @@ async def list_accounts_receivable_installments(
         page=pagination.page,
         page_size=pagination.page_size,
         recebida=recebida,
+        cliente_ativo=cliente_ativo,
         cliente_query=cliente_query,
         data_vencimento_inicial=data_vencimento_inicial,
         data_vencimento_final=data_vencimento_final,
@@ -122,6 +124,17 @@ async def list_contracts(
         quitado=quitado,
     )
     return await service.list_contracts(params)
+
+
+@router.get("/pesquisa-recebimento-lote", response_model=BatchReceiptContractSearchResponse, summary="Pesquisar contratos abertos para recebimento em lote")
+async def search_open_contracts_for_batch_receipt(
+    pagination: PaginationParams = Depends(get_pagination_params),
+    query: Annotated[str | None, Query(description="Pesquisa por numero do contrato, nome do cliente ou CPF/CNPJ.")] = None,
+    _: User = Depends(require_permission("contratos", "read")),
+    service: ContractService = Depends(get_contract_service),
+) -> BatchReceiptContractSearchResponse:
+    params = BatchReceiptContractSearchParams(page=pagination.page, page_size=pagination.page_size, query=query)
+    return await service.search_open_contracts_for_batch_receipt(params)
 
 
 @router.get("/{contract_id}/imprimir", summary="Imprimir contrato")

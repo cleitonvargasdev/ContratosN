@@ -68,6 +68,30 @@ class ContractListParams(PaginationParams):
     quitado: bool | None = None
 
 
+class BatchReceiptContractSearchParams(PaginationParams):
+    query: str | None = None
+
+
+class BatchReceiptContractSearchContractGroup(BaseModel):
+    contract_key: str
+    contratos_id: int
+    comodato: bool = False
+    valor_parcela: float | None = None
+
+
+class BatchReceiptContractSearchClientGroup(BaseModel):
+    client_key: str
+    cliente_id: int | None = None
+    cliente_nome: str | None = None
+    cliente_cpf_cnpj: str | None = None
+    contract_count: int = 0
+    contracts: list[BatchReceiptContractSearchContractGroup] = []
+
+
+class BatchReceiptContractSearchResponse(PaginatedResponse[BatchReceiptContractSearchClientGroup]):
+    model_config = ConfigDict()
+
+
 class ContractListResponse(PaginatedResponse[ContractRead]):
     model_config = ConfigDict()
 

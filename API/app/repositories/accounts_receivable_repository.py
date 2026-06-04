@@ -28,22 +28,63 @@ class AccountsReceivableRepository:
         )
         return result.scalars().all()
 
-    async def list_installments(self, params: AccountsReceivableListParams) -> tuple[list[tuple[ContaReceber, int | None, str | None, str | None]], int]:
+    async def list_installments(
+        self,
+        params: AccountsReceivableListParams,
+    ) -> tuple[
+        list[
+            tuple[
+                ContaReceber,
+                int | None,
+                str | None,
+                str | None,
+                float | None,
+                float | None,
+                float | None,
+                float | None,
+                float | None,
+                float | None,
+                bool | None,
+                datetime | None,
+            ]
+        ],
+        int,
+    ]:
         filters = []
         due_date_expr = func.coalesce(ContaReceber.vencimentol, ContaReceber.vencimento_original)
+        normalized_document_expr = func.replace(func.replace(func.replace(func.coalesce(Cliente.cpf_cnpj, ""), ".", ""), "-", ""), "/", "")
+        latest_receipt_subquery = (
+            select(
+                Recebimento.contrato_id.label("contract_id"),
+                func.max(Recebimento.data_recebimento).label("ultimo_recebimento"),
+            )
+            .group_by(Recebimento.contrato_id)
+            .subquery()
+        )
+
+        cliente_nome_expr = func.coalesce(Cliente.nome, "")
+        cliente_cpf_cnpj_expr = func.coalesce(Cliente.cpf_cnpj, "")
+        cliente_valor_em_aberto_expr = func.coalesce(Cliente.valor_em_aberto, 0)
+        logical_client_key_expr = func.coalesce(
+            func.nullif(normalized_document_expr, ""),
+            func.nullif(func.lower(func.trim(cliente_nome_expr)), ""),
+            "__sem_cliente__",
+        )
 
         if params.recebida is True:
             filters.append(ContaReceber.quitado.is_(True))
         elif params.recebida is False:
             filters.append(or_(ContaReceber.quitado.is_(False), ContaReceber.quitado.is_(None)))
 
+        if params.cliente_ativo is not None:
+            filters.append(Cliente.ativo == params.cliente_ativo)
+
         if params.cliente_query:
             term = f"%{params.cliente_query}%"
-            normalized_document = func.replace(func.replace(func.replace(func.coalesce(Cliente.cpf_cnpj, ""), ".", ""), "-", ""), "/", "")
             numeric_query = "".join(char for char in params.cliente_query if char.isdigit())
             query_filters = [Cliente.nome.ilike(term), Cliente.cpf_cnpj.ilike(term)]
             if numeric_query:
-                query_filters.append(normalized_document.ilike(f"%{numeric_query}%"))
+                query_filters.append(normalized_document_expr.ilike(f"%{numeric_query}%"))
             filters.append(or_(*query_filters))
 
         if params.data_vencimento_inicial is not None:
@@ -54,27 +95,69 @@ class AccountsReceivableRepository:
             end_due_exclusive = datetime.combine(params.data_vencimento_final + timedelta(days=1), time.min)
             filters.append(due_date_expr < end_due_exclusive)
 
-        stmt = (
-            select(ContaReceber, Contrato.cliente_id, Cliente.nome, Cliente.cpf_cnpj)
-            .outerjoin(Contrato, Contrato.contratos_id == ContaReceber.contratos_id)
-            .outerjoin(Cliente, Cliente.clientes_id == Contrato.cliente_id)
-        )
-        count_stmt = (
-            select(func.count())
+        client_groups_stmt = (
+            select(
+                logical_client_key_expr.label("logical_client_key"),
+                func.max(cliente_nome_expr).label("cliente_nome"),
+                func.max(cliente_cpf_cnpj_expr).label("cliente_cpf_cnpj"),
+                func.max(cliente_valor_em_aberto_expr).label("cliente_valor_em_aberto"),
+                func.min(due_date_expr).label("primeiro_vencimento"),
+            )
             .select_from(ContaReceber)
             .outerjoin(Contrato, Contrato.contratos_id == ContaReceber.contratos_id)
             .outerjoin(Cliente, Cliente.clientes_id == Contrato.cliente_id)
         )
 
         if filters:
-            stmt = stmt.where(*filters)
-            count_stmt = count_stmt.where(*filters)
+            client_groups_stmt = client_groups_stmt.where(*filters)
 
-        stmt = stmt.order_by(due_date_expr.asc(), ContaReceber.contratos_id.asc(), ContaReceber.parcela_nro.asc(), ContaReceber.id.asc())
-        stmt = stmt.offset((params.page - 1) * params.page_size).limit(params.page_size)
+        client_groups_stmt = client_groups_stmt.group_by(logical_client_key_expr)
+        client_groups_stmt = client_groups_stmt.order_by(
+            func.min(due_date_expr).asc(),
+            func.max(cliente_nome_expr).asc(),
+            logical_client_key_expr.asc(),
+        )
+
+        total_stmt = select(func.count()).select_from(client_groups_stmt.subquery())
+        paged_clients_stmt = client_groups_stmt.offset((params.page - 1) * params.page_size).limit(params.page_size)
+
+        paged_clients = (await self.session.execute(paged_clients_stmt)).all()
+        total = await self.session.scalar(total_stmt)
+
+        if not paged_clients:
+            return [], int(total or 0)
+
+        logical_client_keys = list(dict.fromkeys(str(row.logical_client_key) for row in paged_clients))
+
+        stmt = (
+            select(
+                ContaReceber,
+                Contrato.cliente_id,
+                Cliente.nome,
+                Cliente.cpf_cnpj,
+                Cliente.valor_em_aberto,
+                Contrato.valor_parcela,
+                Contrato.valor_final,
+                Contrato.valor_recebido,
+                Contrato.valor_em_aberto,
+                Contrato.valor_em_atraso,
+                Contrato.quitado,
+                latest_receipt_subquery.c.ultimo_recebimento,
+            )
+            .outerjoin(Contrato, Contrato.contratos_id == ContaReceber.contratos_id)
+            .outerjoin(Cliente, Cliente.clientes_id == Contrato.cliente_id)
+            .outerjoin(latest_receipt_subquery, latest_receipt_subquery.c.contract_id == ContaReceber.contratos_id)
+        )
+
+        if filters:
+            stmt = stmt.where(*filters)
+
+        if logical_client_keys:
+            stmt = stmt.where(logical_client_key_expr.in_(logical_client_keys))
+
+        stmt = stmt.order_by(logical_client_key_expr.asc(), Cliente.nome.asc(), Contrato.cliente_id.asc(), ContaReceber.contratos_id.asc(), due_date_expr.asc(), ContaReceber.parcela_nro.asc(), ContaReceber.id.asc())
 
         result = await self.session.execute(stmt)
-        total = await self.session.scalar(count_stmt)
         return result.all(), int(total or 0)
 
     async def get_by_id(self, installment_id: int) -> ContaReceber | None:

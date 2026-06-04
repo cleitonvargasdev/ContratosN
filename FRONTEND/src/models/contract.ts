@@ -102,7 +102,8 @@ export interface ContractListResponse {
 export interface AccountsReceivableListFilters {
   page: number
   page_size: number
-  recebida?: boolean
+  recebida: boolean
+  cliente_ativo?: boolean
   cliente_query?: string
   data_vencimento_inicial?: string
   data_vencimento_final?: string
@@ -114,18 +115,50 @@ export interface AccountsReceivableListItem {
   cliente_id: number | null
   cliente_nome: string | null
   cliente_cpf_cnpj: string | null
+  cliente_valor_em_aberto: number | null
   parcela_nro: number | null
   vencimento: string | null
+  valor_juros: number | null
   valor_total: number | null
   valor_recebido: number | null
   valor_em_aberto: number
   data_recebimento: string | null
   quitado: boolean | null
   dia_semana: string | null
+  contrato_valor_parcela: number | null
+  contrato_valor_total: number | null
+  contrato_valor_recebido: number | null
+  contrato_valor_em_aberto: number | null
+  contrato_valor_em_atraso: number | null
+  contrato_quitado: boolean | null
+  contrato_ultimo_recebimento: string | null
+}
+
+export interface AccountsReceivableContractGroup {
+  contract_key: string
+  contratos_id: number | null
+  valor_parcela: number | null
+  valor_total: number | null
+  valor_recebido: number | null
+  valor_em_aberto: number | null
+  valor_em_atraso: number | null
+  quitado: boolean | null
+  ultimo_recebimento: string | null
+  items: readonly AccountsReceivableListItem[]
+}
+
+export interface AccountsReceivableClientGroup {
+  client_key: string
+  cliente_id: number | null
+  cliente_nome: string | null
+  cliente_cpf_cnpj: string | null
+  cliente_valor_em_aberto: number | null
+  installment_count: number
+  contracts: readonly AccountsReceivableContractGroup[]
 }
 
 export interface AccountsReceivableListResponse {
-  items: readonly AccountsReceivableListItem[]
+  items: readonly AccountsReceivableClientGroup[]
   total: number
   page: number
   page_size: number
@@ -191,6 +224,35 @@ export interface BatchInstallmentReceiveConfirmResult {
   valor_informado: number
   valor_processado: number
   parcelas_processadas: ContractInstallment[]
+}
+
+export interface BatchReceiptContractSearchFilters {
+  page: number
+  page_size: number
+  query?: string
+}
+
+export interface BatchReceiptContractSearchContractGroup {
+  contract_key: string
+  contratos_id: number
+  comodato: boolean
+  valor_parcela: number | null
+}
+
+export interface BatchReceiptContractSearchClientGroup {
+  client_key: string
+  cliente_id: number | null
+  cliente_nome: string | null
+  cliente_cpf_cnpj: string | null
+  contract_count: number
+  contracts: readonly BatchReceiptContractSearchContractGroup[]
+}
+
+export interface BatchReceiptContractSearchResponse {
+  items: readonly BatchReceiptContractSearchClientGroup[]
+  total: number
+  page: number
+  page_size: number
 }
 
 export interface InstallmentSettlePayload {

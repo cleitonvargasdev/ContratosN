@@ -1,14 +1,32 @@
 import { reactive, readonly } from 'vue'
 
-import type { AccountsReceivableListFilters, AccountsReceivableListItem, AccountsReceivableListResponse } from '@/models/contract'
+import type { AccountsReceivableClientGroup, AccountsReceivableListFilters, AccountsReceivableListResponse } from '@/models/contract'
 import { listAccountsReceivable } from '@/services/contractService'
 
-const defaultFilters: AccountsReceivableListFilters = {
-  page: 1,
-  page_size: 8,
+function formatDateInput(value: Date) {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function createDefaultFilters(): AccountsReceivableListFilters {
+  const endDate = new Date()
+  const startDate = new Date(endDate)
+  startDate.setDate(startDate.getDate() - 30)
+
+  return {
+    page: 1,
+    page_size: 8,
+    recebida: false,
+    cliente_ativo: undefined,
+    data_vencimento_inicial: formatDateInput(startDate),
+    data_vencimento_final: formatDateInput(endDate),
+  }
 }
 
 export function useAccountsReceivableController() {
+  const defaultFilters = createDefaultFilters()
   const state = reactive({
     filters: { ...defaultFilters } as AccountsReceivableListFilters,
     result: {
@@ -19,7 +37,7 @@ export function useAccountsReceivableController() {
     } as AccountsReceivableListResponse,
     loading: false,
     error: '',
-    currentItem: null as AccountsReceivableListItem | null,
+    currentItem: null as AccountsReceivableClientGroup | null,
   })
 
   async function fetchAccountsReceivable(): Promise<void> {

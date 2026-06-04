@@ -12,6 +12,8 @@ from app.repositories.accounts_receivable_repository import AccountsReceivableRe
 from app.repositories.client_repository import ClientRepository
 from app.repositories.location_repository import LocationRepository
 from app.schemas.accounts_receivable import (
+    AccountsReceivableClientGroup,
+    AccountsReceivableContractGroup,
     AccountsReceivableListItem,
     AccountsReceivableListParams,
     AccountsReceivableListResponse,
@@ -148,11 +150,73 @@ class AccountsReceivableService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data final deve ser maior ou igual a data inicial.")
 
         rows, total = await self.repository.list_installments(params)
-        items = [
-            self._build_accounts_receivable_list_item(installment, cliente_id, cliente_nome, cliente_cpf_cnpj)
-            for installment, cliente_id, cliente_nome, cliente_cpf_cnpj in rows
-        ]
-        return AccountsReceivableListResponse(items=items, total=total, page=params.page, page_size=params.page_size)
+        grouped_items: list[AccountsReceivableClientGroup] = []
+        client_groups: dict[str, AccountsReceivableClientGroup] = {}
+        contract_groups: dict[str, AccountsReceivableContractGroup] = {}
+
+        for (
+            installment,
+            cliente_id,
+            cliente_nome,
+            cliente_cpf_cnpj,
+            cliente_valor_em_aberto,
+            contrato_valor_parcela,
+            contrato_valor_total,
+            contrato_valor_recebido,
+            contrato_valor_em_aberto,
+            contrato_valor_em_atraso,
+            contrato_quitado,
+            contrato_ultimo_recebimento,
+        ) in rows:
+            client_key = self._build_accounts_receivable_client_key(cliente_id, cliente_nome, cliente_cpf_cnpj)
+            client_group = client_groups.get(client_key)
+            if client_group is None:
+                client_group = AccountsReceivableClientGroup(
+                    client_key=client_key,
+                    cliente_id=cliente_id,
+                    cliente_nome=cliente_nome,
+                    cliente_cpf_cnpj=cliente_cpf_cnpj,
+                    cliente_valor_em_aberto=cliente_valor_em_aberto,
+                )
+                client_groups[client_key] = client_group
+                grouped_items.append(client_group)
+
+            contract_key = f"{client_key}:{installment.contratos_id or 'sem-contrato'}"
+            contract_group = contract_groups.get(contract_key)
+            if contract_group is None:
+                contract_group = AccountsReceivableContractGroup(
+                    contract_key=contract_key,
+                    contratos_id=installment.contratos_id,
+                    valor_parcela=contrato_valor_parcela,
+                    valor_total=contrato_valor_total,
+                    valor_recebido=contrato_valor_recebido,
+                    valor_em_aberto=contrato_valor_em_aberto,
+                    valor_em_atraso=contrato_valor_em_atraso,
+                    quitado=contrato_quitado,
+                    ultimo_recebimento=contrato_ultimo_recebimento,
+                )
+                contract_groups[contract_key] = contract_group
+                client_group.contracts.append(contract_group)
+
+            contract_group.items.append(
+                self._build_accounts_receivable_list_item(
+                    installment,
+                    cliente_id,
+                    cliente_nome,
+                    cliente_cpf_cnpj,
+                    cliente_valor_em_aberto,
+                    contrato_valor_parcela,
+                    contrato_valor_total,
+                    contrato_valor_recebido,
+                    contrato_valor_em_aberto,
+                    contrato_valor_em_atraso,
+                    contrato_quitado,
+                    contrato_ultimo_recebimento,
+                )
+            )
+            client_group.installment_count += 1
+
+        return AccountsReceivableListResponse(items=grouped_items, total=total, page=params.page, page_size=params.page_size)
 
     async def generate_contract_installments(
         self,
@@ -686,22 +750,45 @@ class AccountsReceivableService:
     def _get_installment_remaining_value(installment: ContaReceber) -> float:
         return round(max(float(installment.valor_total or 0) - float(installment.valor_recebido or 0), 0), 4)
 
+    @staticmethod
+    def _build_accounts_receivable_client_key(
+        cliente_id: int | None,
+        cliente_nome: str | None,
+        cliente_cpf_cnpj: str | None,
+    ) -> str:
+        normalized_document = "".join(char for char in str(cliente_cpf_cnpj or "") if char.isdigit())
+        if normalized_document:
+            return f"doc:{normalized_document}"
+
+        normalized_name = str(cliente_nome or "").strip().lower()
+        if normalized_name:
+            return f"nome:{normalized_name}"
+
+        return f"sem-cliente:{cliente_id or 0}"
+
     def _build_accounts_receivable_list_item(
         self,
         installment: ContaReceber,
         cliente_id: int | None,
-        cliente_nome: str | None,
-        cliente_cpf_cnpj: str | None,
+        _cliente_nome: str | None,
+        _cliente_cpf_cnpj: str | None,
+        _cliente_valor_em_aberto: float | None,
+        contrato_valor_parcela: float | None,
+        contrato_valor_total: float | None,
+        contrato_valor_recebido: float | None,
+        contrato_valor_em_aberto: float | None,
+        contrato_valor_em_atraso: float | None,
+        contrato_quitado: bool | None,
+        contrato_ultimo_recebimento: datetime | None,
     ) -> AccountsReceivableListItem:
         installment_read = self._build_installment_read(installment)
         return AccountsReceivableListItem(
             id=installment_read.id,
             contratos_id=installment_read.contratos_id,
             cliente_id=cliente_id,
-            cliente_nome=cliente_nome,
-            cliente_cpf_cnpj=cliente_cpf_cnpj,
             parcela_nro=installment_read.parcela_nro,
             vencimento=installment_read.vencimentol or installment_read.vencimento_original,
+            valor_juros=installment_read.valor_juros,
             valor_total=installment_read.valor_total,
             valor_recebido=installment_read.valor_recebido,
             valor_em_aberto=self._get_installment_remaining_value(installment),

@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.pagination import PaginatedResponse, PaginationParams
 
@@ -27,6 +27,7 @@ class ContractInstallmentRead(BaseModel):
 
 class AccountsReceivableListParams(PaginationParams):
     recebida: bool | None = None
+    cliente_ativo: bool | None = None
     cliente_query: str | None = None
     data_vencimento_inicial: date | None = None
     data_vencimento_final: date | None = None
@@ -44,10 +45,9 @@ class AccountsReceivableListItem(BaseModel):
     id: int
     contratos_id: int | None = None
     cliente_id: int | None = None
-    cliente_nome: str | None = None
-    cliente_cpf_cnpj: str | None = None
     parcela_nro: int | None = None
     vencimento: datetime | None = None
+    valor_juros: float | None = None
     valor_total: float | None = None
     valor_recebido: float | None = None
     valor_em_aberto: float = 0
@@ -56,7 +56,30 @@ class AccountsReceivableListItem(BaseModel):
     dia_semana: str | None = None
 
 
-class AccountsReceivableListResponse(PaginatedResponse[AccountsReceivableListItem]):
+class AccountsReceivableContractGroup(BaseModel):
+    contract_key: str
+    contratos_id: int | None = None
+    valor_parcela: float | None = None
+    valor_total: float | None = None
+    valor_recebido: float | None = None
+    valor_em_aberto: float | None = None
+    valor_em_atraso: float | None = None
+    quitado: bool | None = None
+    ultimo_recebimento: datetime | None = None
+    items: list[AccountsReceivableListItem] = Field(default_factory=list)
+
+
+class AccountsReceivableClientGroup(BaseModel):
+    client_key: str
+    cliente_id: int | None = None
+    cliente_nome: str | None = None
+    cliente_cpf_cnpj: str | None = None
+    cliente_valor_em_aberto: float | None = None
+    installment_count: int = 0
+    contracts: list[AccountsReceivableContractGroup] = Field(default_factory=list)
+
+
+class AccountsReceivableListResponse(PaginatedResponse[AccountsReceivableClientGroup]):
     model_config = ConfigDict()
 
 

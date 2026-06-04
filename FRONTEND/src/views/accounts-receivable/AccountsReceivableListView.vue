@@ -32,6 +32,7 @@ onMounted(() => {
 
 function handleApply(payload: {
   recebida?: boolean
+  cliente_ativo?: boolean
   cliente_query?: string
   data_vencimento_inicial?: string
   data_vencimento_final?: string

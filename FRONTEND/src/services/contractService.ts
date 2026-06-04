@@ -4,6 +4,8 @@ import type {
   BatchInstallmentReceiveConfirmResult,
   BatchInstallmentReceivePayload,
   BatchInstallmentReceivePreview,
+  BatchReceiptContractSearchFilters,
+  BatchReceiptContractSearchResponse,
   Contract,
   ContractComodato,
   ContractComodatoInput,
@@ -27,6 +29,7 @@ export async function listAccountsReceivable(filters: AccountsReceivableListFilt
   params.set('page_size', String(filters.page_size))
 
   if (typeof filters.recebida === 'boolean') params.set('recebida', String(filters.recebida))
+  if (typeof filters.cliente_ativo === 'boolean') params.set('cliente_ativo', String(filters.cliente_ativo))
   if (filters.cliente_query) params.set('cliente_query', filters.cliente_query)
   if (filters.data_vencimento_inicial) params.set('data_vencimento_inicial', filters.data_vencimento_inicial)
   if (filters.data_vencimento_final) params.set('data_vencimento_final', filters.data_vencimento_final)
@@ -113,6 +116,16 @@ export async function confirmBatchContractReceive(contractId: number, payload: B
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
+}
+
+export async function searchBatchReceiptContracts(filters: BatchReceiptContractSearchFilters): Promise<BatchReceiptContractSearchResponse> {
+  const params = new URLSearchParams()
+  params.set('page', String(filters.page))
+  params.set('page_size', String(filters.page_size))
+
+  if (filters.query) params.set('query', filters.query)
+
+  return apiFetch<BatchReceiptContractSearchResponse>(`/contratos/pesquisa-recebimento-lote?${params.toString()}`)
 }
 
 export async function updateContractInstallment(installmentId: number, payload: InstallmentUpdatePayload): Promise<ContractInstallment> {

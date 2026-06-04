@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import String, delete, func, or_, select, cast
 from sqlalchemy.orm import aliased, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,7 +9,7 @@ from app.models.contract import Contrato
 from app.models.contract_commodato import ContratoComodato, ContratoComodatoItem
 from app.models.product import Produto
 from app.models.user import User
-from app.schemas.contract import ContractListParams
+from app.schemas.contract import BatchReceiptContractSearchParams, ContractListParams
 
 
 class ContractRepository:
@@ -58,6 +58,79 @@ class ContractRepository:
             contracts.append(contract)
 
         return contracts, int(total or 0)
+
+    async def search_open_contracts_for_batch_receipt(
+        self,
+        params: BatchReceiptContractSearchParams,
+    ) -> tuple[list[tuple[int, int | None, str | None, str | None, bool, float | None]], int]:
+        raw_query = (params.query or '').strip()
+        numeric_query = ''.join(char for char in raw_query if char.isdigit())
+        if len(raw_query) < 3 and len(numeric_query) < 3:
+            return [], 0
+
+        normalized_document_expr = func.replace(func.replace(func.replace(func.coalesce(Cliente.cpf_cnpj, ''), '.', ''), '-', ''), '/', '')
+        logical_client_key_expr = func.coalesce(
+            func.nullif(normalized_document_expr, ''),
+            func.nullif(func.lower(func.trim(func.coalesce(Cliente.nome, ''))), ''),
+            '__sem_cliente__',
+        )
+        comodato_exists_expr = ContratoComodato.contrato_id.is_not(None)
+        filters = [or_(Contrato.quitado.is_(False), Contrato.quitado.is_(None))]
+
+        query_filters = []
+        if len(raw_query) >= 3:
+            query_filters.append(Cliente.nome.ilike(f'%{raw_query}%'))
+        if len(numeric_query) >= 3:
+            query_filters.append(normalized_document_expr.ilike(f'%{numeric_query}%'))
+            query_filters.append(cast(Contrato.contratos_id, String).ilike(f'%{numeric_query}%'))
+
+        if query_filters:
+            filters.append(or_(*query_filters))
+
+        client_groups_stmt = (
+            select(
+                logical_client_key_expr.label('logical_client_key'),
+                func.max(Cliente.nome).label('cliente_nome'),
+                func.max(Cliente.cpf_cnpj).label('cliente_cpf_cnpj'),
+            )
+            .select_from(Contrato)
+            .outerjoin(Cliente, Cliente.clientes_id == Contrato.cliente_id)
+            .outerjoin(ContratoComodato, ContratoComodato.contrato_id == Contrato.contratos_id)
+            .where(*filters)
+        )
+        client_groups_stmt = client_groups_stmt.group_by(logical_client_key_expr)
+        client_groups_stmt = client_groups_stmt.order_by(func.max(Cliente.nome).asc(), logical_client_key_expr.asc())
+
+        total_stmt = select(func.count()).select_from(client_groups_stmt.subquery())
+        paged_clients_stmt = client_groups_stmt.offset((params.page - 1) * params.page_size).limit(params.page_size)
+
+        paged_clients = (await self.session.execute(paged_clients_stmt)).all()
+        total = await self.session.scalar(total_stmt)
+
+        if not paged_clients:
+            return [], int(total or 0)
+
+        logical_client_keys = list(dict.fromkeys(str(row.logical_client_key) for row in paged_clients))
+
+        stmt = (
+            select(
+                Contrato.contratos_id,
+                Contrato.cliente_id,
+                Cliente.nome,
+                Cliente.cpf_cnpj,
+                comodato_exists_expr.label('comodato'),
+                Contrato.valor_parcela,
+            )
+            .select_from(Contrato)
+            .outerjoin(Cliente, Cliente.clientes_id == Contrato.cliente_id)
+            .outerjoin(ContratoComodato, ContratoComodato.contrato_id == Contrato.contratos_id)
+            .where(*filters)
+            .where(logical_client_key_expr.in_(logical_client_keys))
+            .order_by(logical_client_key_expr.asc(), Cliente.nome.asc(), Contrato.contratos_id.desc())
+        )
+
+        rows = (await self.session.execute(stmt)).all()
+        return rows, int(total or 0)
 
     async def get_by_id(self, contract_id: int) -> Contrato | None:
         cobrador = aliased(User)

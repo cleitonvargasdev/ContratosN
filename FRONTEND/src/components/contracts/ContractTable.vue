@@ -12,11 +12,24 @@
       <input v-model="draft.contratos_id" class="field" placeholder="ID contrato" type="number" @input="handleContractIdInput" @keydown.enter.prevent="applyFilters" />
       <input v-model="draft.cliente_nome" class="field" placeholder="Cliente / empresa" type="text" @keydown.enter.prevent="applyFilters" />
       <input v-model="draft.cobrador_nome" class="field" placeholder="Cobrador" type="text" @keydown.enter.prevent="applyFilters" />
-      <select v-model="quitadoFilter" class="field" @keydown.enter.prevent="applyFilters">
-        <option value="">Todos</option>
-        <option value="false">Aberto</option>
-        <option value="true">Quitado</option>
-      </select>
+      <div class="contract-status-toggle" role="group" aria-label="Filtro de status">
+        <button
+          class="contract-status-toggle__option"
+          :class="quitadoFilter === false ? 'contract-status-toggle__option--active' : ''"
+          type="button"
+          @click="selectQuitado(false)"
+        >
+          Aberto
+        </button>
+        <button
+          class="contract-status-toggle__option"
+          :class="quitadoFilter === true ? 'contract-status-toggle__option--active' : ''"
+          type="button"
+          @click="selectQuitado(true)"
+        >
+          Quitado
+        </button>
+      </div>
       <button class="secondary-button" type="button" @click="applyFilters">Aplicar filtros</button>
     </div>
 
@@ -166,7 +179,7 @@ const draft = reactive({
   cobrador_nome: props.filters.cobrador_nome ?? '',
 })
 
-const quitadoFilter = ref('')
+const quitadoFilter = ref<boolean | null>(null)
 const pageSizeValue = ref(String(props.result.page_size))
 
 const totalPages = computed(() => Math.max(1, Math.ceil(props.result.total / props.result.page_size)))
@@ -195,7 +208,7 @@ watch(
     draft.contratos_id = typeof filters.contratos_id === 'number' ? String(filters.contratos_id) : ''
     draft.cliente_nome = filters.cliente_nome ?? ''
     draft.cobrador_nome = filters.cobrador_nome ?? ''
-    quitadoFilter.value = typeof filters.quitado === 'boolean' ? String(filters.quitado) : ''
+    quitadoFilter.value = typeof filters.quitado === 'boolean' ? filters.quitado : null
   },
   { deep: true, immediate: true },
 )
@@ -213,13 +226,17 @@ function applyFilters() {
     return
   }
 
-  const quitado = quitadoFilter.value === '' ? undefined : quitadoFilter.value === 'true'
   emit('apply', {
     contratos_id: contratosId,
     cliente_nome: toStringOrUndefined(draft.cliente_nome),
     cobrador_nome: toStringOrUndefined(draft.cobrador_nome),
-    quitado,
+    quitado: quitadoFilter.value ?? undefined,
   })
+}
+
+function selectQuitado(value: boolean) {
+  quitadoFilter.value = quitadoFilter.value === value ? null : value
+  applyFilters()
 }
 
 function handleContractIdInput() {
@@ -285,3 +302,36 @@ function handleRowDoubleClick(contractId: number) {
   emit('edit', contractId)
 }
 </script>
+
+<style scoped>
+.contract-status-toggle {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 34px;
+  border: 1px solid rgba(249, 115, 22, 0.22);
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(249, 115, 22, 0.09);
+}
+
+.contract-status-toggle__option {
+  border: 0;
+  padding: 0 14px;
+  background: transparent;
+  color: #1b2730;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.contract-status-toggle__option + .contract-status-toggle__option {
+  border-left: 1px solid rgba(249, 115, 22, 0.18);
+}
+
+.contract-status-toggle__option--active {
+  background: rgba(31, 157, 104, 0.14);
+  color: #1b7f56;
+}
+</style>

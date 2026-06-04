@@ -4,7 +4,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.contract import Contrato
 from app.repositories.accounts_receivable_repository import AccountsReceivableRepository
 from app.repositories.contract_repository import ContractRepository
-from app.schemas.contract import ContractCreate, ContractListParams, ContractListResponse, ContractUpdate
+from app.schemas.contract import (
+    BatchReceiptContractSearchClientGroup,
+    BatchReceiptContractSearchContractGroup,
+    BatchReceiptContractSearchParams,
+    BatchReceiptContractSearchResponse,
+    ContractCreate,
+    ContractListParams,
+    ContractListResponse,
+    ContractUpdate,
+)
 from app.schemas.contract_commodato import ContractComodatoRead, ContractComodatoWrite
 
 
@@ -73,6 +82,42 @@ class ContractService:
         contracts, total = await self.repository.list_all(params)
         await self._sync_contract_financials_for_many(list(contracts))
         return ContractListResponse(items=list(contracts), total=total, page=params.page, page_size=params.page_size)
+
+    async def search_open_contracts_for_batch_receipt(self, params: BatchReceiptContractSearchParams) -> BatchReceiptContractSearchResponse:
+        rows, total = await self.repository.search_open_contracts_for_batch_receipt(params)
+
+        grouped_items: list[BatchReceiptContractSearchClientGroup] = []
+        client_groups: dict[str, BatchReceiptContractSearchClientGroup] = {}
+
+        for contract_id, cliente_id, cliente_nome, cliente_cpf_cnpj, comodato, valor_parcela in rows:
+            document_digits = ''.join(char for char in str(cliente_cpf_cnpj or '') if char.isdigit())
+            normalized_name = str(cliente_nome or '').strip().lower()
+            client_key_value = document_digits or normalized_name or '__sem_cliente__'
+            client_key = f'doc:{client_key_value}' if document_digits else f'name:{client_key_value}'
+
+            client_group = client_groups.get(client_key)
+            if client_group is None:
+                client_group = BatchReceiptContractSearchClientGroup(
+                    client_key=client_key,
+                    cliente_id=cliente_id,
+                    cliente_nome=cliente_nome,
+                    cliente_cpf_cnpj=cliente_cpf_cnpj,
+                    contracts=[],
+                )
+                client_groups[client_key] = client_group
+                grouped_items.append(client_group)
+
+            client_group.contracts.append(
+                BatchReceiptContractSearchContractGroup(
+                    contract_key=f'{client_key}:{contract_id}',
+                    contratos_id=contract_id,
+                    comodato=bool(comodato),
+                    valor_parcela=valor_parcela,
+                )
+            )
+            client_group.contract_count += 1
+
+        return BatchReceiptContractSearchResponse(items=grouped_items, total=total, page=params.page, page_size=params.page_size)
 
     async def get_contract(self, contract_id: int) -> Contrato | None:
         contract = await self.repository.get_by_id(contract_id)

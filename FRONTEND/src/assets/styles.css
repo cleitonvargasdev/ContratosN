@@ -826,6 +826,44 @@ select {
   font-weight: 800;
 }
 
+.accounts-receivable-group-row--client td {
+  background: rgba(249, 115, 22, 0.04);
+}
+
+.accounts-receivable-group-row--client .payment-plan-group-button strong {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.accounts-receivable-group-row--client .accounts-receivable-group-button__field {
+  font-weight: 700;
+}
+
+.accounts-receivable-group-row--contract td {
+  background: rgba(214, 102, 24, 0.12);
+  border-bottom-color: rgba(194, 95, 18, 0.2);
+}
+
+.accounts-receivable-group-row--contract .payment-plan-group-button {
+  color: #5e3411;
+}
+
+.accounts-receivable-group-row--contract .accounts-receivable-group-button__field {
+  color: #5e3411;
+}
+
+.accounts-receivable-group-row--contract .pill {
+  margin-left: auto;
+}
+
+.accounts-receivable-installment-cell.payment-plan-grouped-cell {
+  padding-left: 82px !important;
+}
+
+.accounts-receivable-installment-cell.payment-plan-grouped-cell:first-child::before {
+  left: 58px;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
