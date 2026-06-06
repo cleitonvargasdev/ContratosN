@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.access_control_catalog import merge_catalog_permissions
+from app.core.access_control_catalog import RESOURCE_CATALOG, merge_catalog_permissions
 from app.db.base import Base
 
 if TYPE_CHECKING:
@@ -88,6 +88,20 @@ class User(Base):
 
     @property
     def permissions(self) -> list[EffectiveProfilePermission]:
+        active_profile_names = {profile.nome.lower() for profile in self.profiles if profile.ativo}
+        if "administrador" in active_profile_names:
+            return [
+                EffectiveProfilePermission(
+                    resource_key=resource.resource_key,
+                    resource_label=resource.resource_label,
+                    can_read="read" in resource.supported_actions,
+                    can_create="create" in resource.supported_actions,
+                    can_update="update" in resource.supported_actions,
+                    can_delete="delete" in resource.supported_actions,
+                )
+                for resource in RESOURCE_CATALOG
+            ]
+
         aggregated: dict[str, EffectiveProfilePermission] = {}
 
         for profile in self.profiles:

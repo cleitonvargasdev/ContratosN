@@ -42,6 +42,7 @@ const route = useRoute()
 const moduleLabels: Record<string, string> = {
   'api-configs': 'APIs',
   'accounts-receivable': 'Contas à Receber',
+  'accounts-payable': 'Contas à Pagar',
   brands: 'Marcas',
   users: 'Usuarios',
   clients: 'Clientes',
@@ -50,6 +51,7 @@ const moduleLabels: Record<string, string> = {
   'payment-plans': 'Planos Pagamentos',
   products: 'Produtos',
   profiles: 'Perfis',
+  suppliers: 'Fornecedores',
   ufs: 'UFs',
   cities: 'Cidades',
   bairros: 'Bairros',

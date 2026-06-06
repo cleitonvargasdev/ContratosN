@@ -64,6 +64,10 @@ function hasPermission(resourceKey: string, action: PermissionAction = 'read'): 
     return false
   }
 
+  if (state.currentUser.perfil_nomes.includes('Administrador') || state.currentUser.perfil_nome === 'Administrador') {
+    return true
+  }
+
   const permission = state.currentUser.permissions.find((item) => item.resource_key === resourceKey)
   if (!permission) {
     return false

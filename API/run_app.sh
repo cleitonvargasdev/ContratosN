@@ -7,6 +7,7 @@ FRONTEND_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../FRONTEND" 2>/dev/null && pwd || tru
 
 API_HOST=${API_HOST:-127.0.0.1}
 API_PORT=${API_PORT:-8007}
+API_RELOAD=${API_RELOAD:-0}
 FRONTEND_HOST=${FRONTEND_HOST:-127.0.0.1}
 FRONTEND_PORT=${FRONTEND_PORT:-5174}
 
@@ -49,7 +50,11 @@ trap cleanup INT TERM EXIT
 echo "Starting API at http://$API_HOST:$API_PORT"
 (
     cd "$API_DIR"
-    PYTHONPATH="$API_DIR" exec "$PYTHON_BIN" -m uvicorn app.main:app --reload --host "$API_HOST" --port "$API_PORT"
+    UVICORN_ARGS="--host $API_HOST --port $API_PORT"
+    if [ "$API_RELOAD" = "1" ]; then
+        UVICORN_ARGS="$UVICORN_ARGS --reload"
+    fi
+    PYTHONPATH="$API_DIR" exec "$PYTHON_BIN" -m uvicorn app.main:app $UVICORN_ARGS
 ) &
 API_PID=$!
 

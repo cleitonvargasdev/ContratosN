@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import { useAuthController } from '@/controllers/useAuthController'
 import MainLayout from '@/components/layout/MainLayout.vue'
+import AccountsPayableFormView from '@/views/accounts-payable/AccountsPayableFormView.vue'
+import AccountsPayableListView from '@/views/accounts-payable/AccountsPayableListView.vue'
 import ClientsCreateView from '@/views/clients/ClientsCreateView.vue'
 import ClientsEditView from '@/views/clients/ClientsEditView.vue'
 import ClientsListView from '@/views/clients/ClientsListView.vue'
@@ -28,6 +30,8 @@ import ModulePlaceholderView from '@/views/shared/ModulePlaceholderView.vue'
 import ProfilesFormView from '@/views/access-control/ProfilesFormView.vue'
 import ProfilesListView from '@/views/access-control/ProfilesListView.vue'
 import SolicitationsListView from '@/views/solicitations/SolicitationsListView.vue'
+import SuppliersFormView from '@/views/suppliers/SuppliersFormView.vue'
+import SuppliersListView from '@/views/suppliers/SuppliersListView.vue'
 import BairrosFormView from '@/views/localities/BairrosFormView.vue'
 import BairrosListView from '@/views/localities/BairrosListView.vue'
 import CidadesFormView from '@/views/localities/CidadesFormView.vue'
@@ -151,10 +155,46 @@ const routes = [
         meta: { resource: 'clientes', action: 'update' },
       },
       {
+        path: 'fornecedores',
+        name: 'suppliers-list',
+        component: SuppliersListView,
+        meta: { resource: 'fornecedores', action: 'read' },
+      },
+      {
+        path: 'fornecedores/novo',
+        name: 'suppliers-create',
+        component: SuppliersFormView,
+        meta: { resource: 'fornecedores', action: 'create' },
+      },
+      {
+        path: 'fornecedores/:id/editar',
+        name: 'suppliers-edit',
+        component: SuppliersFormView,
+        meta: { resource: 'fornecedores', action: 'update' },
+      },
+      {
         path: 'contas-receber',
         name: 'accounts-receivable-list',
         component: AccountsReceivableListView,
         meta: { resource: 'contratos', action: 'read' },
+      },
+      {
+        path: 'contas-pagar',
+        name: 'accounts-payable-list',
+        component: AccountsPayableListView,
+        meta: { resource: 'contas_pagar', action: 'read' },
+      },
+      {
+        path: 'contas-pagar/novo',
+        name: 'accounts-payable-create',
+        component: AccountsPayableFormView,
+        meta: { resource: 'contas_pagar', action: 'create' },
+      },
+      {
+        path: 'contas-pagar/:id/editar',
+        name: 'accounts-payable-edit',
+        component: AccountsPayableFormView,
+        meta: { resource: 'contas_pagar', action: 'update' },
       },
       {
         path: 'contratos',
