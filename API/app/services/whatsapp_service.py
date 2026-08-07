@@ -575,13 +575,19 @@ class WhatsAppService:
 	) -> bool:
 		provider_status = (self._extract_provider_status(payload) or "").strip().lower()
 		data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
-		ready_by_status = provider_status in {"1", "ready", "connected", "online"}
+		ready_by_status = provider_status in {"1", "ready", "connected", "online", "ok"}
+		top_level_connected = payload.get("connected") is True
+		data_connected = data.get("connected") is True if isinstance(data, dict) else False
 		data_success = data.get("success") is True if isinstance(data, dict) else False
-		ready_by_flags = (payload.get("success") is True or data_success) and (verified or data.get("connected") is True)
+		ready_by_flags = (payload.get("success") is True or data_success or top_level_connected or data_connected) and (
+			verified or top_level_connected or data_connected or data.get("connected") is True
+		)
 		if not (ready_by_status or ready_by_flags):
 			return False
 		if not connected_phone:
-			return verified and not expected_phones
+			if not expected_phones:
+				return verified or ready_by_status or ready_by_flags
+			return verified or ready_by_status or ready_by_flags
 		if not expected_phones:
 			return True
 		return any(
