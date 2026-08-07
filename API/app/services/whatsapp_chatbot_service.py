@@ -436,6 +436,10 @@ class WhatsAppChatbotService:
         return contracts[0] if contracts else None
 
     def _extract_event(self, payload: Any) -> dict[str, str] | None:
+        event = self._extract_event_from_payload(payload)
+        if event is not None:
+            return event
+
         candidate = self._find_message_candidate(payload)
         if not isinstance(candidate, dict):
             return None
@@ -450,6 +454,34 @@ class WhatsAppChatbotService:
         phone = str(chat.get("phone") or candidate.get("phone") or "").strip()
         if not phone and chat_id.endswith("@s.whatsapp.net"):
             phone = self._extract_digits(chat_id)
+            if phone.startswith("55") and len(phone) > 11:
+                phone = phone[2:]
+
+        if not text or not chat_id or not phone:
+            return None
+        return {"text": text, "chat_id": chat_id, "phone": phone}
+
+    def _extract_event_from_payload(self, payload: Any) -> dict[str, str] | None:
+        if not isinstance(payload, dict):
+            return None
+
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            return None
+
+        message = data.get("message")
+        if not isinstance(message, dict):
+            return None
+
+        text = str(message.get("text") or message.get("conversation") or "").strip()
+        if not text:
+            return None
+
+        from_value = str(data.get("from") or "").strip()
+        chat_id = from_value or str(data.get("id") or "").strip()
+        phone = str(data.get("phone") or "").strip()
+        if not phone and from_value.endswith("@s.whatsapp.net"):
+            phone = self._extract_digits(from_value)
             if phone.startswith("55") and len(phone) > 11:
                 phone = phone[2:]
 

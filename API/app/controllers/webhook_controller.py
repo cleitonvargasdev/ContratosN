@@ -22,6 +22,14 @@ async def receive_quepasa_webhook(
     payload: Any = Body(default=None),
     service: WhatsAppChatbotService = Depends(get_whatsapp_chatbot_service),
 ) -> dict[str, Any]:
+    logger.info(
+        "Recebendo webhook do QuePasa. method=%s path=%s token=%s payload_type=%s payload=%s",
+        request.method,
+        request.url.path,
+        request.headers.get("X-QUEPASA-TOKEN"),
+        type(payload).__name__,
+        payload,
+    )
     try:
         return await service.handle_webhook_event(request, payload)
     except HTTPException as exc:
