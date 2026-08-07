@@ -443,19 +443,27 @@ class WhatsAppChatbotService:
         candidate = self._find_message_candidate(payload)
         if not isinstance(candidate, dict):
             return None
-        if candidate.get("fromme") or candidate.get("frominternal"):
-            return None
-        if str(candidate.get("type") or "").lower() != "text":
+        if self._is_outgoing_or_internal(candidate):
             return None
 
-        text = str(candidate.get("text") or "").strip()
+        message_type = str(candidate.get("type") or candidate.get("message_type") or candidate.get("messageType") or "").lower()
+        if message_type and message_type not in {"text", "chat", "conversation", "message"}:
+            return None
+
+        text = self._extract_message_text(candidate)
         chat = candidate.get("chat") or {}
-        chat_id = str(chat.get("id") or candidate.get("chatid") or candidate.get("chatId") or "").strip()
-        phone = str(chat.get("phone") or candidate.get("phone") or "").strip()
-        if not phone and chat_id.endswith("@s.whatsapp.net"):
-            phone = self._extract_digits(chat_id)
-            if phone.startswith("55") and len(phone) > 11:
-                phone = phone[2:]
+        chat_id = str(
+            chat.get("id")
+            or candidate.get("chatid")
+            or candidate.get("chatId")
+            or candidate.get("chat_id")
+            or candidate.get("remoteJid")
+            or candidate.get("remote_jid")
+            or candidate.get("jid")
+            or candidate.get("from")
+            or ""
+        ).strip()
+        phone = self._extract_phone(candidate, chat_id)
 
         if not text or not chat_id or not phone:
             return None
@@ -473,17 +481,16 @@ class WhatsAppChatbotService:
         if not isinstance(message, dict):
             return None
 
-        text = str(message.get("text") or message.get("conversation") or "").strip()
+        if self._is_outgoing_or_internal(data) or self._is_outgoing_or_internal(message):
+            return None
+
+        text = self._extract_message_text(message)
         if not text:
             return None
 
-        from_value = str(data.get("from") or "").strip()
+        from_value = str(data.get("from") or data.get("chat_id") or data.get("chatid") or data.get("chatId") or "").strip()
         chat_id = from_value or str(data.get("id") or "").strip()
-        phone = str(data.get("phone") or "").strip()
-        if not phone and from_value.endswith("@s.whatsapp.net"):
-            phone = self._extract_digits(from_value)
-            if phone.startswith("55") and len(phone) > 11:
-                phone = phone[2:]
+        phone = self._extract_phone(data, chat_id)
 
         if not text or not chat_id or not phone:
             return None
@@ -510,7 +517,77 @@ class WhatsAppChatbotService:
 
     @staticmethod
     def _looks_like_message_payload(payload: dict[str, Any]) -> bool:
-        return any(key in payload for key in ("text", "chat", "chatid", "chatId", "fromme", "frominternal", "type"))
+        return any(
+            key in payload
+            for key in (
+                "text",
+                "body",
+                "conversation",
+                "caption",
+                "message",
+                "chat",
+                "chatid",
+                "chatId",
+                "chat_id",
+                "remoteJid",
+                "remote_jid",
+                "fromme",
+                "fromMe",
+                "frominternal",
+                "fromInternal",
+                "is_from_me",
+                "isFromMe",
+                "type",
+            )
+        )
+
+    @classmethod
+    def _is_outgoing_or_internal(cls, payload: dict[str, Any]) -> bool:
+        for key in ("fromme", "fromMe", "frominternal", "fromInternal", "is_from_me", "isFromMe"):
+            if payload.get(key) is True:
+                return True
+        return False
+
+    @classmethod
+    def _extract_message_text(cls, payload: dict[str, Any]) -> str:
+        for key in ("text", "body", "conversation", "caption"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+        message = payload.get("message")
+        if isinstance(message, dict):
+            nested_text = cls._extract_message_text(message)
+            if nested_text:
+                return nested_text
+
+            extended_text = message.get("extendedTextMessage")
+            if isinstance(extended_text, dict):
+                value = extended_text.get("text")
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+
+        return ""
+
+    @classmethod
+    def _extract_phone(cls, payload: dict[str, Any], chat_id: str) -> str:
+        chat = payload.get("chat") or {}
+        candidates = [
+            chat.get("phone") if isinstance(chat, dict) else None,
+            payload.get("phone"),
+            payload.get("sender"),
+            payload.get("participant"),
+            payload.get("from"),
+            chat_id,
+        ]
+        for candidate in candidates:
+            digits = cls._extract_digits(str(candidate or ""))
+            if not digits:
+                continue
+            if digits.startswith("55") and len(digits) > 11:
+                digits = digits[2:]
+            return digits
+        return ""
 
     def _summarize_payload(self, payload: Any) -> str:
         if isinstance(payload, dict):
