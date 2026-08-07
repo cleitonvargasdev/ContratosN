@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 from ast import literal_eval
 from typing import Any
 
@@ -12,6 +13,8 @@ from app.core.secrets import decrypt_secret
 from app.repositories.api_config_repository import ApiConfigRepository
 from app.core.config import ENV_FILE, settings
 from app.services.parameter_service import ParameterService
+
+logger = logging.getLogger(__name__)
 
 
 class WhatsAppService:
@@ -90,10 +93,12 @@ class WhatsAppService:
 		)
 		async with httpx.AsyncClient(timeout=self.timeout) as client:
 			response = await client.post(request_config["url"], headers=request_config["headers"], json=request_config["json"])
+		logger.info(f"Quepasa mensagem - Status: {response.status_code}, URL: {request_config['url']}, Response: {response.text[:500]}")
 		response = self._validate_provider_response(response)
 		data = self._parse_json_response(response)
 		if data.get("success") is False:
 			message = self._extract_error_message(data) or "Falha ao enviar mensagem pelo WhatsApp."
+			logger.error(f"Quepasa mensagem erro - {message}: {data}")
 			raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=message)
 		return {
 			"success": True,
@@ -141,10 +146,12 @@ class WhatsAppService:
 		)
 		async with httpx.AsyncClient(timeout=self.timeout) as client:
 			response = await client.post(request_config["url"], headers=request_config["headers"], json=request_config["json"])
+		logger.debug(f"Quepasa documento - Status: {response.status_code}, URL: {request_config['url']}", extra={"response_body": response.text[:500]})
 		response = self._validate_provider_response(response)
 		data = self._parse_json_response(response)
 		if data.get("success") is False:
 			message = self._extract_error_message(data) or "Falha ao enviar documento pelo WhatsApp."
+			logger.error(f"Quepasa documento erro: {message}", extra={"response_data": data})
 			raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=message)
 		return {
 			"success": True,
