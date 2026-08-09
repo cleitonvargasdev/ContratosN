@@ -1,9 +1,11 @@
 from datetime import date
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.accounts_payable import ContaPagar, ContaPagarParcela, PagamentoContaPagar
+from app.models.commission import ComissaoLancamento, ComissaoLote
 from app.repositories.accounts_payable_repository import AccountsPayableRepository
 from app.schemas.accounts_payable import (
     AccountsPayableAddInstallmentsRequest,
@@ -190,6 +192,19 @@ class AccountsPayableService:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Falha ao recarregar parcela.")
         return self._build_installment_read(selected)
 
+    async def _sync_commission_batch(self, account: ContaPagar) -> None:
+        batch = await self.repository.session.scalar(
+            select(ComissaoLote).where(ComissaoLote.conta_pagar_id == account.conta_pagar_id)
+        )
+        if batch is None or not account.quitado:
+            return
+        batch.situacao = 3
+        rows = (await self.repository.session.execute(
+            select(ComissaoLancamento).where(ComissaoLancamento.lote_id == batch.lote_id)
+        )).scalars().all()
+        for row in rows:
+            row.situacao = 'pago'
+
     async def delete_account(self, conta_pagar_id: int) -> bool:
         account = await self.repository.get_by_id(conta_pagar_id)
         if account is None:
@@ -200,6 +215,36 @@ class AccountsPayableService:
                 detail="Nao e possivel excluir uma conta com pagamentos registrados.",
             )
         await self.repository.delete_account(account)
+        return True
+
+    async def remove_installment_payments(self, parcela_id: int) -> AccountsPayableInstallmentRead:
+        installment = await self.repository.get_installment_by_id(parcela_id)
+        if installment is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parcela nao encontrada")
+
+        installment.acrescimos = round(float(installment.acrescimos or 0) - sum(float(item.juros or 0) + float(item.acrescimos or 0) for item in installment.pagamentos), 4)
+        installment.desconto = round(float(installment.desconto or 0) - sum(float(item.desconto or 0) for item in installment.pagamentos), 4)
+        installment.valor_pago = 0
+        installment.pagamentos.clear()
+        self._recalculate_installment(installment)
+        if installment.conta is not None:
+            self._recalculate_account(installment.conta)
+            await self._sync_commission_batch(installment.conta)
+        await self.repository.commit()
+        refreshed = await self.repository.get_installment_by_id(parcela_id)
+        if refreshed is None:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Falha ao recarregar parcela.")
+        return self._build_installment_read(refreshed)
+
+    async def delete_installment(self, parcela_id: int) -> bool:
+        installment = await self.repository.get_installment_by_id(parcela_id)
+        if installment is None:
+            return False
+        account = installment.conta
+        if account is not None:
+            account.parcelas.remove(installment)
+            self._recalculate_account(account)
+        await self.repository.delete_installment(installment)
         return True
 
     def _build_installment_model(self, payload: AccountsPayableInstallmentCreate, fallback_number: int) -> ContaPagarParcela:

@@ -34,6 +34,8 @@ class Contrato(Base):
     valor_comissao_apurada: Mapped[float | None] = mapped_column(Numeric(19, 4, asdecimal=False), nullable=True)
     regra_comissao_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     regra_juros_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    pagar_comissao_venda: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    pagar_comissao_cobranca: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     aluguel: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     recorrencia: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     cobranca_segunda: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

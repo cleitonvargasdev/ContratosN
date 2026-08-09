@@ -4,7 +4,7 @@
       <div>
         <h2 class="panel__title">Feriados</h2>
       </div>
-      <RouterLink class="primary-button primary-button--compact primary-button--accent-soft" to="/feriados/novo">Novo feriado</RouterLink>
+      <RouterLink class="primary-button primary-button--compact primary-button--accent-soft" to="/feriados/novo">Novo +</RouterLink>
     </header>
 
     <div class="filters-grid filters-grid--feriados">

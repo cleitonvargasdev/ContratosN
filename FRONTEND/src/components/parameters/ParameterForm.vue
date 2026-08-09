@@ -69,12 +69,19 @@
               <button class="secondary-button" :disabled="lookupLoading" type="button" @click="handleCepLookupClick">{{ lookupLoading ? 'Consultando...' : 'Buscar CEP' }}</button>
             </div>
           </label>
-          <label class="field-group field-group--span-2"><span>Endereço</span><input v-model="form.endereco" class="field" type="text" @blur="handleAddressBlur" /></label>
-          <label class="field-group"><span>Número</span><input v-model.number="form.nro" class="field" min="0" type="number" /></label>
-          <label class="field-group"><span>Complemento</span><input v-model="form.complemento" class="field" type="text" /></label>
           <label class="field-group"><span>UF</span><select v-model="form.uf" class="field"><option value="">Selecione</option><option v-for="option in ufs" :key="option.uf" :value="option.uf">{{ option.uf }} - {{ option.uf_nome }}</option></select></label>
           <label class="field-group"><span>Cidade</span><select v-model.number="form.cidade_id" class="field" :disabled="!form.uf || citiesLoading"><option :value="null">Selecione</option><option v-for="option in cities" :key="option.cidade_id" :value="option.cidade_id">{{ option.cidade }}</option></select></label>
           <label class="field-group"><span>Bairro</span><select v-model.number="form.bairrosid" class="field" :disabled="!form.uf || !form.cidade_id || bairrosLoading"><option :value="null">Selecione</option><option v-for="option in bairros" :key="option.bairro_id" :value="option.bairro_id">{{ option.bairro_nome }}</option></select></label>
+          <label class="field-group field-group--span-2"><span>Endereço</span><input v-model="form.endereco" class="field" type="text" @blur="handleAddressBlur" /></label>
+          <label class="field-group"><span>Número</span><input v-model.number="form.nro" class="field" min="0" type="number" /></label>
+          <label class="field-group"><span>Complemento</span><input v-model="form.complemento" class="field" type="text" /></label>
+          <div class="commission-after-settlement-card field-group--span-2">
+            <span>Comissão somente após quitação</span>
+            <div class="commission-after-settlement-card__flags">
+              <label><input v-model="form.comissao_apos_quitacao_venda" type="checkbox" /><span>Venda</span></label>
+              <label><input v-model="form.comissao_apos_quitacao_cobranca" type="checkbox" /><span>Recebimentos</span></label>
+            </div>
+          </div>
         </div>
 
         <p v-if="lookupMessage" class="feedback feedback--info settings-card__feedback">{{ lookupMessage }}</p>
@@ -394,6 +401,8 @@ const form = reactive({
   msg_campanha: '',
   ligar_websocket: false,
   silenciar_mensagem: false,
+  comissao_apos_quitacao_venda: false,
+  comissao_apos_quitacao_cobranca: false,
 })
 
 onMounted(() => {
@@ -551,6 +560,8 @@ async function syncParametersIntoForm(parameters?: Parameter | null) {
   form.msg_campanha = parameters.msg_campanha ?? ''
   form.ligar_websocket = parameters.ligar_websocket
   form.silenciar_mensagem = parameters.silenciar_mensagem
+  form.comissao_apos_quitacao_venda = parameters.comissao_apos_quitacao_venda ?? false
+  form.comissao_apos_quitacao_cobranca = parameters.comissao_apos_quitacao_cobranca ?? false
 
   if (form.uf) {
     await loadCitiesOptions(form.uf)
@@ -725,6 +736,8 @@ function buildPayload(): ParameterInput {
     msg_campanha: emptyToNull(form.msg_campanha),
     ligar_websocket: form.ligar_websocket,
     silenciar_mensagem: form.silenciar_mensagem,
+    comissao_apos_quitacao_venda: form.comissao_apos_quitacao_venda,
+    comissao_apos_quitacao_cobranca: form.comissao_apos_quitacao_cobranca,
   }
 }
 
@@ -934,6 +947,40 @@ function generateWhatsappToken() {
 </script>
 
 <style scoped>
+.commission-after-settlement-card {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(22, 163, 74, 0.2);
+  border-radius: 8px;
+  background: rgba(220, 252, 231, 0.42);
+}
+
+.commission-after-settlement-card > span {
+  color: #166534;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.commission-after-settlement-card__flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.commission-after-settlement-card__flags label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #166534;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.commission-after-settlement-card__flags input {
+  accent-color: #16a34a;
+}
+
 .phone-field-row {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);

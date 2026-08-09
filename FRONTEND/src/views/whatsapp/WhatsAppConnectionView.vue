@@ -39,8 +39,8 @@
       <p class="whatsapp-card__message">{{ statusMessage }}</p>
 
       <div class="whatsapp-card__actions">
-        <button class="primary-button primary-button--success" :disabled="Boolean(status?.connected) || controller.state.connecting || controller.state.loading" type="button" @click="handleConnect">
-          {{ controller.state.connecting ? 'Gerando QR Code...' : 'Conectar' }}
+        <button class="primary-button primary-button--success" :disabled="controller.state.connecting || controller.state.loading" type="button" @click="handleConnect">
+          {{ controller.state.connecting ? 'Gerando QR Code...' : status?.connected ? 'Conectado' : 'Conectar' }}
         </button>
         <button class="ghost-button" :disabled="controller.state.loading || controller.state.connecting" type="button" @click="handleRefresh">
           Atualizar status
@@ -48,9 +48,8 @@
       </div>
     </article>
 
-    <div v-if="controller.state.qrCodeDataUrl" class="whatsapp-qr-modal" role="dialog" aria-modal="true" aria-labelledby="whatsapp-qr-title">
-      <div class="whatsapp-qr-modal__backdrop" @click="handleCloseQrPopup"></div>
-      <div class="whatsapp-qr-modal__content">
+    <article v-if="controller.state.qrCodeDataUrl" class="whatsapp-card whatsapp-qr-box" aria-labelledby="whatsapp-qr-title">
+      <div class="whatsapp-qr-box__content">
         <h3 id="whatsapp-qr-title">Conectar WhatsApp</h3>
         <img class="whatsapp-qr-box__image" :src="controller.state.qrCodeDataUrl" alt="QR Code para conectar o WhatsApp" />
         <div class="whatsapp-qr-box__meta">
@@ -59,9 +58,9 @@
           <span>O status da conexão é testado a cada 3 segundos, sem sobrepor tentativas.</span>
           <span>Assim que conectar, esta tela fecha sozinha.</span>
         </div>
-        <button class="ghost-button" type="button" @click="handleCloseQrPopup">Fechar</button>
+        <button class="ghost-button" type="button" @click="handleCloseQrPopup">Cancelar leitura</button>
       </div>
-    </div>
+    </article>
 
     <p v-if="controller.state.error" class="feedback feedback--error">{{ controller.state.error }}</p>
   </section>
@@ -71,7 +70,7 @@
 import { computed, onMounted, onUnmounted } from 'vue'
 
 import { useWhatsAppConnectionController } from '@/controllers/useWhatsAppConnectionController'
-import { errorAlert } from '@/services/alertService'
+import { errorAlert, infoAlert } from '@/services/alertService'
 
 const controller = useWhatsAppConnectionController()
 
@@ -106,6 +105,11 @@ async function handleRefresh() {
 }
 
 async function handleConnect() {
+  if (status.value?.connected) {
+    await infoAlert('O WhatsApp já está conectado.')
+    return
+  }
+
   try {
     await controller.startConnectionFlow()
   } catch {
@@ -170,6 +174,15 @@ function translateProviderStatus(value: string | null | undefined): string {
 .whatsapp-panel__header {
   display: grid;
   gap: 0.45rem;
+}
+
+.whatsapp-panel:has(.whatsapp-qr-box) {
+  grid-template-rows: auto 1fr;
+  min-height: calc(100vh - 9rem);
+}
+
+.whatsapp-panel:has(.whatsapp-qr-box) .whatsapp-card--summary {
+  display: none;
 }
 
 .whatsapp-card {
@@ -272,48 +285,35 @@ function translateProviderStatus(value: string | null | undefined): string {
   color: #b91c1c;
 }
 
-.whatsapp-qr-modal {
-  inset: 0;
-  position: fixed;
-  z-index: 80;
-}
-
-.whatsapp-qr-modal__backdrop {
-  background: rgba(15, 23, 42, 0.54);
-  inset: 0;
-  position: absolute;
-}
-
-.whatsapp-qr-modal__content {
-  align-items: center;
+.whatsapp-qr-box {
+  align-self: center;
   background:
     radial-gradient(circle at top, rgba(34, 197, 94, 0.12), transparent 35%),
     linear-gradient(180deg, rgba(244, 250, 247, 0.98), rgba(234, 243, 238, 0.98));
-  border-radius: 24px;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+  justify-self: center;
+  width: min(100%, 320px);
+}
+
+.whatsapp-qr-box__content {
+  align-items: center;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  left: 50%;
-  max-width: min(420px, calc(100vw - 2rem));
-  padding: 1.5rem;
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 100%;
+  margin: 0 auto;
+  max-width: 280px;
 }
 
-.whatsapp-qr-modal__content h3 {
+.whatsapp-qr-box__content h3 {
   color: #12372a;
   margin: 0;
 }
 
 .whatsapp-qr-box__image {
   background: #ffffff;
-  border: 14px solid #ffffff;
-  border-radius: 28px;
+  border: 10px solid #ffffff;
+  border-radius: 20px;
   box-shadow: 0 20px 45px rgba(7, 94, 84, 0.18);
-  max-width: min(320px, 100%);
+  max-width: min(220px, 60vw);
   width: 100%;
 }
 
@@ -327,7 +327,11 @@ function translateProviderStatus(value: string | null | undefined): string {
 
 .whatsapp-qr-box__meta strong {
   color: #0f766e;
-  font-size: 2rem;
+  font-size: 1.2rem;
+}
+
+.whatsapp-qr-box__meta span {
+  display: none;
 }
 
 @media (max-width: 720px) {

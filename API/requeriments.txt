@@ -12,6 +12,7 @@ pydantic-settings>=2.6,<3.0
 tzdata==2025.2
 email-validator==2.3.0
 httpx==0.28.1
+truststore==0.10.4
 mypy==1.18.2
 pytest==8.4.1
 aiosqlite==0.21.0

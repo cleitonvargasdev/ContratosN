@@ -160,3 +160,7 @@ class AccountsPayableRepository:
     async def delete_account(self, record: ContaPagar) -> None:
         await self.session.delete(record)
         await self.session.commit()
+
+    async def delete_installment(self, record: ContaPagarParcela) -> None:
+        await self.session.delete(record)
+        await self.session.commit()

@@ -94,15 +94,16 @@
         </div>
       </label>
 
-      <label class="field-group">
-        <span>CPF</span>
-        <input v-model="form.cpf" class="field" type="text" @blur="formatCpf" />
-      </label>
-
-      <label class="field-group">
-        <span>RG</span>
-        <input v-model="form.rg" class="field" type="text" />
-      </label>
+      <div class="user-commission-row field-group--span-2">
+        <div class="user-commission-row__group">
+          <label class="field-group"><span>CPF</span><input v-model="form.cpf" class="field" type="text" @blur="formatCpf" /></label>
+          <label class="field-group"><span>RG</span><input v-model="form.rg" class="field" type="text" /></label>
+        </div>
+        <div class="user-commission-row__group">
+          <label class="field-group commission-field"><span class="commission-field__label"><input v-model="form.recebe_comissao_venda" type="checkbox" /> Comissão venda</span><input v-model.number="form.taxa_venda" class="field" :disabled="!form.recebe_comissao_venda" placeholder="Taxa (%)" type="number" min="0" step="0.01" /></label>
+          <label class="field-group commission-field"><span class="commission-field__label"><input v-model="form.recebe_comissao_cob" type="checkbox" /> Comissão cobrança</span><input v-model.number="form.taxa_cob" class="field" :disabled="!form.recebe_comissao_cob" placeholder="Taxa (%)" type="number" min="0" step="0.01" /></label>
+        </div>
+      </div>
 
       <label class="field-group">
         <span>Data de nascimento</span>
@@ -119,6 +120,8 @@
         </div>
       </label>
 
+      <div class="user-location-row field-group--span-2">
+        <div class="user-location-row__left">
       <label class="field-group">
         <span>UF</span>
         <select v-model="form.uf" class="field">
@@ -134,8 +137,9 @@
           <option v-for="option in cities" :key="option.cidade_id" :value="option.cidade_id">{{ option.cidade }}</option>
         </select>
       </label>
+        </div>
 
-      <label class="field-group">
+        <label class="field-group">
         <span>Bairro</span>
         <select :value="bairroSelectValue" class="field field--bairro-select" :disabled="!form.uf || !form.cidade_id || bairrosLoading" @change="handleBairroSelectChange">
           <option value="">Selecione</option>
@@ -143,21 +147,26 @@
           <option v-for="option in bairros" :key="option.bairro_id" :value="String(option.bairro_id)">{{ option.bairro_nome }}</option>
         </select>
       </label>
+      </div>
 
-      <label class="field-group field-group--span-2">
-        <span>Endereco</span>
-        <input v-model="form.endereco" class="field" type="text" @blur="handleAddressBlur" />
-      </label>
+      <div class="user-address-row field-group--span-2">
+        <label class="field-group">
+          <span>Endereco</span>
+          <input v-model="form.endereco" class="field" type="text" @blur="handleAddressBlur" />
+        </label>
 
-      <label class="field-group">
-        <span>Numero</span>
-        <input v-model="form.numero" class="field" type="text" @blur="handleAddressBlur" />
-      </label>
+        <div class="user-address-row__right">
+          <label class="field-group">
+            <span>Numero</span>
+            <input v-model="form.numero" class="field" type="text" @blur="handleAddressBlur" />
+          </label>
 
-      <label class="field-group">
-        <span>Complemento</span>
-        <input v-model="form.complemento" class="field" type="text" />
-      </label>
+          <label class="field-group">
+            <span>Complemento</span>
+            <input v-model="form.complemento" class="field" type="text" />
+          </label>
+        </div>
+      </div>
 
       <div class="form-actions form-actions--user">
         <button class="primary-button primary-button--success form-actions__button" :disabled="saving" type="submit">
@@ -281,6 +290,10 @@ const form = reactive({
   telefone: '',
   celular: '',
   flag_whatsapp: false,
+  recebe_comissao_venda: false,
+  taxa_venda: null as number | null,
+  recebe_comissao_cob: false,
+  taxa_cob: null as number | null,
   cep: '',
   endereco: '',
   numero: '',
@@ -425,6 +438,10 @@ async function syncUserIntoForm(user?: User | null) {
   form.telefone = user.telefone ?? ''
   form.celular = user.celular ?? ''
   form.flag_whatsapp = user.flag_whatsapp
+  form.recebe_comissao_venda = user.recebe_comissao_venda ?? false
+  form.taxa_venda = user.taxa_venda ?? null
+  form.recebe_comissao_cob = user.recebe_comissao_cob ?? false
+  form.taxa_cob = user.taxa_cob ?? null
   form.cep = formatCepValue(user.cep)
   form.endereco = user.endereco ?? ''
   form.numero = user.numero ?? ''
@@ -580,6 +597,10 @@ function buildBasePayload() {
     telefone: emptyToNull(form.telefone),
     celular: emptyToNull(form.celular),
     flag_whatsapp: form.flag_whatsapp,
+    recebe_comissao_venda: form.recebe_comissao_venda,
+    taxa_venda: form.taxa_venda,
+    recebe_comissao_cob: form.recebe_comissao_cob,
+    taxa_cob: form.taxa_cob,
     cep: emptyToNull(cleanDigits(form.cep)),
     endereco: emptyToNull(form.endereco),
     numero: emptyToNull(form.numero),
@@ -619,6 +640,10 @@ function resetForm() {
   form.telefone = ''
   form.celular = ''
   form.flag_whatsapp = false
+  form.recebe_comissao_venda = false
+  form.taxa_venda = null
+  form.recebe_comissao_cob = false
+  form.taxa_cob = null
   form.cep = ''
   form.endereco = ''
   form.numero = ''
@@ -772,6 +797,46 @@ async function submitBairroModal() {
 </script>
 
 <style scoped>
+.user-commission-row,
+.user-commission-row__group {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.user-location-row,
+.user-address-row,
+.user-address-row__right {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.user-location-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.user-location-row__left {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.user-address-row {
+  align-items: end;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.user-commission-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.commission-field__label {
+  align-items: center;
+  display: flex;
+  gap: 0.45rem;
+  min-height: 1.25rem;
+}
 .profile-picker {
   display: flex;
   align-items: stretch;

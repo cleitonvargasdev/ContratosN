@@ -43,6 +43,7 @@ const moduleLabels: Record<string, string> = {
   'api-configs': 'APIs',
   'accounts-receivable': 'Contas à Receber',
   'accounts-payable': 'Contas à Pagar',
+  commissions: 'Comissões',
   brands: 'Marcas',
   users: 'Usuarios',
   clients: 'Clientes',
@@ -71,6 +72,21 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => {
 
   if (!routeName || routeName === 'dashboard') {
     return []
+  }
+
+  if (routeName === 'commissions') {
+    return [
+      { label: 'Dashboard', to: { name: 'dashboard' } },
+      { label: 'Comissões' },
+    ]
+  }
+
+  if (routeName === 'commissions-process') {
+    return [
+      { label: 'Dashboard', to: { name: 'dashboard' } },
+      { label: 'Comissões', to: { name: 'commissions' } },
+      { label: 'Processar' },
+    ]
   }
 
   if (routeName === 'module-placeholder') {

@@ -71,3 +71,11 @@ export async function registerAccountsPayablePayment(parcelaId: number, payload:
 export async function deleteAccountsPayable(accountId: number): Promise<void> {
   return apiFetch<void>(`/financeiro/contas-pagar/${accountId}`, { method: 'DELETE' })
 }
+
+export async function removeAccountsPayableInstallmentPayments(parcelaId: number): Promise<AccountsPayableInstallment> {
+  return apiFetch<AccountsPayableInstallment>(`/financeiro/contas-pagar/parcelas/${parcelaId}/pagamentos`, { method: 'DELETE' })
+}
+
+export async function deleteAccountsPayableInstallment(parcelaId: number): Promise<void> {
+  return apiFetch<void>(`/financeiro/contas-pagar/parcelas/${parcelaId}`, { method: 'DELETE' })
+}

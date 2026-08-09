@@ -6,6 +6,10 @@ export interface UserAddressFields {
   telefone: string | null
   celular: string | null
   flag_whatsapp: boolean
+  recebe_comissao_venda: boolean
+  taxa_venda: number | null
+  recebe_comissao_cob: boolean
+  taxa_cob: number | null
   cep: string | null
   endereco: string | null
   numero: string | null

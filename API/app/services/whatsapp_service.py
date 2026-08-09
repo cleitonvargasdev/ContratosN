@@ -1,10 +1,12 @@
 import base64
 import json
 import logging
+import ssl
 from ast import literal_eval
 from typing import Any
 
 import httpx
+import truststore
 from dotenv import dotenv_values
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +26,13 @@ class WhatsAppService:
 		self.api_config_repository = ApiConfigRepository(session)
 		self.base_url = settings.quepasa_middleware_url.rstrip("/")
 		self.timeout = settings.quepasa_timeout_seconds
+
+	def _create_http_client(self) -> httpx.AsyncClient:
+		"""Cria um cliente que usa os certificados confiáveis do sistema operacional."""
+		return httpx.AsyncClient(
+			timeout=self.timeout,
+			verify=truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT),
+		)
 
 	async def get_connection_status(self) -> dict[str, Any]:
 		config = await self._get_whatsapp_config()
@@ -91,7 +100,7 @@ class WhatsAppService:
 			config,
 			extra_placeholders={"chatid": chatid, "text": text},
 		)
-		async with httpx.AsyncClient(timeout=self.timeout) as client:
+		async with self._create_http_client() as client:
 			response = await client.post(request_config["url"], headers=request_config["headers"], json=request_config["json"])
 		logger.info(f"Quepasa mensagem - Status: {response.status_code}, URL: {request_config['url']}, Response: {response.text[:500]}")
 		response = self._validate_provider_response(response)
@@ -117,7 +126,7 @@ class WhatsAppService:
 			config,
 			extra_placeholders={"chatid": clean_chatid, "text": text},
 		)
-		async with httpx.AsyncClient(timeout=self.timeout) as client:
+		async with self._create_http_client() as client:
 			response = await client.post(request_config["url"], headers=request_config["headers"], json=request_config["json"])
 		response = self._validate_provider_response(response)
 		data = self._parse_json_response(response)
@@ -144,7 +153,7 @@ class WhatsAppService:
 			config,
 			extra_placeholders={"chatid": chatid, "chatId": chatid, "url": document_url, "text": text},
 		)
-		async with httpx.AsyncClient(timeout=self.timeout) as client:
+		async with self._create_http_client() as client:
 			response = await client.post(request_config["url"], headers=request_config["headers"], json=request_config["json"])
 		logger.debug(f"Quepasa documento - Status: {response.status_code}, URL: {request_config['url']}", extra={"response_body": response.text[:500]})
 		response = self._validate_provider_response(response)
@@ -225,7 +234,7 @@ class WhatsAppService:
 	async def _get_info_payload(self, config: dict[str, Any] | None = None) -> dict[str, Any]:
 		config = config or await self._get_whatsapp_config(required_token=True)
 		request_config = await self._build_api_request_config("verificar", config)
-		async with httpx.AsyncClient(timeout=self.timeout) as client:
+		async with self._create_http_client() as client:
 			response = await client.get(request_config["url"], headers=request_config["headers"])
 		if response.status_code == status.HTTP_404_NOT_FOUND:
 			return {}
@@ -233,8 +242,15 @@ class WhatsAppService:
 
 	async def _get_api_health_status(self, config: dict[str, Any]) -> dict[str, Any]:
 		request_config = await self._build_api_request_config("health", config)
-		async with httpx.AsyncClient(timeout=self.timeout) as client:
-			response = await client.get(request_config["url"], headers=request_config["headers"])
+		try:
+			async with self._create_http_client() as client:
+				response = await client.get(request_config["url"], headers=request_config["headers"])
+		except httpx.RequestError:
+			return {
+				"available": False,
+				"status": "offline",
+				"message": "Nao foi possivel conectar à API do WhatsApp.",
+			}
 
 		if not response.is_success:
 			message = self._extract_error_message_from_response(response)
@@ -311,7 +327,7 @@ class WhatsAppService:
 	async def _request_qr_code_endpoint(self) -> httpx.Response:
 		config = await self._get_whatsapp_config(required_user=True, required_token=True)
 		request_config = await self._build_api_request_config("conectar", config)
-		async with httpx.AsyncClient(timeout=self.timeout) as client:
+		async with self._create_http_client() as client:
 			response = await client.get(request_config["url"], headers=request_config["headers"])
 		return self._validate_provider_response(response)
 
@@ -410,7 +426,7 @@ class WhatsAppService:
 		allow_not_found: bool = False,
 	) -> httpx.Response:
 		request_headers = await self._build_provider_headers(headers)
-		async with httpx.AsyncClient(timeout=self.timeout) as client:
+		async with self._create_http_client() as client:
 			response = await client.request(method, f"{self.base_url}{path}", headers=request_headers, json=json)
 		return self._validate_provider_response(response, allow_not_found=allow_not_found)
 

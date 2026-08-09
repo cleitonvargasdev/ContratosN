@@ -50,44 +50,47 @@
         </div>
 
         <div v-if="isEdit && existingInstallments.length > 0" class="accounts-payable-table-wrap">
-          <table class="data-table data-table--cadastro">
+          <table class="data-table data-table--cadastro accounts-payable-installments-table">
             <thead>
               <tr>
                 <th>Parc.</th>
                 <th>Descrição</th>
-                <th>Vencimento</th>
-                <th>Valor</th>
-                <th>Valor Juros</th>
-                <th>Valor Desconto</th>
-                <th>Total</th>
-                <th>Pago</th>
-                <th>Saldo</th>
+                <th>Venc.</th>
+                <th>R$ Valor</th>
+                <th>R$ Juros</th>
+                <th>R$ Desc.</th>
+                <th>R$ Total</th>
+                <th>R$ Pago</th>
+                <th>R$ Aberto</th>
                 <th>Status</th>
-                <th class="actions-column">Pagamento</th>
+                <th class="actions-column">Ações</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="parcela in existingInstallments" :key="parcela.parcela_id">
                 <td>{{ String(parcela.numero_parcela || 0).padStart(2, '0') }}</td>
-                <td>{{ parcela.descricao || '-' }}</td>
-                <td>{{ formatDate(parcela.vencimento) }}</td>
-                <td>{{ formatCurrency(parcela.valor_original) }}</td>
-                <td>{{ formatCurrency(parcela.acrescimos) }}</td>
-                <td>{{ formatCurrency(parcela.desconto) }}</td>
-                <td>{{ formatCurrency(parcela.valor_total) }}</td>
-                <td>{{ formatCurrency(parcela.valor_pago) }}</td>
-                <td>{{ formatCurrency(parcela.saldo_pagar) }}</td>
+                <td :title="parcela.descricao || '-'">{{ parcela.descricao || '-' }}</td>
+                <td>{{ formatShortDate(parcela.vencimento) }}</td>
+                <td>{{ formatTableAmount(parcela.valor_original) }}</td>
+                <td>{{ formatTableAmount(parcela.acrescimos) }}</td>
+                <td>{{ formatTableAmount(parcela.desconto) }}</td>
+                <td>{{ formatTableAmount(parcela.valor_total) }}</td>
+                <td>{{ formatTableAmount(parcela.valor_pago) }}</td>
+                <td>{{ formatTableAmount(parcela.saldo_pagar) }}</td>
                 <td>
                   <span :class="['pill', parcela.quitado ? 'pill--success' : 'pill--warning']">{{ parcela.quitado ? 'Quitado' : 'Aberto' }}</span>
                 </td>
-                <td>
+                <td class="accounts-payable-actions-cell">
                   <div class="payment-editor">
-                    <input v-model.number="paymentDrafts[parcela.parcela_id].valor_pago" class="field" min="0" placeholder="Valor" step="0.01" type="number" />
-                    <input v-model.number="paymentDrafts[parcela.parcela_id].juros" class="field" min="0" placeholder="Juros" step="0.01" type="number" />
-                    <input v-model.number="paymentDrafts[parcela.parcela_id].acrescimos" class="field" min="0" placeholder="Acrésc." step="0.01" type="number" />
-                    <input v-model.number="paymentDrafts[parcela.parcela_id].desconto" class="field" min="0" placeholder="Desc." step="0.01" type="number" />
-                    <button class="secondary-button" :disabled="parcela.quitado || accountsPayable.state.saving" type="button" @click="handleRegisterPayment(parcela.parcela_id)">Pagamento</button>
-                    <button class="primary-button primary-button--compact" :disabled="parcela.quitado || accountsPayable.state.saving" type="button" @click="handleSettleInstallment(parcela.parcela_id, parcela.saldo_pagar)">Quitar</button>
+                    <button class="icon-action accounts-payable-actions-menu__trigger" :aria-expanded="actionMenuParcelaId === parcela.parcela_id" aria-label="Abrir ações da parcela" title="Ações" type="button" @click="toggleActionMenu(parcela.parcela_id)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="19" cy="12" r="1.8" fill="currentColor"/></svg>
+                    </button>
+                    <div v-if="actionMenuParcelaId === parcela.parcela_id" class="accounts-payable-actions-menu">
+                      <button :disabled="parcela.quitado || accountsPayable.state.saving" type="button" @click="openPaymentModal(parcela.parcela_id)">Pagar</button>
+                      <button :disabled="parcela.quitado || accountsPayable.state.saving" type="button" @click="handleSettleInstallment(parcela.parcela_id, parcela.saldo_pagar)">Quitar</button>
+                      <button :disabled="parcela.pagamentos.length === 0 || accountsPayable.state.saving" type="button" @click="handleRemovePayments(parcela.parcela_id)">Remover Pgto</button>
+                      <button class="accounts-payable-actions-menu__delete" :disabled="accountsPayable.state.saving" type="button" @click="handleDeleteInstallment(parcela.parcela_id)">Excluir Parcela</button>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -95,7 +98,7 @@
           </table>
         </div>
 
-        <div class="accounts-payable-table-wrap">
+        <div v-if="pendingInstallments.length > 0" class="accounts-payable-table-wrap">
           <table class="data-table data-table--cadastro">
             <thead>
               <tr>
@@ -103,15 +106,14 @@
                 <th>Descrição</th>
                 <th>Vencimento</th>
                 <th>Valor</th>
-                <th>Valor Juros</th>
-                <th>Valor Desconto</th>
+                <th>Juros</th>
+                <th>Descontos</th>
                 <th>Valor Total</th>
                 <th>Observação</th>
                 <th class="actions-column">Ações</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-if="pendingInstallments.length === 0"><td colspan="9">Nenhuma nova parcela pendente.</td></tr>
               <tr v-for="(parcela, index) in pendingInstallments" :key="`pending-${index}`">
                 <td>{{ String(parcela.numero_parcela || index + 1).padStart(2, '0') }}</td>
                 <td><input v-model="parcela.descricao" class="field" type="text" /></td>
@@ -204,6 +206,39 @@
       </div>
     </div>
 
+    <div v-if="paymentModal.open" class="accounts-payable-generator-backdrop" @click.self="closePaymentModal">
+      <section class="accounts-payable-payment-modal" aria-labelledby="payment-modal-title">
+        <header class="accounts-payable-generator-modal__header">
+          <h3 id="payment-modal-title">Informar pagamento</h3>
+          <button class="icon-action" type="button" aria-label="Fechar" @click="closePaymentModal">×</button>
+        </header>
+
+        <div v-if="paymentModal.parcelaId !== null" class="accounts-payable-payment-modal__grid">
+          <label class="field-group">
+            <span>Valor pago</span>
+            <input v-model.number="paymentDrafts[paymentModal.parcelaId].valor_pago" class="field" min="0" step="0.01" type="number" />
+          </label>
+          <label class="field-group">
+            <span>Juros</span>
+            <input v-model.number="paymentDrafts[paymentModal.parcelaId].juros" class="field" min="0" step="0.01" type="number" />
+          </label>
+          <label class="field-group">
+            <span>Acréscimos</span>
+            <input v-model.number="paymentDrafts[paymentModal.parcelaId].acrescimos" class="field" min="0" step="0.01" type="number" />
+          </label>
+          <label class="field-group">
+            <span>Descontos</span>
+            <input v-model.number="paymentDrafts[paymentModal.parcelaId].desconto" class="field" min="0" step="0.01" type="number" />
+          </label>
+        </div>
+
+        <footer class="accounts-payable-generator-modal__footer">
+          <button class="ghost-button" :disabled="accountsPayable.state.saving" type="button" @click="closePaymentModal">Cancelar</button>
+          <button class="primary-button" :disabled="accountsPayable.state.saving" type="button" @click="confirmPayment">Pagar</button>
+        </footer>
+      </section>
+    </div>
+
     <Teleport to="body">
       <div v-if="personSearchModal.open" class="modal-backdrop" @click.self="closePersonSearchModal">
         <section class="modal-card accounts-payable-search-modal">
@@ -271,7 +306,7 @@ import type {
   AccountsPayablePersonType,
 } from '@/models/accountsPayable'
 import { useAccountsPayableController } from '@/controllers/useAccountsPayableController'
-import { errorAlert, infoAlert, successAlert } from '@/services/alertService'
+import { confirmActionAlert, errorAlert, infoAlert, successAlert } from '@/services/alertService'
 
 type PaymentDraft = {
   valor_pago: number | null
@@ -297,6 +332,11 @@ const selectedPerson = ref<AccountsPayablePersonOption | null>(null)
 const pendingInstallments = reactive<AccountsPayableInstallmentInput[]>([])
 const paymentDrafts = reactive<Record<number, PaymentDraft>>({})
 const generatorOpen = ref(false)
+const paymentModal = reactive({
+  open: false,
+  parcelaId: null as number | null,
+})
+const actionMenuParcelaId = ref<number | null>(null)
 const personSearchModal = reactive({
   open: false,
   term: '',
@@ -489,12 +529,66 @@ async function handleSubmit() {
 }
 
 async function handleSettleInstallment(parcelaId: number, saldoPagar: number) {
+  actionMenuParcelaId.value = null
   await submitPayment(parcelaId, { valor_pago: saldoPagar, juros: 0, acrescimos: 0, desconto: 0 })
 }
 
-async function handleRegisterPayment(parcelaId: number) {
+async function handleRemovePayments(parcelaId: number) {
+  actionMenuParcelaId.value = null
+  if (!await confirmActionAlert('Remover pagamentos?', 'Todos os pagamentos registrados nesta parcela serão removidos.', 'Remover')) return
+  try {
+    await accountsPayable.removeInstallmentPayments(parcelaId)
+    await successAlert('Pagamentos removidos com sucesso.', 'update')
+    await loadAccount(Number(route.params.id))
+  } catch {
+    if (accountsPayable.state.error) await errorAlert(accountsPayable.state.error)
+  }
+}
+
+async function handleDeleteInstallment(parcelaId: number) {
+  actionMenuParcelaId.value = null
+  if (!await confirmActionAlert('Excluir parcela?', 'A parcela e seus pagamentos serão excluídos permanentemente.', 'Excluir')) return
+  try {
+    await accountsPayable.removeInstallment(parcelaId)
+    await successAlert('Parcela excluída com sucesso.', 'delete')
+    await loadAccount(Number(route.params.id))
+  } catch {
+    if (accountsPayable.state.error) await errorAlert(accountsPayable.state.error)
+  }
+}
+
+function toggleActionMenu(parcelaId: number) {
+  actionMenuParcelaId.value = actionMenuParcelaId.value === parcelaId ? null : parcelaId
+}
+
+function openPaymentModal(parcelaId: number) {
+  const parcela = existingInstallments.value.find((item) => item.parcela_id === parcelaId)
+  paymentDrafts[parcelaId] = paymentDrafts[parcelaId] ?? {
+    valor_pago: parcela?.saldo_pagar ?? 0,
+    juros: 0,
+    acrescimos: 0,
+    desconto: 0,
+  }
+  actionMenuParcelaId.value = null
+  paymentModal.parcelaId = parcelaId
+  paymentModal.open = true
+}
+
+function closePaymentModal() {
+  paymentModal.open = false
+  paymentModal.parcelaId = null
+}
+
+async function confirmPayment() {
+  if (paymentModal.parcelaId === null) return
+  if (await handleRegisterPayment(paymentModal.parcelaId)) {
+    closePaymentModal()
+  }
+}
+
+async function handleRegisterPayment(parcelaId: number): Promise<boolean> {
   const draft = paymentDrafts[parcelaId]
-  await submitPayment(parcelaId, {
+  return submitPayment(parcelaId, {
     valor_pago: draft.valor_pago,
     juros: draft.juros,
     acrescimos: draft.acrescimos,
@@ -502,15 +596,17 @@ async function handleRegisterPayment(parcelaId: number) {
   })
 }
 
-async function submitPayment(parcelaId: number, payload: AccountsPayablePaymentInput) {
+async function submitPayment(parcelaId: number, payload: AccountsPayablePaymentInput): Promise<boolean> {
   try {
     await accountsPayable.settleInstallment(parcelaId, payload)
     await successAlert('Pagamento registrado com sucesso.', 'update')
     await loadAccount(Number(route.params.id))
+    return true
   } catch {
     if (accountsPayable.state.error) {
       await errorAlert(accountsPayable.state.error)
     }
+    return false
   }
 }
 
@@ -532,9 +628,13 @@ function formatCurrency(value: number | null) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value ?? 0)
 }
 
-function formatDate(value: string | null) {
+function formatTableAmount(value: number | null) {
+  return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value ?? 0)
+}
+
+function formatShortDate(value: string | null) {
   if (!value) return '-'
-  return new Intl.DateTimeFormat('pt-BR').format(new Date(`${value}T00:00:00`))
+  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(new Date(`${value}T00:00:00`))
 }
 
 function formatPersonType(value: AccountsPayablePersonType) {
@@ -649,11 +749,116 @@ function hasMinimumSearchTerm(value: string) {
   overflow-x: auto;
 }
 
+.accounts-payable-table-wrap:has(.accounts-payable-installments-table) {
+  overflow-x: visible;
+}
+
+.accounts-payable-installments-table {
+  min-width: 0;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.accounts-payable-installments-table th,
+.accounts-payable-installments-table td {
+  overflow: hidden;
+  padding-inline: 0.4rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accounts-payable-installments-table th:first-child,
+.accounts-payable-installments-table td:first-child {
+  width: 44px;
+}
+
+.accounts-payable-installments-table th:nth-child(2),
+.accounts-payable-installments-table td:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 30%;
+}
+
+.accounts-payable-installments-table th:nth-child(3),
+.accounts-payable-installments-table td:nth-child(3) {
+  width: 62px;
+}
+
+.accounts-payable-installments-table th:nth-child(n + 4):nth-child(-n + 9),
+.accounts-payable-installments-table td:nth-child(n + 4):nth-child(-n + 9) {
+  width: 68px;
+}
+
+.accounts-payable-installments-table th:nth-last-child(2),
+.accounts-payable-installments-table td:nth-last-child(2) {
+  text-align: right;
+  width: 68px;
+}
+
+.accounts-payable-installments-table th:last-child,
+.accounts-payable-installments-table td:last-child {
+  text-align: right;
+  width: 48px;
+}
+
 .payment-editor {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(90px, 1fr)) auto auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.accounts-payable-installments-table td.accounts-payable-actions-cell {
+  overflow: visible;
+}
+
+.accounts-payable-actions-menu__trigger {
+  padding: 0.35rem;
+}
+
+.accounts-payable-actions-menu__trigger svg {
+  height: 1.25rem;
+  width: 1.25rem;
+}
+
+.accounts-payable-actions-menu {
+  background: #fff;
+  border: 1px solid rgba(38, 57, 77, 0.14);
+  border-radius: 6px;
+  box-shadow: 0 8px 22px rgba(18, 27, 34, 0.16);
+  display: grid;
+  min-width: 120px;
+  overflow: hidden;
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.3rem);
+  top: auto;
+  z-index: 50;
+}
+
+.accounts-payable-actions-menu button {
+  background: transparent;
+  border: 0;
+  color: #26394d;
+  cursor: pointer;
+  padding: 0.65rem 0.8rem;
+  text-align: left;
+}
+
+.accounts-payable-actions-menu button:hover:not(:disabled) {
+  background: rgba(249, 115, 22, 0.1);
+}
+
+.accounts-payable-actions-menu button:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.accounts-payable-actions-menu__delete {
+  color: #b42318 !important;
 }
 
 .accounts-payable-generator-backdrop {
@@ -675,6 +880,21 @@ function hasMinimumSearchTerm(value: string) {
   padding: 1rem;
   display: grid;
   gap: 1rem;
+}
+
+.accounts-payable-payment-modal {
+  background: #fffaf6;
+  border-radius: 3px;
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  width: min(560px, 100%);
+}
+
+.accounts-payable-payment-modal__grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .accounts-payable-generator-modal__header,
@@ -729,7 +949,7 @@ function hasMinimumSearchTerm(value: string) {
 @media (max-width: 960px) {
   .accounts-payable-card__grid,
   .accounts-payable-generator-grid,
-  .payment-editor,
+  .accounts-payable-payment-modal__grid,
   .accounts-payable-search-modal__filters {
     grid-template-columns: 1fr;
   }

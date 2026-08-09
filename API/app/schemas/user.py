@@ -63,6 +63,10 @@ class UserBase(UserAddressFields):
     perfil_id: int | None = None
     perfil_ids: list[int] = Field(default_factory=list)
     ativo: bool = True
+    recebe_comissao_venda: bool = False
+    taxa_venda: float | None = None
+    recebe_comissao_cob: bool = False
+    taxa_cob: float | None = None
 
     @field_validator("perfil_id", mode="before")
     @classmethod
@@ -175,6 +179,10 @@ class UserUpdate(UserAddressFields):
     perfil_id: int | None = None
     perfil_ids: list[int] = Field(default_factory=list)
     ativo: bool | None = None
+    recebe_comissao_venda: bool | None = None
+    taxa_venda: float | None = None
+    recebe_comissao_cob: bool | None = None
+    taxa_cob: float | None = None
 
     @field_validator("perfil_id", mode="before")
     @classmethod

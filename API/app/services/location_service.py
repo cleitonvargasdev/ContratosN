@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 from datetime import date
+import ssl
 from urllib.parse import quote
 
 import httpx
+import truststore
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 
@@ -374,7 +376,7 @@ class LocationService:
         return await repository.update_fields(user, update_data)
 
     async def _lookup_via_cep_services(self, cep: str) -> _LookupCandidate | None:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=5.0, verify=truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)) as client:
             for fetcher in (
                 self._fetch_viacep_by_cep,
                 self._fetch_brasilapi_by_cep,
@@ -393,7 +395,7 @@ class LocationService:
         logradouro: str,
         bairro: str | None,
     ) -> _LookupCandidate | None:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=5.0, verify=truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)) as client:
             for fetcher in (self._fetch_cepaberto_by_address, self._fetch_viacep_by_address):
                 candidate = await fetcher(client, uf=uf, cidade=cidade, logradouro=logradouro, bairro=bairro)
                 if candidate is not None:

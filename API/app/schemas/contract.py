@@ -27,6 +27,8 @@ class ContractBase(BaseModel):
     valor_comissao_apurada: float | None = None
     regra_comissao_id: int | None = None
     regra_juros_id: int | None = None
+    pagar_comissao_venda: bool = False
+    pagar_comissao_cobranca: bool = False
     aluguel: bool = False
     recorrencia: bool = False
     cobranca_segunda: bool = True

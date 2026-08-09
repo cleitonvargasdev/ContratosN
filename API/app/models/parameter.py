@@ -67,3 +67,5 @@ class Parametro(Base):
     msg_campanha: Mapped[str | None] = mapped_column(Text, nullable=True)
     ligar_websocket: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     silenciar_mensagem: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    comissao_apos_quitacao_venda: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    comissao_apos_quitacao_cobranca: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

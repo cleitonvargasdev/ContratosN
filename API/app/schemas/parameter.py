@@ -107,6 +107,8 @@ class ParameterBase(BaseModel):
     msg_campanha: str | None = None
     ligar_websocket: bool = False
     silenciar_mensagem: bool = False
+    comissao_apos_quitacao_venda: bool = False
+    comissao_apos_quitacao_cobranca: bool = False
 
     @field_validator(
         "nome_fantasia",

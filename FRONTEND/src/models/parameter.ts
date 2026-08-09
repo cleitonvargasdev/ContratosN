@@ -60,6 +60,8 @@ export interface Parameter {
   msg_campanha: string | null
   ligar_websocket: boolean
   silenciar_mensagem: boolean
+  comissao_apos_quitacao_venda: boolean
+  comissao_apos_quitacao_cobranca: boolean
 }
 
 export interface ParameterInput {
@@ -104,6 +106,8 @@ export interface ParameterInput {
   msg_campanha: string | null
   ligar_websocket: boolean
   silenciar_mensagem: boolean
+  comissao_apos_quitacao_venda: boolean
+  comissao_apos_quitacao_cobranca: boolean
 }
 
 export interface ParameterAutomationRunResult {

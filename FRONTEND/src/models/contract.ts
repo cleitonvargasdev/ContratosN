@@ -27,6 +27,8 @@ export interface Contract {
   valor_comissao_apurada: number | null
   regra_comissao_id: number | null
   regra_juros_id: number | null
+  pagar_comissao_venda: boolean
+  pagar_comissao_cobranca: boolean
   aluguel: boolean | null
   recorrencia: boolean | null
   cobranca_segunda: boolean | null
@@ -63,6 +65,8 @@ export interface ContractBaseInput {
   valor_comissao_apurada: number | null
   regra_comissao_id: number | null
   regra_juros_id: number | null
+  pagar_comissao_venda: boolean
+  pagar_comissao_cobranca: boolean
   aluguel: boolean | null
   recorrencia: boolean | null
   cobranca_segunda: boolean | null

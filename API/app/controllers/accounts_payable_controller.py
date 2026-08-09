@@ -118,6 +118,26 @@ async def register_accounts_payable_payment(
     return await service.register_payment(parcela_id, payload, current_user.id)
 
 
+@router.delete("/contas-pagar/parcelas/{parcela_id}/pagamentos", response_model=AccountsPayableInstallmentRead, summary="Remover pagamentos da parcela")
+async def remove_accounts_payable_installment_payments(
+    parcela_id: int,
+    _: User = Depends(require_permission("contas_pagar", "update")),
+    service: AccountsPayableService = Depends(get_accounts_payable_service),
+) -> AccountsPayableInstallmentRead:
+    return await service.remove_installment_payments(parcela_id)
+
+
+@router.delete("/contas-pagar/parcelas/{parcela_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Excluir parcela")
+async def delete_accounts_payable_installment(
+    parcela_id: int,
+    _: User = Depends(require_permission("contas_pagar", "delete")),
+    service: AccountsPayableService = Depends(get_accounts_payable_service),
+) -> Response:
+    if not await service.delete_installment(parcela_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parcela nao encontrada")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.delete("/contas-pagar/{conta_pagar_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Excluir conta a pagar")
 async def delete_account_payable(
     conta_pagar_id: int,

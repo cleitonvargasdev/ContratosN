@@ -27,6 +27,8 @@ import ParametersView from '@/views/parameters/ParametersView.vue'
 import ProductsFormView from '@/views/products/ProductsFormView.vue'
 import ProductsListView from '@/views/products/ProductsListView.vue'
 import ModulePlaceholderView from '@/views/shared/ModulePlaceholderView.vue'
+import CommissionsView from '@/views/commissions/CommissionsView.vue'
+import CommissionProcessView from '@/views/commissions/CommissionProcessView.vue'
 import ProfilesFormView from '@/views/access-control/ProfilesFormView.vue'
 import ProfilesListView from '@/views/access-control/ProfilesListView.vue'
 import SolicitationsListView from '@/views/solicitations/SolicitationsListView.vue'
@@ -366,6 +368,12 @@ const routes = [
         path: 'envios-whatsapp',
         name: 'whatsapp-dispatches',
         component: WhatsAppDispatchesView,
+      },
+      {
+        path: 'comissoes/processar', name: 'commissions-process', component: CommissionProcessView, meta: { resource: 'contas_pagar', action: 'create' },
+      },
+      {
+        path: 'comissoes', name: 'commissions', component: CommissionsView, meta: { resource: 'contas_pagar', action: 'read' },
       },
       {
         path: 'modulos/:group/:slug',

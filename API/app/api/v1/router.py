@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.controllers.api_config_controller import router as api_config_router
 from app.controllers.accounts_payable_controller import router as accounts_payable_router
+from app.controllers.commission_controller import router as commission_router
 from app.controllers.chat_controller import router as chat_router, ws_router as chat_ws_router
 from app.controllers.access_control_controller import router as access_control_router
 from app.controllers.auth_controller import router as auth_router
@@ -33,6 +34,7 @@ api_router.include_router(parameters_router, prefix="/parametros", tags=["parame
 api_router.include_router(whatsapp_router, prefix="/whatsapp", tags=["whatsapp"])
 api_router.include_router(payment_plan_router, prefix="/financeiro", tags=["financeiro"])
 api_router.include_router(accounts_payable_router, prefix="/financeiro", tags=["financeiro"])
+api_router.include_router(commission_router, prefix="/financeiro", tags=["financeiro"])
 api_router.include_router(brands_router, prefix="/marcas", tags=["marcas"])
 api_router.include_router(products_router, prefix="/produtos", tags=["produtos"])
 api_router.include_router(chat_ws_router, prefix="/chat", tags=["chat"])

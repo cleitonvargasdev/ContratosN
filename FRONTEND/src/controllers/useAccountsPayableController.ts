@@ -15,9 +15,11 @@ import {
   addAccountsPayableInstallments,
   createAccountsPayable,
   deleteAccountsPayable,
+  deleteAccountsPayableInstallment,
   getAccountsPayableById,
   listAccountsPayable,
   registerAccountsPayablePayment,
+  removeAccountsPayableInstallmentPayments,
   searchAccountsPayablePeople,
   updateAccountsPayable,
 } from '@/services/accountsPayableService'
@@ -159,6 +161,32 @@ export function useAccountsPayableController() {
     }
   }
 
+  async function removeInstallmentPayments(parcelaId: number): Promise<void> {
+    state.saving = true
+    state.error = ''
+    try {
+      await removeAccountsPayableInstallmentPayments(parcelaId)
+    } catch (error) {
+      state.error = error instanceof Error ? error.message : 'Falha ao remover pagamentos'
+      throw error
+    } finally {
+      state.saving = false
+    }
+  }
+
+  async function removeInstallment(parcelaId: number): Promise<void> {
+    state.saving = true
+    state.error = ''
+    try {
+      await deleteAccountsPayableInstallment(parcelaId)
+    } catch (error) {
+      state.error = error instanceof Error ? error.message : 'Falha ao excluir parcela'
+      throw error
+    } finally {
+      state.saving = false
+    }
+  }
+
   async function fetchPeopleOptions(query: string): Promise<void> {
     state.peopleLoading = true
     state.error = ''
@@ -189,6 +217,8 @@ export function useAccountsPayableController() {
     appendInstallments,
     settleInstallment,
     removeAccount,
+    removeInstallmentPayments,
+    removeInstallment,
     fetchPeopleOptions,
     clearPeopleOptions,
     patchFilters,

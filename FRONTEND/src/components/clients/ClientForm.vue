@@ -200,7 +200,7 @@
               <input v-model="form.estado_civil" class="field" type="text" />
             </label>
 
-            <label class="field-group">
+            <label class="field-group field-group--span-2">
               <span>Profissão</span>
               <input v-model="form.profissao" class="field" type="text" />
             </label>
@@ -225,7 +225,7 @@
               </div>
             </label>
 
-            <label class="field-group field-group--span-2">
+            <label class="field-group">
               <span>CEP</span>
               <div class="field-inline">
                 <input v-model="form.cep_responsavel" class="field" maxlength="9" type="text" @blur="handleResponsibleCepBlur" />
@@ -338,12 +338,12 @@
                 <input v-model.number="form.media_atraso_parcelas" class="field field--readonly" readonly type="number" />
               </label>
 
-              <label class="field-group">
+              <label class="field-group delay-contracts-card">
                 <span>Média atraso contratos (dias)</span>
                 <input v-model.number="form.media_atraso_contratos" class="field field--readonly" readonly type="number" />
               </label>
 
-              <div class="field-group field-group--toggle">
+              <div class="field-group field-group--toggle commission-card">
                 <span>Comissão</span>
                 <label class="toggle-row">
                   <input v-model="form.naopagarcomissao" type="checkbox" />
@@ -351,7 +351,7 @@
                 </label>
               </div>
 
-              <div class="field-group field-group--toggle">
+              <div class="field-group field-group--toggle commission-card">
                 <span>Comissão diferenciada</span>
                 <label class="toggle-row">
                   <input v-model="form.comissao_diferente" type="checkbox" />
@@ -359,7 +359,7 @@
                 </label>
               </div>
 
-              <label class="field-group">
+              <label class="field-group commission-card">
                 <span>Percentual</span>
                 <input
                   v-model="form.percent_comissao"
@@ -1444,6 +1444,34 @@ function buildScoreLogDetail(log: ClientScoreLog) {
 .financial-card__main {
   display: grid;
   gap: 0;
+}
+
+.commission-card {
+  align-content: center;
+  min-height: 78px;
+  padding: 12px;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: 8px;
+  background: rgba(220, 252, 231, 0.48);
+}
+
+.commission-card > span {
+  color: #166534;
+  font-weight: 700;
+}
+
+.delay-contracts-card {
+  align-content: center;
+  min-height: 78px;
+  padding: 12px;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  background: rgba(254, 226, 226, 0.6);
+}
+
+.delay-contracts-card > span {
+  color: #b91c1c;
+  font-weight: 700;
 }
 
 .field-inline--map {

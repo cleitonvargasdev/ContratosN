@@ -9,7 +9,7 @@
       </button>
     </div>
 
-    <form class="contract-form" @submit.prevent="submitForm">
+    <form class="contract-form" novalidate @submit.prevent="submitForm">
       <section v-if="activeTab === 'dados'" class="contract-tab-panel">
         <div class="contract-form__cards">
           <section class="contract-card contract-card--main">
@@ -155,25 +155,16 @@
                 <input v-model="form.percent_juros" :readonly="contractEditLocked" class="field" inputmode="decimal" type="text" @blur="formatDecimalField('percent_juros')" />
               </label>
 
-              <label class="field-group field-group--span-2">
-                <span>Regra de Juros</span>
-                <select v-model.number="form.regra_juros_id" class="field">
-                  <option :value="null">Selecione</option>
-                  <option v-for="rule in regraJurosOptions" :key="rule.regra_juros_id" :value="rule.regra_juros_id">
-                    {{ rule.descricao || `Regra ${rule.regra_juros_id}` }}
-                  </option>
-                </select>
-              </label>
-
-              <label class="field-group field-group--span-2">
-                <span>Regra Comissão</span>
-                <select v-model.number="form.regra_comissao_id" class="field">
-                  <option :value="null">Selecione</option>
-                  <option v-for="rule in regraComissaoOptions" :key="rule.regra_comissao_id" :value="rule.regra_comissao_id">
-                    {{ rule.descricao || `Regra ${rule.regra_comissao_id}` }}
-                  </option>
-                </select>
-              </label>
+              <div class="contract-commission-flags field-group--span-2">
+                <label class="contract-commission-flag">
+                  <input v-model="form.pagar_comissao_venda" type="checkbox" />
+                  <span>Pagar Comissão Venda</span>
+                </label>
+                <label class="contract-commission-flag">
+                  <input v-model="form.pagar_comissao_cobranca" type="checkbox" />
+                  <span>Pagar Comissão Cobrança</span>
+                </label>
+              </div>
 
               <div class="field-group field-group--span-2 contract-days-picker">
                 <span>Dias em que realiza cobrança</span>
@@ -613,7 +604,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import ContractComodatoModal from '@/components/contracts/ContractComodatoModal.vue'
-import type { Client, RegraComissaoOption, RegraJurosOption } from '@/models/client'
+import type { Client } from '@/models/client'
 import type {
   Contract,
   ContractComodato,
@@ -649,7 +640,7 @@ import {
   updateContractInstallment,
 } from '@/services/contractService'
 import { chooseReceiptToDeletePrompt, confirmActionAlert, errorAlert, infoAlert, playCashRegisterSound, showClientScoreLogPopup, successAlert } from '@/services/alertService'
-import { listClientScoreLogs, listClients, listRegraComissaoOptions, listRegraJurosOptions } from '@/services/clientService'
+import { listClientScoreLogs, listClients } from '@/services/clientService'
 import { listCitiesByUf, listFeriados } from '@/services/locationService'
 import { listPaymentPlans } from '@/services/paymentPlanService'
 import { listUsers } from '@/services/userService'
@@ -676,8 +667,6 @@ const activeTab = ref<'dados' | 'parcelas'>('dados')
 const clientOptions = ref<Client[]>([])
 const paymentPlans = ref<PaymentPlanOption[]>([])
 const sellerOptions = ref<User[]>([])
-const regraJurosOptions = ref<RegraJurosOption[]>([])
-const regraComissaoOptions = ref<RegraComissaoOption[]>([])
 const persistedInstallments = ref<ContractInstallment[]>([])
 const installmentsLoading = ref(false)
 const installmentsSaving = ref(false)
@@ -764,6 +753,8 @@ const form = reactive({
   valor_comissao_apurada: '',
   regra_comissao_id: null as number | null,
   regra_juros_id: '',
+  pagar_comissao_venda: false,
+  pagar_comissao_cobranca: false,
   aluguel: false,
   recorrencia: false,
 })
@@ -947,19 +938,15 @@ watch(filteredClients, () => {
 })
 
 async function loadOptions() {
-  const [clientsResponse, plansResponse, usersResponse, jurosResponse, comissaoResponse] = await Promise.all([
+  const [clientsResponse, plansResponse, usersResponse] = await Promise.all([
     listClients({ page: 1, page_size: 100, ativo: true }),
     listPaymentPlans(),
     listUsers({ page: 1, page_size: 100, ativo: true }),
-    listRegraJurosOptions(),
-    listRegraComissaoOptions(),
   ])
 
   clientOptions.value = [...clientsResponse.items]
   paymentPlans.value = plansResponse
   sellerOptions.value = [...usersResponse.items]
-  regraJurosOptions.value = jurosResponse
-  regraComissaoOptions.value = comissaoResponse
   await hydrateClientCities()
   if (props.mode === 'create') {
     await assignNextContractNumber()
@@ -1000,6 +987,8 @@ function syncContractIntoForm(contract?: Contract | null) {
   form.valor_comissao_apurada = toStringValue(contract.valor_comissao_apurada)
   form.regra_comissao_id = contract.regra_comissao_id
   form.regra_juros_id = toStringValue(contract.regra_juros_id)
+  form.pagar_comissao_venda = Boolean(contract.pagar_comissao_venda)
+  form.pagar_comissao_cobranca = Boolean(contract.pagar_comissao_cobranca)
   form.aluguel = Boolean(contract.aluguel)
   form.recorrencia = Boolean(contract.recorrencia)
   billingDays.sabado = Boolean(contract.cobranca_sabado)
@@ -1046,6 +1035,8 @@ function resetForm() {
   form.valor_comissao_apurada = ''
   form.regra_comissao_id = null
   form.regra_juros_id = ''
+  form.pagar_comissao_venda = false
+  form.pagar_comissao_cobranca = false
   form.aluguel = false
   form.recorrencia = false
   activeTab.value = 'dados'
@@ -1923,6 +1914,8 @@ function buildCommonPayload(): ContractUpdateInput {
     valor_comissao_apurada: toNumberOrNull(form.valor_comissao_apurada),
     regra_comissao_id: form.regra_comissao_id,
     regra_juros_id: toNumberOrNull(form.regra_juros_id),
+    pagar_comissao_venda: form.pagar_comissao_venda,
+    pagar_comissao_cobranca: form.pagar_comissao_cobranca,
     aluguel: form.aluguel,
     recorrencia: form.recorrencia,
     cobranca_segunda: billingDays.segunda,
@@ -2616,6 +2609,32 @@ function formatClientAddress(client: Client) {
 </script>
 
 <style scoped>
+.contract-commission-flags {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.contract-commission-flag {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 42px;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid rgba(22, 163, 74, 0.22);
+  border-radius: 8px;
+  background: rgba(220, 252, 231, 0.45);
+  color: #166534;
+  font-size: 0.82rem;
+  font-weight: 400;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.contract-commission-flag input {
+  accent-color: #16a34a;
+}
+
 .contract-action-button {
   position: relative;
 }
