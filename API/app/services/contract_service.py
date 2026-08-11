@@ -1,6 +1,10 @@
+from datetime import date
+
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.accounts_payable import ContaPagar, ContaPagarParcela, PagamentoContaPagar
 from app.models.contract import Contrato
 from app.repositories.accounts_receivable_repository import AccountsReceivableRepository
 from app.repositories.contract_repository import ContractRepository
@@ -162,6 +166,92 @@ class ContractService:
                     )
 
         return await self.repository.update_fields(contract, update_data)
+
+    async def create_contract_payable(self, contract_id: int, current_user_id: int | None) -> ContaPagar:
+        contract = await self.repository.get_by_id(contract_id)
+        if contract is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contrato nao encontrado")
+        if contract.conta_pagar_id is not None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O contrato ja possui uma conta a pagar vinculada.")
+
+        account = self._build_contract_payable(contract, current_user_id)
+        self.repository.session.add(account)
+        await self.repository.session.flush()
+        contract.conta_pagar_id = account.conta_pagar_id
+        await self.repository.session.commit()
+        return await self._get_contract_payable(account.conta_pagar_id)
+
+    async def sync_contract_payable(self, contract_id: int) -> ContaPagar:
+        contract = await self.repository.get_by_id(contract_id)
+        if contract is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contrato nao encontrado")
+        if contract.conta_pagar_id is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contrato sem conta a pagar vinculada.")
+
+        account = await self.repository.session.get(ContaPagar, contract.conta_pagar_id)
+        if account is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conta a pagar vinculada nao encontrada.")
+        installments = (await self.repository.session.execute(select(ContaPagarParcela).where(ContaPagarParcela.conta_pagar_id == account.conta_pagar_id))).scalars().all()
+        has_payments = await self.repository.session.scalar(
+            select(PagamentoContaPagar.pagamento_id)
+            .join(ContaPagarParcela, ContaPagarParcela.parcela_id == PagamentoContaPagar.parcela_id)
+            .where(ContaPagarParcela.conta_pagar_id == account.conta_pagar_id)
+            .limit(1)
+        )
+        if has_payments or len(installments) != 1:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A conta a pagar possui pagamentos ou foi alterada e deve ser ajustada manualmente.")
+
+        value = self._contract_loan_value(contract)
+        account.descricao, account.observacao = self._contract_payable_text(contract)
+        account.tipo_pessoa = "cliente"
+        account.cliente_id = contract.cliente_id
+        account.usuario_id = None
+        account.fornecedor_id = None
+        installment = installments[0]
+        installment.descricao = f"Empréstimo do contrato nº {contract.contratos_id}"
+        installment.valor_original = value
+        installment.acrescimos = 0
+        installment.desconto = 0
+        installment.valor_total = value
+        installment.valor_pago = 0
+        installment.saldo_pagar = value
+        installment.quitado = False
+        account.valor_total = value
+        account.valor_pago = 0
+        account.saldo_pagar = value
+        account.quitado = False
+        await self.repository.session.commit()
+        return await self._get_contract_payable(account.conta_pagar_id)
+
+    async def _get_contract_payable(self, account_id: int) -> ContaPagar:
+        account = await self.repository.session.get(ContaPagar, account_id)
+        if account is None:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Falha ao carregar conta a pagar.")
+        await self.repository.session.refresh(account, attribute_names=["cliente", "usuario", "fornecedor", "parcelas"])
+        return account
+
+    def _build_contract_payable(self, contract: Contrato, current_user_id: int | None) -> ContaPagar:
+        value = self._contract_loan_value(contract)
+        description, observation = self._contract_payable_text(contract)
+        return ContaPagar(
+            descricao=description, tipo_pessoa="cliente", cliente_id=contract.cliente_id,
+            valor_total=value, valor_pago=0, saldo_pagar=value, quitado=False,
+            observacao=observation, usuario_lancamento_id=current_user_id,
+            parcelas=[ContaPagarParcela(numero_parcela=1, descricao=f"Empréstimo do contrato nº {contract.contratos_id}", vencimento=date.today(), valor_original=value, valor_total=value, valor_pago=0, saldo_pagar=value, quitado=False)],
+        )
+
+    @staticmethod
+    def _contract_payable_text(contract: Contrato) -> tuple[str, str]:
+        return (
+            f"Empréstimo - Contrato nº {contract.contratos_id}",
+            f"Conta a pagar gerada pelo contrato nº {contract.contratos_id}. Valor original emprestado ao cliente: R$ {float(contract.valor_empretismo or 0):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+        )
+
+    @staticmethod
+    def _contract_loan_value(contract: Contrato) -> float:
+        if contract.cliente_id is None or float(contract.valor_empretismo or 0) <= 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Contrato deve ter cliente e valor de empréstimo maior que zero.")
+        return round(float(contract.valor_empretismo), 4)
 
     async def delete_contract(self, contract_id: int) -> bool:
         contract = await self.repository.get_by_id(contract_id)

@@ -53,6 +53,7 @@ class ContractUpdate(ContractBase):
 
 class ContractRead(ContractBase):
     contratos_id: int
+    conta_pagar_id: int | None = None
     cliente_nome: str | None = None
     cliente_telefone: str | None = None
     cobrador_nome: str | None = None

@@ -1,3 +1,4 @@
+from datetime import date
 from io import BytesIO
 
 from fastapi import HTTPException, status
@@ -6,10 +7,11 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.client import Cliente
+from app.models.accounts_payable import ContaPagarParcela, PagamentoContaPagar
 from app.models.commission import ComissaoLancamento, ComissaoLote
 from app.models.contract import Contrato
 from app.models.receipt import Recebimento
@@ -30,6 +32,13 @@ class CommissionReportService:
         if batch_row is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Lote de comissoes nao encontrado.')
         batch, employee_name = batch_row
+        payment_date = None
+        if batch.situacao == 3 and batch.conta_pagar_id is not None:
+            payment_date = await self.session.scalar(
+                select(func.max(PagamentoContaPagar.data_pagamento))
+                .join(ContaPagarParcela, ContaPagarParcela.parcela_id == PagamentoContaPagar.parcela_id)
+                .where(ContaPagarParcela.conta_pagar_id == batch.conta_pagar_id)
+            )
         rows = (await self.session.execute(
             select(ComissaoLancamento, Cliente.nome, Recebimento.parcela_nro)
             .outerjoin(Contrato, Contrato.contratos_id == ComissaoLancamento.contrato_id)
@@ -38,9 +47,9 @@ class CommissionReportService:
             .where(ComissaoLancamento.lote_id == lote_id)
             .order_by(ComissaoLancamento.competencia.asc(), ComissaoLancamento.comissao_id.asc())
         )).all()
-        return self._build_pdf(batch, employee_name, rows), f'lote-comissoes-{lote_id:05d}.pdf'
+        return self._build_pdf(batch, employee_name, payment_date, rows), f'lote-comissoes-{lote_id:05d}.pdf'
 
-    def _build_pdf(self, batch: ComissaoLote, employee_name: str, rows: list[tuple[ComissaoLancamento, str | None, int | None]]) -> bytes:
+    def _build_pdf(self, batch: ComissaoLote, employee_name: str, payment_date: date | None, rows: list[tuple[ComissaoLancamento, str | None, int | None]]) -> bytes:
         buffer = BytesIO()
         document = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=8 * mm, rightMargin=8 * mm, topMargin=9 * mm, bottomMargin=9 * mm)
         styles = getSampleStyleSheet()
@@ -48,6 +57,9 @@ class CommissionReportService:
         normal = ParagraphStyle('commissionNormal', parent=styles['Normal'], fontName='Helvetica', fontSize=8, leading=10)
         story = [Paragraph('Lista de Comissoes', title), Spacer(1, 3 * mm)]
         story.append(Paragraph(f'<b>Lote:</b> {batch.lote_id:05d} &nbsp;&nbsp; <b>Funcionario:</b> {employee_name} &nbsp;&nbsp; <b>Periodo:</b> {batch.data_inicial.strftime("%d/%m/%Y")} a {batch.data_final.strftime("%d/%m/%Y")}', normal))
+        if batch.situacao == 3:
+            paid_on = payment_date.strftime('%d/%m/%Y') if payment_date else '-'
+            story.append(Paragraph(f'<b>PAGO EM: {paid_on}</b>', normal))
         story.append(Spacer(1, 4 * mm))
         data = [['Data', 'Contrato', 'Parcela', 'Tipo', 'Cliente', 'Taxa %', 'Valor comissao']]
         total = 0.0

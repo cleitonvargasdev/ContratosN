@@ -16,6 +16,8 @@ from app.schemas.accounts_payable import (
     AccountsPayablePersonSearchItem,
     AccountsPayableRead,
     AccountsPayableUpdate,
+    PaymentMovementListParams,
+    PaymentMovementListResponse,
 )
 from app.services.accounts_payable_service import AccountsPayableService
 
@@ -53,6 +55,20 @@ async def list_accounts_payable(
         data_referencia_final=data_referencia_final,
     )
     return await service.list_accounts_payable(params)
+
+
+@router.get("/contas-pagar/movimentacoes", response_model=PaymentMovementListResponse, summary="Listar movimentações de pagamentos")
+async def list_payment_movements(
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 10,
+    query: str | None = None,
+    quitado: bool | None = False,
+    data_vencimento_inicial: str | None = None,
+    data_vencimento_final: str | None = None,
+    _: User = Depends(require_permission("contas_pagar", "read")),
+    service: AccountsPayableService = Depends(get_accounts_payable_service),
+) -> PaymentMovementListResponse:
+    return await service.list_payment_movements(PaymentMovementListParams(page=page, page_size=page_size, query=query, quitado=quitado, data_vencimento_inicial=data_vencimento_inicial, data_vencimento_final=data_vencimento_final))
 
 
 @router.get("/contas-pagar/pessoas", response_model=list[AccountsPayablePersonSearchItem], summary="Pesquisar pessoas para contas a pagar")

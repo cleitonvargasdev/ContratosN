@@ -377,6 +377,26 @@ async def create_contract(
     return await service.create_contract(payload, current_user_id=current_user.id)
 
 
+@router.post("/{contract_id}/conta-pagar", status_code=status.HTTP_201_CREATED, summary="Gerar conta a pagar do contrato")
+async def create_contract_payable(
+    contract_id: int,
+    current_user: User = Depends(require_permission("contratos", "create")),
+    service: ContractService = Depends(get_contract_service),
+) -> dict[str, int]:
+    account = await service.create_contract_payable(contract_id, current_user.id)
+    return {"conta_pagar_id": account.conta_pagar_id}
+
+
+@router.post("/{contract_id}/conta-pagar/sincronizar", summary="Atualizar conta a pagar vinculada ao contrato")
+async def sync_contract_payable(
+    contract_id: int,
+    _: User = Depends(require_permission("contratos", "update")),
+    service: ContractService = Depends(get_contract_service),
+) -> dict[str, int]:
+    account = await service.sync_contract_payable(contract_id)
+    return {"conta_pagar_id": account.conta_pagar_id}
+
+
 @router.put("/{contract_id}", response_model=ContractRead, summary="Atualizar contrato")
 async def update_contract(
     contract_id: int,

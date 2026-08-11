@@ -38,6 +38,7 @@ class Contrato(Base):
     pagar_comissao_cobranca: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     aluguel: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     recorrencia: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    conta_pagar_id: Mapped[int | None] = mapped_column(ForeignKey("contas_pagar.conta_pagar_id", ondelete="SET NULL"), nullable=True, index=True)
     cobranca_segunda: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     cobranca_terca: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     cobranca_quarta: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

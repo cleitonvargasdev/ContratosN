@@ -4,6 +4,7 @@ import { useAuthController } from '@/controllers/useAuthController'
 import MainLayout from '@/components/layout/MainLayout.vue'
 import AccountsPayableFormView from '@/views/accounts-payable/AccountsPayableFormView.vue'
 import AccountsPayableListView from '@/views/accounts-payable/AccountsPayableListView.vue'
+import PaymentsMovementView from '@/views/accounts-payable/PaymentsMovementView.vue'
 import ClientsCreateView from '@/views/clients/ClientsCreateView.vue'
 import ClientsEditView from '@/views/clients/ClientsEditView.vue'
 import ClientsListView from '@/views/clients/ClientsListView.vue'
@@ -371,6 +372,12 @@ const routes = [
       },
       {
         path: 'comissoes/processar', name: 'commissions-process', component: CommissionProcessView, meta: { resource: 'contas_pagar', action: 'create' },
+      },
+      {
+        path: 'movimentacoes/pagamentos',
+        name: 'payments-movement',
+        component: PaymentsMovementView,
+        meta: { resource: 'contas_pagar', action: 'read' },
       },
       {
         path: 'comissoes', name: 'commissions', component: CommissionsView, meta: { resource: 'contas_pagar', action: 'read' },

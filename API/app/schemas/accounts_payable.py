@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.schemas.pagination import PaginatedResponse, PaginationParams
+
 
 PersonType = Literal["cliente", "fornecedor", "funcionario"]
 
@@ -180,6 +182,35 @@ class AccountsPayableListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class PaymentMovementListParams(PaginationParams):
+    query: str | None = None
+    quitado: bool | None = False
+    data_vencimento_inicial: date | None = None
+    data_vencimento_final: date | None = None
+
+
+class PaymentMovementItem(BaseModel):
+    parcela_id: int
+    conta_pagar_id: int
+    vencimento: date
+    quitado: bool
+    data_pagamento: date | None = None
+    descricao: str
+    pessoa_nome: str
+    pessoa_tipo: PersonType
+    documento: str | None = None
+    telefone: str | None = None
+    valor_total: float
+    valor_pago: float
+    saldo_pagar: float
+
+
+class PaymentMovementListResponse(PaginatedResponse[PaymentMovementItem]):
+    total_valor: float = 0
+    total_pago: float = 0
+    total_aberto: float = 0
 
 
 class AccountsPayableRead(AccountsPayableBase):

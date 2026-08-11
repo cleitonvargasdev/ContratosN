@@ -31,6 +31,7 @@ export interface Contract {
   pagar_comissao_cobranca: boolean
   aluguel: boolean | null
   recorrencia: boolean | null
+  conta_pagar_id: number | null
   cobranca_segunda: boolean | null
   cobranca_terca: boolean | null
   cobranca_quarta: boolean | null

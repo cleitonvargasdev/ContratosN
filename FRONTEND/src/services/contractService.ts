@@ -205,3 +205,11 @@ export async function saveContractComodato(contractId: number, payload: Contract
 export async function deleteContractComodato(contractId: number): Promise<void> {
   return apiFetch<void>(`/contratos/${contractId}/comodato`, { method: 'DELETE' })
 }
+
+export async function createContractPayable(contractId: number): Promise<{ conta_pagar_id: number }> {
+  return apiFetch<{ conta_pagar_id: number }>(`/contratos/${contractId}/conta-pagar`, { method: 'POST' })
+}
+
+export async function syncContractPayable(contractId: number): Promise<{ conta_pagar_id: number }> {
+  return apiFetch<{ conta_pagar_id: number }>(`/contratos/${contractId}/conta-pagar/sincronizar`, { method: 'POST' })
+}

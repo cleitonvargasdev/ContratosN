@@ -8,6 +8,7 @@ import type {
   AccountsPayablePaymentInput,
   AccountsPayablePersonOption,
   AccountsPayableInput,
+  PaymentMovementListResponse,
 } from '@/models/accountsPayable'
 import { apiFetch } from '@/services/http'
 
@@ -70,6 +71,15 @@ export async function registerAccountsPayablePayment(parcelaId: number, payload:
 
 export async function deleteAccountsPayable(accountId: number): Promise<void> {
   return apiFetch<void>(`/financeiro/contas-pagar/${accountId}`, { method: 'DELETE' })
+}
+
+export async function listPaymentMovements(filters: { page: number; page_size: number; query?: string; quitado?: boolean; data_vencimento_inicial?: string; data_vencimento_final?: string }): Promise<PaymentMovementListResponse> {
+  const params = new URLSearchParams({ page: String(filters.page), page_size: String(filters.page_size) })
+  if (filters.query) params.set('query', filters.query)
+  if (typeof filters.quitado === 'boolean') params.set('quitado', String(filters.quitado))
+  if (filters.data_vencimento_inicial) params.set('data_vencimento_inicial', filters.data_vencimento_inicial)
+  if (filters.data_vencimento_final) params.set('data_vencimento_final', filters.data_vencimento_final)
+  return apiFetch<PaymentMovementListResponse>(`/financeiro/contas-pagar/movimentacoes?${params}`)
 }
 
 export async function removeAccountsPayableInstallmentPayments(parcelaId: number): Promise<AccountsPayableInstallment> {

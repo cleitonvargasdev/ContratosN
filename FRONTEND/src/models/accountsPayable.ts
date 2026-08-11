@@ -140,3 +140,29 @@ export interface AccountsPayableListResponse {
   page: number
   page_size: number
 }
+
+export interface PaymentMovementItem {
+  parcela_id: number
+  conta_pagar_id: number
+  vencimento: string
+  quitado: boolean
+  data_pagamento: string | null
+  descricao: string
+  pessoa_nome: string
+  pessoa_tipo: AccountsPayablePersonType
+  documento: string | null
+  telefone: string | null
+  valor_total: number
+  valor_pago: number
+  saldo_pagar: number
+}
+
+export interface PaymentMovementListResponse {
+  items: readonly PaymentMovementItem[]
+  total: number
+  page: number
+  page_size: number
+  total_valor: number
+  total_pago: number
+  total_aberto: number
+}

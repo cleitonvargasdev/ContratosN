@@ -207,7 +207,7 @@ const baseSections: SidebarSection[] = [
       { label: 'Mapa de Ocorrências', to: '/modulos/movimentacoes/mapa-de-ocorrencias?titulo=Mapa%20de%20Ocorr%C3%AAncias&grupo=Movimenta%C3%A7%C3%B5es', icon: 'map' },
       { label: 'Desbloqueio', to: '/modulos/movimentacoes/desbloqueio?titulo=Desbloqueio&grupo=Movimenta%C3%A7%C3%B5es', icon: 'unlock' },
       { label: 'Recebimento Lote', to: '/recebimento-lote', resource: 'contratos', action: 'update', icon: 'layers' },
-      { label: 'Pagamentos', to: '/modulos/movimentacoes/pagamentos?titulo=Pagamentos&grupo=Movimenta%C3%A7%C3%B5es', icon: 'payment' },
+      { label: 'Pagamentos', to: '/movimentacoes/pagamentos', resource: 'contas_pagar', action: 'read', icon: 'payment' },
       { label: 'Comissões', to: '/comissoes', resource: 'contas_pagar', action: 'read', icon: 'wallet' },
     ],
   },

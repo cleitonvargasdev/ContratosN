@@ -1,11 +1,14 @@
 from datetime import date
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.accounts_payable import ContaPagar, ContaPagarParcela, PagamentoContaPagar
 from app.models.commission import ComissaoLancamento, ComissaoLote
+from app.models.client import Cliente
+from app.models.supplier import Fornecedor
+from app.models.user import User
 from app.repositories.accounts_payable_repository import AccountsPayableRepository
 from app.schemas.accounts_payable import (
     AccountsPayableAddInstallmentsRequest,
@@ -20,6 +23,9 @@ from app.schemas.accounts_payable import (
     AccountsPayablePersonSearchItem,
     AccountsPayableRead,
     AccountsPayableUpdate,
+    PaymentMovementItem,
+    PaymentMovementListParams,
+    PaymentMovementListResponse,
 )
 
 
@@ -46,6 +52,55 @@ class AccountsPayableService:
     async def get_account(self, conta_pagar_id: int) -> AccountsPayableRead | None:
         record = await self.repository.get_by_id(conta_pagar_id)
         return None if record is None else self._build_read(record)
+
+    async def list_payment_movements(self, params: PaymentMovementListParams) -> PaymentMovementListResponse:
+        person_name = func.coalesce(Cliente.nome, User.nome, Fornecedor.nome, "Sem pessoa")
+        document = func.coalesce(Cliente.cpf_cnpj, User.cpf, Fornecedor.cpf_cnpj)
+        phone = func.coalesce(Cliente.celular01, Cliente.telefone, User.celular, User.telefone, Fornecedor.telefone)
+        person_type = ContaPagar.tipo_pessoa
+        base = (
+            select(ContaPagarParcela, ContaPagar, person_name, document, phone, person_type)
+            .join(ContaPagar, ContaPagar.conta_pagar_id == ContaPagarParcela.conta_pagar_id)
+            .outerjoin(Cliente, Cliente.clientes_id == ContaPagar.cliente_id)
+            .outerjoin(User, User.id == ContaPagar.usuario_id)
+            .outerjoin(Fornecedor, Fornecedor.fornecedor_id == ContaPagar.fornecedor_id)
+        )
+        filters = []
+        if params.quitado is not None:
+            filters.append(ContaPagarParcela.quitado.is_(params.quitado))
+        if params.query:
+            term = f"%{params.query.strip()}%"
+            filters.append(or_(person_name.ilike(term), ContaPagar.descricao.ilike(term), ContaPagarParcela.descricao.ilike(term)))
+        if params.data_vencimento_inicial:
+            filters.append(ContaPagarParcela.vencimento >= params.data_vencimento_inicial)
+        if params.data_vencimento_final:
+            filters.append(ContaPagarParcela.vencimento <= params.data_vencimento_final)
+        if filters:
+            base = base.where(*filters)
+        filtered = base.subquery()
+        total = int((await self.repository.session.scalar(select(func.count()).select_from(filtered))) or 0)
+        sums = (await self.repository.session.execute(
+            select(
+                func.coalesce(func.sum(filtered.c.valor_total), 0),
+                func.coalesce(func.sum(filtered.c.valor_pago), 0),
+                func.coalesce(func.sum(filtered.c.saldo_pagar), 0),
+            ).select_from(filtered)
+        )).one()
+        rows = (await self.repository.session.execute(
+            base.order_by(ContaPagarParcela.vencimento.asc(), ContaPagarParcela.parcela_id.desc())
+            .offset((params.page - 1) * params.page_size).limit(params.page_size)
+        )).all()
+        payment_dates = {}
+        if rows:
+            ids = [item.parcela_id for item, *_ in rows]
+            payment_dates = dict((await self.repository.session.execute(
+                select(PagamentoContaPagar.parcela_id, func.max(PagamentoContaPagar.data_pagamento)).where(PagamentoContaPagar.parcela_id.in_(ids)).group_by(PagamentoContaPagar.parcela_id)
+            )).all())
+        return PaymentMovementListResponse(
+            items=[PaymentMovementItem(parcela_id=installment.parcela_id, conta_pagar_id=account.conta_pagar_id, vencimento=installment.vencimento, quitado=installment.quitado, data_pagamento=payment_dates.get(installment.parcela_id), descricao=installment.descricao or account.descricao, pessoa_nome=name, pessoa_tipo=kind, documento=doc, telefone=telephone, valor_total=float(installment.valor_total or 0), valor_pago=float(installment.valor_pago or 0), saldo_pagar=float(installment.saldo_pagar or 0)) for installment, account, name, doc, telephone, kind in rows],
+            total=total, page=params.page, page_size=params.page_size,
+            total_valor=float(sums[0] or 0), total_pago=float(sums[1] or 0), total_aberto=float(sums[2] or 0),
+        )
 
     async def search_people(self, query: str) -> list[AccountsPayablePersonSearchItem]:
         normalized = query.strip()
@@ -183,6 +238,7 @@ class AccountsPayableService:
         self._recalculate_installment(installment)
         if installment.conta is not None:
             self._recalculate_account(installment.conta)
+            await self._sync_commission_batch(installment.conta)
         await self.repository.commit()
         refreshed = await self.repository.get_by_id(installment.conta_pagar_id)
         if refreshed is None:
@@ -196,14 +252,16 @@ class AccountsPayableService:
         batch = await self.repository.session.scalar(
             select(ComissaoLote).where(ComissaoLote.conta_pagar_id == account.conta_pagar_id)
         )
-        if batch is None or not account.quitado:
+        if batch is None:
             return
-        batch.situacao = 3
+
+        paid = bool(account.quitado)
+        batch.situacao = 3 if paid else 2
         rows = (await self.repository.session.execute(
             select(ComissaoLancamento).where(ComissaoLancamento.lote_id == batch.lote_id)
         )).scalars().all()
         for row in rows:
-            row.situacao = 'pago'
+            row.situacao = 'pago' if paid else 'em_lote'
 
     async def delete_account(self, conta_pagar_id: int) -> bool:
         account = await self.repository.get_by_id(conta_pagar_id)

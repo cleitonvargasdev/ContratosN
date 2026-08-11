@@ -21,8 +21,8 @@ import { useAuthController } from '@/controllers/useAuthController'
 import { useContractsController } from '@/controllers/useContractsController'
 import type { ContractCreateInput, ContractInstallmentGeneratePayload, ContractUpdateInput } from '@/models/contract'
 import type { SolicitationContractDraft } from '@/models/solicitation'
-import { errorAlert, successAlert } from '@/services/alertService'
-import { generateContractInstallments } from '@/services/contractService'
+import { confirmActionAlert, errorAlert, successAlert } from '@/services/alertService'
+import { createContractPayable, generateContractInstallments } from '@/services/contractService'
 import { completeSolicitationWithContract, getSolicitationById } from '@/services/solicitationService'
 
 const auth = useAuthController()
@@ -88,6 +88,20 @@ async function handleSubmit(payload: { contract: ContractCreateInput | ContractU
         await errorAlert(error instanceof Error ? `Contrato salvo, mas falhou ao concluir a solicitação: ${error.message}` : 'Contrato salvo, mas falhou ao concluir a solicitação.')
         await router.push({ name: 'contracts-edit', params: { id: created.contratos_id } })
         return
+      }
+    }
+
+    const loanValue = Number(payload.contract.valor_empretismo || 0)
+    if (loanValue > 0 && payload.contract.cliente_id && await confirmActionAlert(
+      'Gerar conta a pagar?',
+      'Deseja gerar uma conta a pagar para o valor emprestado deste contrato? Será criada uma parcela com vencimento para hoje.',
+      'Gerar conta',
+    )) {
+      try {
+        await createContractPayable(created.contratos_id)
+        void successAlert('Conta a pagar gerada para o contrato.', 'create')
+      } catch (error) {
+        await errorAlert(error instanceof Error ? `Contrato salvo, mas falhou ao gerar a conta a pagar: ${error.message}` : 'Contrato salvo, mas falhou ao gerar a conta a pagar.')
       }
     }
 
