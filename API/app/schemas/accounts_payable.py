@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -186,9 +186,10 @@ class AccountsPayableListResponse(BaseModel):
 
 class PaymentMovementListParams(PaginationParams):
     query: str | None = None
-    quitado: bool | None = False
-    data_vencimento_inicial: date | None = None
-    data_vencimento_final: date | None = None
+    aberto: bool = True
+    quitado: bool = False
+    data_vencimento_inicial: date = Field(default_factory=date.today)
+    data_vencimento_final: date = Field(default_factory=lambda: date.today() + timedelta(days=7))
 
 
 class PaymentMovementItem(BaseModel):

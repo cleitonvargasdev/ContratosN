@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -62,13 +63,24 @@ async def list_payment_movements(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 10,
     query: str | None = None,
-    quitado: bool | None = False,
-    data_vencimento_inicial: str | None = None,
-    data_vencimento_final: str | None = None,
+    aberto: Annotated[bool, Query(description="Inclui parcelas em aberto.")] = True,
+    quitado: Annotated[bool, Query(description="Inclui parcelas quitadas.")] = False,
+    data_vencimento_inicial: date = Query(default_factory=date.today, description="Data inicial do vencimento."),
+    data_vencimento_final: date = Query(default_factory=lambda: date.today() + timedelta(days=7), description="Data final do vencimento."),
     _: User = Depends(require_permission("contas_pagar", "read")),
     service: AccountsPayableService = Depends(get_accounts_payable_service),
 ) -> PaymentMovementListResponse:
-    return await service.list_payment_movements(PaymentMovementListParams(page=page, page_size=page_size, query=query, quitado=quitado, data_vencimento_inicial=data_vencimento_inicial, data_vencimento_final=data_vencimento_final))
+    return await service.list_payment_movements(
+        PaymentMovementListParams(
+            page=page,
+            page_size=page_size,
+            query=query,
+            aberto=aberto,
+            quitado=quitado,
+            data_vencimento_inicial=data_vencimento_inicial,
+            data_vencimento_final=data_vencimento_final,
+        )
+    )
 
 
 @router.get("/contas-pagar/pessoas", response_model=list[AccountsPayablePersonSearchItem], summary="Pesquisar pessoas para contas a pagar")

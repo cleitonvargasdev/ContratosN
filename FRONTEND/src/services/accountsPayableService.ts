@@ -73,9 +73,10 @@ export async function deleteAccountsPayable(accountId: number): Promise<void> {
   return apiFetch<void>(`/financeiro/contas-pagar/${accountId}`, { method: 'DELETE' })
 }
 
-export async function listPaymentMovements(filters: { page: number; page_size: number; query?: string; quitado?: boolean; data_vencimento_inicial?: string; data_vencimento_final?: string }): Promise<PaymentMovementListResponse> {
+export async function listPaymentMovements(filters: { page: number; page_size: number; query?: string; aberto?: boolean; quitado?: boolean; data_vencimento_inicial?: string; data_vencimento_final?: string }): Promise<PaymentMovementListResponse> {
   const params = new URLSearchParams({ page: String(filters.page), page_size: String(filters.page_size) })
   if (filters.query) params.set('query', filters.query)
+  if (typeof filters.aberto === 'boolean') params.set('aberto', String(filters.aberto))
   if (typeof filters.quitado === 'boolean') params.set('quitado', String(filters.quitado))
   if (filters.data_vencimento_inicial) params.set('data_vencimento_inicial', filters.data_vencimento_inicial)
   if (filters.data_vencimento_final) params.set('data_vencimento_final', filters.data_vencimento_final)

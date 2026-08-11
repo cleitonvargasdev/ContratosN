@@ -54,6 +54,9 @@ class AccountsPayableService:
         return None if record is None else self._build_read(record)
 
     async def list_payment_movements(self, params: PaymentMovementListParams) -> PaymentMovementListResponse:
+        if params.data_vencimento_final < params.data_vencimento_inicial:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Periodo de vencimento invalido.")
+
         person_name = func.coalesce(Cliente.nome, User.nome, Fornecedor.nome, "Sem pessoa")
         document = func.coalesce(Cliente.cpf_cnpj, User.cpf, Fornecedor.cpf_cnpj)
         phone = func.coalesce(Cliente.celular01, Cliente.telefone, User.celular, User.telefone, Fornecedor.telefone)
@@ -66,7 +69,10 @@ class AccountsPayableService:
             .outerjoin(Fornecedor, Fornecedor.fornecedor_id == ContaPagar.fornecedor_id)
         )
         filters = []
-        if params.quitado is not None:
+        # Os status funcionam como dois filtros independentes: selecionando
+        # somente um, mostra aquele status; ambos selecionados ou ambos
+        # desmarcados incluem todas as parcelas.
+        if params.aberto != params.quitado:
             filters.append(ContaPagarParcela.quitado.is_(params.quitado))
         if params.query:
             term = f"%{params.query.strip()}%"
