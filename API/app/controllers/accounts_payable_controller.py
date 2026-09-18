@@ -146,13 +146,13 @@ async def register_accounts_payable_payment(
     return await service.register_payment(parcela_id, payload, current_user.id)
 
 
-@router.delete("/contas-pagar/parcelas/{parcela_id}/pagamentos", response_model=AccountsPayableInstallmentRead, summary="Remover pagamentos da parcela")
-async def remove_accounts_payable_installment_payments(
-    parcela_id: int,
+@router.delete("/contas-pagar/pagamentos/{pagamento_id}", response_model=AccountsPayableInstallmentRead, summary="Excluir pagamento especifico da parcela")
+async def delete_accounts_payable_payment(
+    pagamento_id: int,
     _: User = Depends(require_permission("contas_pagar", "update")),
     service: AccountsPayableService = Depends(get_accounts_payable_service),
 ) -> AccountsPayableInstallmentRead:
-    return await service.remove_installment_payments(parcela_id)
+    return await service.delete_payment(pagamento_id)
 
 
 @router.delete("/contas-pagar/parcelas/{parcela_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Excluir parcela")

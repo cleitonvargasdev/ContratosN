@@ -51,7 +51,10 @@ class AccountsPayableService:
 
     async def get_account(self, conta_pagar_id: int) -> AccountsPayableRead | None:
         record = await self.repository.get_by_id(conta_pagar_id)
-        return None if record is None else self._build_read(record)
+        if record is None:
+            return None
+        await self._hydrate_payment_user_names(record)
+        return self._build_read(record)
 
     async def list_payment_movements(self, params: PaymentMovementListParams) -> PaymentMovementListResponse:
         if params.data_vencimento_final < params.data_vencimento_inicial:
@@ -167,6 +170,7 @@ class AccountsPayableService:
         hydrated = await self.repository.get_by_id(account.conta_pagar_id)
         if hydrated is None:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Falha ao carregar conta criada.")
+        await self._hydrate_payment_user_names(hydrated)
         return self._build_read(hydrated)
 
     async def update_account(self, conta_pagar_id: int, payload: AccountsPayableUpdate) -> AccountsPayableRead | None:
@@ -187,6 +191,7 @@ class AccountsPayableService:
         hydrated = await self.repository.get_by_id(conta_pagar_id)
         if hydrated is None:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Falha ao recarregar conta.")
+        await self._hydrate_payment_user_names(hydrated)
         return self._build_read(hydrated)
 
     async def add_installments(self, conta_pagar_id: int, payload: AccountsPayableAddInstallmentsRequest) -> AccountsPayableRead:
@@ -205,6 +210,7 @@ class AccountsPayableService:
         hydrated = await self.repository.get_by_id(conta_pagar_id)
         if hydrated is None:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Falha ao recarregar conta.")
+        await self._hydrate_payment_user_names(hydrated)
         return self._build_read(hydrated)
 
     async def register_payment(
@@ -252,6 +258,7 @@ class AccountsPayableService:
         selected = next((item for item in refreshed.parcelas if item.parcela_id == parcela_id), None)
         if selected is None:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Falha ao recarregar parcela.")
+        await self._hydrate_payment_user_names(refreshed)
         return self._build_installment_read(selected)
 
     async def _sync_commission_batch(self, account: ContaPagar) -> None:
@@ -281,23 +288,28 @@ class AccountsPayableService:
         await self.repository.delete_account(account)
         return True
 
-    async def remove_installment_payments(self, parcela_id: int) -> AccountsPayableInstallmentRead:
-        installment = await self.repository.get_installment_by_id(parcela_id)
-        if installment is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parcela nao encontrada")
+    async def delete_payment(self, pagamento_id: int) -> AccountsPayableInstallmentRead:
+        payment = await self.repository.get_payment_by_id(pagamento_id)
+        if payment is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pagamento nao encontrado")
 
-        installment.acrescimos = round(float(installment.acrescimos or 0) - sum(float(item.juros or 0) + float(item.acrescimos or 0) for item in installment.pagamentos), 4)
-        installment.desconto = round(float(installment.desconto or 0) - sum(float(item.desconto or 0) for item in installment.pagamentos), 4)
-        installment.valor_pago = 0
-        installment.pagamentos.clear()
+        installment = payment.parcela
+        installment.acrescimos = round(
+            float(installment.acrescimos or 0) - float(payment.juros or 0) - float(payment.acrescimos or 0),
+            4,
+        )
+        installment.desconto = round(float(installment.desconto or 0) - float(payment.desconto or 0), 4)
+        installment.valor_pago = round(float(installment.valor_pago or 0) - float(payment.valor_pago or 0), 4)
+        await self.repository.delete_payment(payment)
         self._recalculate_installment(installment)
         if installment.conta is not None:
             self._recalculate_account(installment.conta)
             await self._sync_commission_batch(installment.conta)
         await self.repository.commit()
-        refreshed = await self.repository.get_installment_by_id(parcela_id)
+        refreshed = await self.repository.get_installment_by_id(installment.parcela_id)
         if refreshed is None:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Falha ao recarregar parcela.")
+        await self._hydrate_payment_user_names(refreshed.conta)
         return self._build_installment_read(refreshed)
 
     async def delete_installment(self, parcela_id: int) -> bool:
@@ -402,6 +414,16 @@ class AccountsPayableService:
                 AccountsPayablePaymentRead(
                     pagamento_id=item.pagamento_id,
                     usuario_id=item.usuario_id,
+                    usuario_nome=(
+                        getattr(item, "usuario_nome", None)
+                        or (
+                            item.usuario.nome
+                            if item.usuario is not None and item.usuario.nome
+                            else f"Usuário #{item.usuario_id}"
+                            if item.usuario_id is not None
+                            else "Não informado"
+                        )
+                    ),
                     created_at=item.created_at,
                     data_pagamento=item.data_pagamento,
                     valor_pago=round(float(item.valor_pago or 0), 4),
@@ -443,6 +465,20 @@ class AccountsPayableService:
             return
 
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo de pessoa invalido")
+
+    async def _hydrate_payment_user_names(self, account: ContaPagar | None) -> None:
+        if account is None:
+            return
+        payment_user_ids = {
+            payment.usuario_id
+            for installment in account.parcelas
+            for payment in installment.pagamentos
+            if payment.usuario_id is not None
+        }
+        user_names = await self.repository.get_user_names_by_ids(payment_user_ids)
+        for installment in account.parcelas:
+            for payment in installment.pagamentos:
+                payment.usuario_nome = user_names.get(payment.usuario_id)
 
     def _build_read(self, account: ContaPagar) -> AccountsPayableRead:
         pessoa_id, pessoa_nome, pessoa_cpf_cnpj = self._build_person_payload(account)

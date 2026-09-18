@@ -10,6 +10,7 @@ export interface AccountsPayablePersonOption {
 export interface AccountsPayablePayment {
   pagamento_id: number
   usuario_id: number | null
+  usuario_nome: string | null
   created_at: string
   data_pagamento: string | null
   valor_pago: number | null

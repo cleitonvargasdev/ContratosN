@@ -83,8 +83,8 @@ export async function listPaymentMovements(filters: { page: number; page_size: n
   return apiFetch<PaymentMovementListResponse>(`/financeiro/contas-pagar/movimentacoes?${params}`)
 }
 
-export async function removeAccountsPayableInstallmentPayments(parcelaId: number): Promise<AccountsPayableInstallment> {
-  return apiFetch<AccountsPayableInstallment>(`/financeiro/contas-pagar/parcelas/${parcelaId}/pagamentos`, { method: 'DELETE' })
+export async function deleteAccountsPayablePayment(paymentId: number): Promise<AccountsPayableInstallment> {
+  return apiFetch<AccountsPayableInstallment>(`/financeiro/contas-pagar/pagamentos/${paymentId}`, { method: 'DELETE' })
 }
 
 export async function deleteAccountsPayableInstallment(parcelaId: number): Promise<void> {

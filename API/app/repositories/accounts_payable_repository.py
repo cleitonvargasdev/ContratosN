@@ -26,7 +26,7 @@ class AccountsPayableRepository:
                 selectinload(ContaPagar.cliente),
                 selectinload(ContaPagar.usuario),
                 selectinload(ContaPagar.fornecedor),
-                selectinload(ContaPagar.parcelas).selectinload(ContaPagarParcela.pagamentos),
+                selectinload(ContaPagar.parcelas).selectinload(ContaPagarParcela.pagamentos).selectinload(PagamentoContaPagar.usuario),
             )
             .distinct()
         )
@@ -86,7 +86,7 @@ class AccountsPayableRepository:
                 selectinload(ContaPagar.cliente),
                 selectinload(ContaPagar.usuario),
                 selectinload(ContaPagar.fornecedor),
-                selectinload(ContaPagar.parcelas).selectinload(ContaPagarParcela.pagamentos),
+                selectinload(ContaPagar.parcelas).selectinload(ContaPagarParcela.pagamentos).selectinload(PagamentoContaPagar.usuario),
             )
         )
         return result.scalars().unique().first()
@@ -97,7 +97,20 @@ class AccountsPayableRepository:
             .where(ContaPagarParcela.parcela_id == parcela_id)
             .options(
                 selectinload(ContaPagarParcela.conta).selectinload(ContaPagar.parcelas),
-                selectinload(ContaPagarParcela.pagamentos),
+                selectinload(ContaPagarParcela.pagamentos).selectinload(PagamentoContaPagar.usuario),
+            )
+        )
+        return result.scalars().unique().first()
+
+    async def get_payment_by_id(self, pagamento_id: int) -> PagamentoContaPagar | None:
+        result = await self.session.execute(
+            select(PagamentoContaPagar)
+            .where(PagamentoContaPagar.pagamento_id == pagamento_id)
+            .options(
+                selectinload(PagamentoContaPagar.parcela)
+                .selectinload(ContaPagarParcela.conta)
+                .selectinload(ContaPagar.parcelas),
+                selectinload(PagamentoContaPagar.usuario),
             )
         )
         return result.scalars().unique().first()
@@ -107,6 +120,12 @@ class AccountsPayableRepository:
 
     async def get_user_by_id(self, usuario_id: int) -> User | None:
         return await self.session.get(User, usuario_id)
+
+    async def get_user_names_by_ids(self, usuario_ids: set[int]) -> dict[int, str]:
+        if not usuario_ids:
+            return {}
+        result = await self.session.execute(select(User.id, User.nome).where(User.id.in_(usuario_ids)))
+        return {user_id: user_name for user_id, user_name in result.all()}
 
     async def get_supplier_by_id(self, fornecedor_id: int) -> Fornecedor | None:
         return await self.session.get(Fornecedor, fornecedor_id)
@@ -164,3 +183,6 @@ class AccountsPayableRepository:
     async def delete_installment(self, record: ContaPagarParcela) -> None:
         await self.session.delete(record)
         await self.session.commit()
+
+    async def delete_payment(self, record: PagamentoContaPagar) -> None:
+        await self.session.delete(record)

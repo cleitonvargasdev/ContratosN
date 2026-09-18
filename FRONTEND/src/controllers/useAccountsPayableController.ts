@@ -16,10 +16,10 @@ import {
   createAccountsPayable,
   deleteAccountsPayable,
   deleteAccountsPayableInstallment,
+  deleteAccountsPayablePayment,
   getAccountsPayableById,
   listAccountsPayable,
   registerAccountsPayablePayment,
-  removeAccountsPayableInstallmentPayments,
   searchAccountsPayablePeople,
   updateAccountsPayable,
 } from '@/services/accountsPayableService'
@@ -161,13 +161,13 @@ export function useAccountsPayableController() {
     }
   }
 
-  async function removeInstallmentPayments(parcelaId: number): Promise<void> {
+  async function removePayment(paymentId: number): Promise<void> {
     state.saving = true
     state.error = ''
     try {
-      await removeAccountsPayableInstallmentPayments(parcelaId)
+      await deleteAccountsPayablePayment(paymentId)
     } catch (error) {
-      state.error = error instanceof Error ? error.message : 'Falha ao remover pagamentos'
+      state.error = error instanceof Error ? error.message : 'Falha ao excluir pagamento'
       throw error
     } finally {
       state.saving = false
@@ -217,7 +217,7 @@ export function useAccountsPayableController() {
     appendInstallments,
     settleInstallment,
     removeAccount,
-    removeInstallmentPayments,
+    removePayment,
     removeInstallment,
     fetchPeopleOptions,
     clearPeopleOptions,

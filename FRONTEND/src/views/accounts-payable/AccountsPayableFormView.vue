@@ -88,7 +88,7 @@
                     <div v-if="actionMenuParcelaId === parcela.parcela_id" class="accounts-payable-actions-menu">
                       <button :disabled="parcela.quitado || accountsPayable.state.saving" type="button" @click="openPaymentModal(parcela.parcela_id)">Pagar</button>
                       <button :disabled="parcela.quitado || accountsPayable.state.saving" type="button" @click="handleSettleInstallment(parcela.parcela_id, parcela.saldo_pagar)">Quitar</button>
-                      <button :disabled="parcela.pagamentos.length === 0 || accountsPayable.state.saving" type="button" @click="handleRemovePayments(parcela.parcela_id)">Remover Pgto</button>
+                      <button :disabled="accountsPayable.state.saving" type="button" @click="openPaymentDetailsModal(parcela.parcela_id)">Dados Pgto</button>
                       <button class="accounts-payable-actions-menu__delete" :disabled="accountsPayable.state.saving" type="button" @click="handleDeleteInstallment(parcela.parcela_id)">Excluir Parcela</button>
                     </div>
                   </div>
@@ -240,6 +240,52 @@
     </div>
 
     <Teleport to="body">
+      <div v-if="paymentDetailsModal.open" class="modal-backdrop" @click.self="closePaymentDetailsModal">
+        <section class="modal-card accounts-payable-payment-details-modal" aria-labelledby="payment-details-modal-title">
+          <header class="panel__header panel__header--stacked">
+            <div>
+              <h3 id="payment-details-modal-title" class="panel__title">Dados Pgto</h3>
+              <p class="modal-context">Parcela {{ paymentDetailsInstallment ? String(paymentDetailsInstallment.numero_parcela || 0).padStart(2, '0') : '-' }} — {{ paymentDetailsInstallment?.descricao || 'Sem descrição' }}</p>
+            </div>
+            <button class="icon-action" type="button" aria-label="Fechar" @click="closePaymentDetailsModal">×</button>
+          </header>
+
+          <div class="table-wrap accounts-payable-payment-details-modal__table-wrap">
+            <table class="data-table data-table--cadastro accounts-payable-payment-details-table">
+              <thead>
+                <tr>
+                  <th>Data Pgto</th>
+                  <th>Valor pago</th>
+                  <th>Pago por</th>
+                  <th class="actions-column">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="!paymentDetailsInstallment || paymentDetailsInstallment.pagamentos.length === 0">
+                  <td colspan="4">Nenhum pagamento registrado para esta parcela.</td>
+                </tr>
+                <tr v-for="pagamento in paymentDetailsInstallment?.pagamentos ?? []" :key="pagamento.pagamento_id">
+                  <td>{{ pagamento.data_pagamento ? formatShortDate(pagamento.data_pagamento) : '-' }}</td>
+                  <td>{{ formatTableAmount(pagamento.valor_pago) }}</td>
+                  <td>{{ paymentPayerName(pagamento.usuario_nome, pagamento.usuario_id) }}</td>
+                  <td class="actions-cell">
+                    <button class="icon-action icon-action--danger" :disabled="accountsPayable.state.saving" type="button" title="Excluir pagamento" aria-label="Excluir pagamento" @click="handleDeletePayment(pagamento.pagamento_id)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7zm3 3v8h2v-8H9zm4 0v8h2v-8h-2zM9 2h6l1 2h4v2H4V4h4l1-2z" fill="currentColor"/></svg>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <footer class="form-actions">
+            <button class="ghost-button" type="button" @click="closePaymentDetailsModal">Fechar</button>
+          </footer>
+        </section>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
       <div v-if="personSearchModal.open" class="modal-backdrop" @click.self="closePersonSearchModal">
         <section class="modal-card accounts-payable-search-modal">
           <header class="panel__header panel__header--stacked">
@@ -336,6 +382,10 @@ const paymentModal = reactive({
   open: false,
   parcelaId: null as number | null,
 })
+const paymentDetailsModal = reactive({
+  open: false,
+  parcelaId: null as number | null,
+})
 const actionMenuParcelaId = ref<number | null>(null)
 const personSearchModal = reactive({
   open: false,
@@ -353,6 +403,7 @@ const generatorPreview = reactive<AccountsPayableInstallmentInput[]>([])
 
 const personSearchResults = computed(() => accountsPayable.state.peopleOptions)
 const existingInstallments = computed(() => [...(accountsPayable.state.currentAccount?.parcelas ?? [])].sort((left, right) => (left.numero_parcela ?? 0) - (right.numero_parcela ?? 0)))
+const paymentDetailsInstallment = computed(() => existingInstallments.value.find((item) => item.parcela_id === paymentDetailsModal.parcelaId) ?? null)
 const selectedPersonLabel = computed(() => {
   if (!selectedPerson.value) return ''
   return `${selectedPerson.value.nome} • ${formatPersonType(selectedPerson.value.tipo_pessoa)}${selectedPerson.value.cpf_cnpj ? ` • ${formatDocument(selectedPerson.value.cpf_cnpj)}` : ''}`
@@ -533,12 +584,12 @@ async function handleSettleInstallment(parcelaId: number, saldoPagar: number) {
   await submitPayment(parcelaId, { valor_pago: saldoPagar, juros: 0, acrescimos: 0, desconto: 0 })
 }
 
-async function handleRemovePayments(parcelaId: number) {
+async function handleDeletePayment(paymentId: number) {
   actionMenuParcelaId.value = null
-  if (!await confirmActionAlert('Remover pagamentos?', 'Todos os pagamentos registrados nesta parcela serão removidos.', 'Remover')) return
+  if (!await confirmActionAlert('Excluir pagamento?', 'Este pagamento será excluído permanentemente.', 'Excluir')) return
   try {
-    await accountsPayable.removeInstallmentPayments(parcelaId)
-    await successAlert('Pagamentos removidos com sucesso.', 'update')
+    await accountsPayable.removePayment(paymentId)
+    await successAlert('Pagamento excluído com sucesso.', 'delete')
     await loadAccount(Number(route.params.id))
   } catch {
     if (accountsPayable.state.error) await errorAlert(accountsPayable.state.error)
@@ -559,6 +610,17 @@ async function handleDeleteInstallment(parcelaId: number) {
 
 function toggleActionMenu(parcelaId: number) {
   actionMenuParcelaId.value = actionMenuParcelaId.value === parcelaId ? null : parcelaId
+}
+
+function openPaymentDetailsModal(parcelaId: number) {
+  actionMenuParcelaId.value = null
+  paymentDetailsModal.parcelaId = parcelaId
+  paymentDetailsModal.open = true
+}
+
+function closePaymentDetailsModal() {
+  paymentDetailsModal.open = false
+  paymentDetailsModal.parcelaId = null
 }
 
 function openPaymentModal(parcelaId: number) {
@@ -630,6 +692,12 @@ function formatCurrency(value: number | null) {
 
 function formatTableAmount(value: number | null) {
   return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value ?? 0)
+}
+
+function paymentPayerName(name: string | null, userId: number | null) {
+  const normalizedName = name?.trim()
+  if (normalizedName) return normalizedName
+  return userId ? `Usuário #${userId}` : 'Não informado'
 }
 
 function formatShortDate(value: string | null) {
@@ -761,15 +829,13 @@ function hasMinimumSearchTerm(value: string) {
 
 .accounts-payable-installments-table th,
 .accounts-payable-installments-table td {
-  overflow: hidden;
   padding-inline: 0.4rem;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .accounts-payable-installments-table th:first-child,
 .accounts-payable-installments-table td:first-child {
-  width: 44px;
+  width: 36px;
 }
 
 .accounts-payable-installments-table th:nth-child(2),
@@ -777,7 +843,8 @@ function hasMinimumSearchTerm(value: string) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  width: 30%;
+  width: auto;
+  max-width: none;
 }
 
 .accounts-payable-installments-table th:nth-child(3),
@@ -787,19 +854,19 @@ function hasMinimumSearchTerm(value: string) {
 
 .accounts-payable-installments-table th:nth-child(n + 4):nth-child(-n + 9),
 .accounts-payable-installments-table td:nth-child(n + 4):nth-child(-n + 9) {
-  width: 68px;
+  width: 58px;
 }
 
 .accounts-payable-installments-table th:nth-last-child(2),
 .accounts-payable-installments-table td:nth-last-child(2) {
   text-align: right;
-  width: 68px;
+  width: 54px;
 }
 
 .accounts-payable-installments-table th:last-child,
 .accounts-payable-installments-table td:last-child {
   text-align: right;
-  width: 48px;
+  width: 42px;
 }
 
 .payment-editor {
@@ -916,6 +983,29 @@ function hasMinimumSearchTerm(value: string) {
 
 .accounts-payable-search-modal {
   width: min(960px, 100%);
+}
+
+.accounts-payable-payment-details-modal {
+  width: fit-content;
+  min-width: min(480px, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+}
+
+.accounts-payable-payment-details-modal__table-wrap {
+  max-height: 440px;
+}
+
+.accounts-payable-payment-details-modal .form-actions {
+  margin-top: 0.75rem;
+}
+
+.accounts-payable-payment-details-table th,
+.accounts-payable-payment-details-table td {
+  white-space: nowrap;
+}
+
+.accounts-payable-payment-details-table {
+  width: max-content;
 }
 
 .accounts-payable-search-modal__content {

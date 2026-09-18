@@ -47,6 +47,7 @@ class AccountsPayablePaymentCreate(AccountsPayablePaymentBase):
 class AccountsPayablePaymentRead(AccountsPayablePaymentBase):
     pagamento_id: int
     usuario_id: int | None = None
+    usuario_nome: str | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
