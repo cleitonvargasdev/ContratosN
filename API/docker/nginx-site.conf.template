@@ -6,6 +6,23 @@ server {
     index index.html;
     client_max_body_size 25m;
 
+    # The SPA entry point must be revalidated on every navigation.  Vite's
+    # hashed assets are cached separately below, so deployments are picked up
+    # immediately without sacrificing asset-cache performance.
+    location = /index.html {
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
+        try_files $uri =404;
+    }
+
+    # Built assets have content hashes in their filenames.  They are safe to
+    # cache indefinitely; a new deployment creates new URLs for changed files.
+    location ~* \.(?:js|mjs|css|woff2?|ttf|otf|png|jpe?g|gif|svg|ico|webp|avif)$ {
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files $uri =404;
+    }
+
     location /api/ {
         proxy_pass http://api:8007;
         proxy_http_version 1.1;
@@ -65,6 +82,10 @@ server {
     }
 
     location / {
+        # This also covers client-side routes, which fall back to index.html.
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
         try_files $uri $uri/ /index.html;
     }
 }
