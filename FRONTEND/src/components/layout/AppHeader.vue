@@ -1,6 +1,10 @@
 <template>
   <header class="topbar">
-    <div class="topbar__logout-card">
+    <div :class="['topbar__logout-card', { 'topbar__logout-card--dashboard': isDashboard }]">
+      <div v-if="isDashboard" class="topbar__dashboard-greeting">
+        <h1>Bom dia, {{ firstName }}.</h1>
+        <p>Aqui está o resumo da sua operação.</p>
+      </div>
       <div
         class="topbar__action-button topbar__whatsapp-status"
         :class="whatsAppStatus.connected ? 'topbar__whatsapp-status--connected' : 'topbar__whatsapp-status--disconnected'"
@@ -64,7 +68,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { useAuthController } from '@/controllers/useAuthController'
 import { useChatController } from '@/controllers/useChatController'
@@ -75,6 +79,9 @@ import { getWhatsAppStatus } from '@/services/whatsappService'
 const auth = useAuthController()
 const chat = useChatController()
 const router = useRouter()
+const route = useRoute()
+const isDashboard = computed(() => route.name === 'dashboard')
+const firstName = computed(() => auth.state.currentUser?.nome?.split(' ')[0] || 'seja bem-vindo')
 const whatsAppStatus = reactive({
   connected: false,
   message: 'WhatsApp desconectado.',
@@ -141,6 +148,35 @@ function handleLogout() {
 </script>
 
 <style scoped>
+.topbar {
+  display: block;
+}
+
+.topbar__logout-card--dashboard {
+  justify-content: flex-end;
+}
+
+.topbar__dashboard-greeting h1,
+.topbar__dashboard-greeting p {
+  margin: 0;
+}
+
+.topbar__dashboard-greeting {
+  margin-right: auto;
+}
+
+.topbar__dashboard-greeting h1 {
+  color: #1f2b37;
+  font-size: 25px;
+  letter-spacing: -0.05em;
+}
+
+.topbar__dashboard-greeting p {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
 .topbar__whatsapp-status {
   cursor: default;
 }
@@ -159,5 +195,10 @@ function handleLogout() {
   color: #b91c1c;
   border-color: rgba(220, 38, 38, 0.18);
   background: rgba(220, 38, 38, 0.1);
+}
+
+@media (max-width: 640px) {
+  .topbar__dashboard-greeting h1 { font-size: 20px; }
+  .topbar__dashboard-greeting p { display: none; }
 }
 </style>

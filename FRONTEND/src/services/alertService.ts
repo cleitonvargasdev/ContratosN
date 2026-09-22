@@ -512,3 +512,17 @@ export async function chooseReceiptToDeletePrompt(items: ReceiptChoicePromptItem
 
   return result.isConfirmed ? (result.value as number[]) : null
 }
+
+export async function warningToast(message: string): Promise<void> {
+  await Swal.fire({
+    title: message,
+    icon: 'warning',
+    toast: true,
+    position: 'top-end',
+    timer: 2600,
+    timerProgressBar: true,
+    showConfirmButton: false,
+    background: '#fffaf1',
+    color: '#b75d13',
+  })
+}
