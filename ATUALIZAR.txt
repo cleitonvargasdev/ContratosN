@@ -48,3 +48,26 @@ cd /var/www/apicontratos/ContratosN/API
 git pull origin main
 docker compose up -d --build
 docker compose logs --tail=300 -f
+
+# Atualização somente da API, incluindo migrations automáticas
+cd /var/www/apicontratos/ContratosN/API
+git pull origin main
+docker compose up -d --build api
+docker compose logs --tail=300 -f api
+
+# Atualização somente do frontend
+cd /var/www/apicontratos/ContratosN/FRONTEND
+git pull origin main
+
+cd /var/www/apicontratos/ContratosN/API
+docker compose up -d --build web
+docker compose logs --tail=300 -f web
+
+# Atualização de API + frontend, incluindo migrations automáticas
+cd /var/www/apicontratos/ContratosN/FRONTEND
+git pull origin main
+
+cd /var/www/apicontratos/ContratosN/API
+git pull origin main
+docker compose up -d --build
+docker compose logs --tail=300 -f

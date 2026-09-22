@@ -166,6 +166,44 @@ npm run dev -- --host=127.0.0.1 --port=5174
 - Para enviar contrato em PDF pelo QuePasa, configure `PUBLIC_API_BASE_URL` no `.env` da API com uma URL publica da API, por exemplo: `https://api.seudominio.com`.
 - `127.0.0.1`, `localhost` ou `0.0.0.0` nao funcionam para `senddocument`, porque o provedor precisa baixar o PDF a partir de fora da sua maquina.
 
+## Webhook do chatbot WhatsApp (QuePasa)
+
+O chatbot recebe mensagens em `POST /webhooks/webhook`. Depois de parear ou recriar uma sessao do QuePasa, cadastre novamente esse webhook; a configuracao pode ficar vazia na nova sessao.
+
+No Ubuntu, confirme primeiro que o endpoint publico responde:
+
+```bash
+curl -i 'https://cvfinanceiro.vstec.net/health'
+```
+
+Depois cadastre o webhook usando o token da sessao atual. O comando solicita o token sem exibi-lo no terminal:
+
+```bash
+read -rsp "Token do QuePasa: " QP_TOKEN; echo
+
+curl -i -X POST 'https://apiwpp.vstec.net/webhook' \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -H "X-QUEPASA-TOKEN: $QP_TOKEN" \
+  --data '{"url":"https://cvfinanceiro.vstec.net/webhooks/webhook","forwardinternal":false}'
+```
+
+O retorno esperado contem `"status":"updated with success"`. Para conferir a configuracao:
+
+```bash
+curl -i 'https://apiwpp.vstec.net/webhook' \
+  -H 'Accept: application/json' \
+  -H "X-QUEPASA-TOKEN: $QP_TOKEN"
+```
+
+Para acompanhar o processamento enquanto testa uma mensagem:
+
+```bash
+docker logs -f contratos-api
+```
+
+O log deve registrar `POST /webhooks/webhook` com status `200`. Nunca registre tokens, senhas ou respostas que os contenham no Git ou em capturas de tela.
+
 ## Swagger
 
 - Swagger UI: `http://127.0.0.1:8007/swagger`
