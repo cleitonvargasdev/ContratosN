@@ -34,12 +34,12 @@ from app.services.whatsapp_service import WhatsAppService
 
 
 WEEKDAY_LABELS = {
-    0: "SEGUNDA-FEIRA",
-    1: "TERCA-FEIRA",
-    2: "QUARTA-FEIRA",
-    3: "QUINTA-FEIRA",
-    4: "SEXTA-FEIRA",
-    5: "SABADO",
+    0: "SEGUNDA",
+    1: "TERÇA",
+    2: "QUARTA",
+    3: "QUINTA",
+    4: "SEXTA",
+    5: "SÁBADO",
     6: "DOMINGO",
 }
 
@@ -139,7 +139,8 @@ class AccountsReceivableService:
         if await self._sync_contract_financials(contract, rows):
             await self.client_metrics_service.refresh_client_metrics(contract.cliente_id)
             await self.repository.commit()
-        return [self._build_installment_read(item) for item in rows]
+        payment_dates = await self.repository.latest_receipt_dates_by_installment(rows)
+        return [self._build_installment_read(item, payment_dates.get(self._installment_key(item))) for item in rows]
 
     async def list_installments(self, params: AccountsReceivableListParams) -> AccountsReceivableListResponse:
         if (
@@ -150,6 +151,7 @@ class AccountsReceivableService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data final deve ser maior ou igual a data inicial.")
 
         rows, total = await self.repository.list_installments(params)
+        payment_dates = await self.repository.latest_receipt_dates_by_installment([row[0] for row in rows])
         grouped_items: list[AccountsReceivableClientGroup] = []
         client_groups: dict[str, AccountsReceivableClientGroup] = {}
         contract_groups: dict[str, AccountsReceivableContractGroup] = {}
@@ -212,6 +214,7 @@ class AccountsReceivableService:
                     contrato_valor_em_atraso,
                     contrato_quitado,
                     contrato_ultimo_recebimento,
+                    payment_dates.get(self._installment_key(installment)),
                 )
             )
             client_group.installment_count += 1
@@ -298,7 +301,7 @@ class AccountsReceivableService:
         installment.desconto = float(installment.desconto or 0)
         installment.valor_juros = float(installment.valor_juros or 0) + interest_value
         installment.valor_total = float(installment.valor_base or 0) + float(installment.valor_juros or 0)
-        installment.data_recebimento = payment_date
+        installment.data_recebimento = self._latest_payment_date(installment.data_recebimento, payment_date)
         installment.quitado = float(installment.valor_recebido or 0) >= float(installment.valor_total or 0)
         await self._sync_contract_by_id(installment.contratos_id)
         await self.repository.commit()
@@ -477,7 +480,7 @@ class AccountsReceivableService:
         installment.desconto = 0
         installment.valor_juros = float(installment.valor_juros or 0) + interest_value
         installment.valor_total = float(installment.valor_base or 0) + float(installment.valor_juros or 0)
-        installment.data_recebimento = payment_date
+        installment.data_recebimento = self._latest_payment_date(installment.data_recebimento, payment_date)
         installment.quitado = float(installment.valor_recebido or 0) >= float(installment.valor_total or 0)
 
         if installment.quitado:
@@ -780,8 +783,9 @@ class AccountsReceivableService:
         contrato_valor_em_atraso: float | None,
         contrato_quitado: bool | None,
         contrato_ultimo_recebimento: datetime | None,
+        latest_payment_date: datetime | None = None,
     ) -> AccountsReceivableListItem:
-        installment_read = self._build_installment_read(installment)
+        installment_read = self._build_installment_read(installment, latest_payment_date)
         return AccountsReceivableListItem(
             id=installment_read.id,
             contratos_id=installment_read.contratos_id,
@@ -793,6 +797,7 @@ class AccountsReceivableService:
             valor_recebido=installment_read.valor_recebido,
             valor_em_aberto=self._get_installment_remaining_value(installment),
             data_recebimento=installment_read.data_recebimento,
+            data_quitacao=installment_read.data_quitacao,
             quitado=installment_read.quitado,
             dia_semana=installment_read.dia_semana,
         )
@@ -933,7 +938,11 @@ class AccountsReceivableService:
                         return left is right
         return cls._normalize_datetime_for_compare(left) == cls._normalize_datetime_for_compare(right)
 
-    def _build_installment_read(self, installment: ContaReceber) -> ContractInstallmentRead:
+    def _build_installment_read(
+        self,
+        installment: ContaReceber,
+        latest_payment_date: datetime | None = None,
+    ) -> ContractInstallmentRead:
         due_date = self._normalize_due_datetime(installment.vencimentol or installment.vencimento_original)
         weekday = None
         if due_date is not None:
@@ -949,6 +958,7 @@ class AccountsReceivableService:
             valor_total=installment.valor_total,
             valor_recebido=installment.valor_recebido,
             data_recebimento=installment.data_recebimento,
+            data_quitacao=(latest_payment_date or installment.data_recebimento) if installment.quitado else None,
             quitado=installment.quitado,
             desconto=installment.desconto,
             valor_juros=installment.valor_juros,
@@ -958,3 +968,15 @@ class AccountsReceivableService:
             dt_hora_envio=installment.dt_hora_envio,
             tipo_envio=installment.tipo_envio,
         )
+
+    @classmethod
+    def _latest_payment_date(cls, current: datetime | None, candidate: datetime) -> datetime:
+        if current is None:
+            return candidate
+        return candidate if cls._normalize_datetime_for_compare(candidate) > cls._normalize_datetime_for_compare(current) else current
+
+    @staticmethod
+    def _installment_key(installment: ContaReceber) -> tuple[int, int] | None:
+        if installment.contratos_id is None or installment.parcela_nro is None:
+            return None
+        return installment.contratos_id, installment.parcela_nro

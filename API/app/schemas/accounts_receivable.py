@@ -15,6 +15,7 @@ class ContractInstallmentRead(BaseModel):
     valor_total: float | None = None
     valor_recebido: float | None = None
     data_recebimento: datetime | None = None
+    data_quitacao: datetime | None = None
     quitado: bool | None = None
     desconto: float | None = None
     valor_juros: float | None = None
@@ -52,6 +53,7 @@ class AccountsReceivableListItem(BaseModel):
     valor_recebido: float | None = None
     valor_em_aberto: float = 0
     data_recebimento: datetime | None = None
+    data_quitacao: datetime | None = None
     quitado: bool | None = None
     dia_semana: str | None = None
 

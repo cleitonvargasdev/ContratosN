@@ -28,6 +28,37 @@ class AccountsReceivableRepository:
         )
         return result.scalars().all()
 
+    async def latest_receipt_dates_by_installment(
+        self,
+        installments: Sequence[ContaReceber],
+    ) -> dict[tuple[int, int], datetime]:
+        keys = {
+            (item.contratos_id, item.parcela_nro)
+            for item in installments
+            if item.contratos_id is not None and item.parcela_nro is not None
+        }
+        if not keys:
+            return {}
+
+        contract_ids = {contract_id for contract_id, _ in keys}
+        result = await self.session.execute(
+            select(
+                Recebimento.contrato_id,
+                Recebimento.parcela_nro,
+                func.max(Recebimento.data_recebimento),
+            )
+            .where(Recebimento.contrato_id.in_(contract_ids))
+            .group_by(Recebimento.contrato_id, Recebimento.parcela_nro)
+        )
+        return {
+            (contract_id, installment_number): receipt_date
+            for contract_id, installment_number, receipt_date in result.all()
+            if contract_id is not None
+            and installment_number is not None
+            and receipt_date is not None
+            and (contract_id, installment_number) in keys
+        }
+
     async def list_installments(
         self,
         params: AccountsReceivableListParams,

@@ -269,6 +269,7 @@
                     <th>Juros</th>
                     <th>Valor Total</th>
                     <th>Vl. Recebido</th>
+                    <th>DT Quitação</th>
                     <th>Pgto</th>
                     <th>Quitar</th>
                     <th>Del</th>
@@ -278,7 +279,7 @@
                 </thead>
                 <tbody>
                   <tr v-if="!installmentsLoading && installmentRows.length === 0">
-                    <td colspan="13">Nenhuma parcela gerada.</td>
+                    <td colspan="14">Nenhuma parcela gerada.</td>
                   </tr>
                   <tr v-for="row in installmentRows" :key="row.key" :class="{ 'contract-installments__row--paid': row.isPaid }">
                     <td>{{ row.label }}</td>
@@ -291,6 +292,7 @@
                     <td>{{ row.interestValue }}</td>
                     <td>{{ row.value }}</td>
                     <td>{{ row.receivedValue }}</td>
+                    <td>{{ row.settlementDate }}</td>
                     <td class="contract-installments__action-cell">
                       <button class="contract-installments__action contract-installments__action--pay" :disabled="!row.canPay || installmentsSaving" type="button" title="Receber parcela" aria-label="Receber parcela" @click="handleReceiveInstallment(row.id)">
                         <span class="contract-installments__action-icon" aria-hidden="true">
@@ -675,7 +677,7 @@ const comodatoSaving = ref(false)
 const contractComodato = ref<ContractComodato | null>(null)
 const holidayCache = reactive<Record<string, FeriadoOption[]>>({})
 const previewInstallmentsPayload = ref<ContractInstallmentGeneratePayload | null>(null)
-const generatedInstallments = ref<Array<{ key: string; id: number | null; label: string; dueDate: string; overdueDays: string; weekday: string; baseValue: string; interestValue: string; value: string; receivedValue: string; canPay: boolean; canSettle: boolean; canDeletePayment: boolean; canEdit: boolean; isOverdue: boolean; settleTitle: string; isPaid: boolean; whatsappSent: boolean }>>([])
+const generatedInstallments = ref<Array<{ key: string; id: number | null; label: string; dueDate: string; overdueDays: string; weekday: string; baseValue: string; interestValue: string; value: string; receivedValue: string; settlementDate: string; canPay: boolean; canSettle: boolean; canDeletePayment: boolean; canEdit: boolean; isOverdue: boolean; settleTitle: string; isPaid: boolean; whatsappSent: boolean }>>([])
 const clientModal = reactive({ open: false, term: '', page: 1, pageSize: 8 })
 const installmentEditModal = reactive({
   open: false,
@@ -859,6 +861,7 @@ const installmentRows = computed(() => {
       interestValue: formatCurrency(item.valor_juros),
       value: formatCurrency(item.valor_total),
       receivedValue: formatCurrency(item.valor_recebido),
+      settlementDate: item.quitado ? formatDateLabel(item.data_quitacao) : '-',
       canPay: true,
       canSettle: !item.quitado || canReopenInstallment(item),
       canDeletePayment: Boolean(item.possui_pagamento),
@@ -1293,6 +1296,7 @@ async function calculateInstallments() {
       interestValue: formatCurrency(0),
       value: formatCurrency(item.valor_total),
       receivedValue: '-',
+      settlementDate: '-',
       canPay: false,
       canSettle: false,
       canDeletePayment: false,
@@ -2423,6 +2427,7 @@ function formatWeekdayLabel(value: string | null) {
   return new Intl.DateTimeFormat('pt-BR', { weekday: 'long' })
     .format(new Date(calendarDate.year, calendarDate.month - 1, calendarDate.day))
     .toUpperCase()
+    .replace('-FEIRA', '')
 }
 
 function parseCalendarDate(value: string) {

@@ -179,6 +179,7 @@ export interface ContractInstallment {
   valor_total: number | null
   valor_recebido: number | null
   data_recebimento: string | null
+  data_quitacao: string | null
   quitado: boolean | null
   desconto: number | null
   valor_juros: number | null
