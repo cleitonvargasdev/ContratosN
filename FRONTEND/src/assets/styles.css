@@ -1485,6 +1485,108 @@ select {
   color: #24303b;
 }
 
+.swal-popup--reminder-delete {
+  width: min(calc(100% - 32px), 420px);
+  padding: 26px 0 0;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+}
+
+.swal-title--reminder-delete {
+  margin: 0;
+  font-size: clamp(22px, 5vw, 27px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.swal-text--reminder-delete {
+  margin: 12px 24px 0;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.swal-popup--reminder-delete .swal2-actions {
+  width: 100% !important;
+  margin: 26px 0 0 !important;
+  display: flex !important;
+  gap: 0 !important;
+}
+
+.swal-popup--reminder-delete .swal-button--reminder-delete,
+.swal-popup--reminder-delete .swal-button--reminder-payment,
+.swal-popup--reminder-delete .swal-button--reminder-cancel {
+  flex: 1 1 50%;
+  min-width: 0;
+  min-height: 64px;
+  border-radius: 0;
+  font-size: 17px;
+}
+
+.swal-button--reminder-delete,
+.swal-button--reminder-payment {
+  border-left: 0;
+  color: #24303b;
+}
+
+.swal-button--reminder-delete {
+  background: var(--danger);
+}
+
+.swal-button--reminder-cancel {
+  background: #f4f0f1;
+  color: #24303b;
+}
+
+.swal-button--reminder-delete:hover {
+  background: #c44157;
+  font-size: 18px;
+}
+
+.swal-button--reminder-payment {
+  background: var(--success);
+  color: #24303b;
+}
+
+.swal-button--reminder-payment:hover {
+  background: #188556;
+  font-size: 18px;
+}
+
+.swal-button--reminder-cancel:hover {
+  background: #ece6e8;
+  font-size: 18px;
+}
+
+.swal-button--reminder-delete:focus-visible,
+.swal-button--reminder-payment:focus-visible,
+.swal-button--reminder-cancel:focus-visible {
+  outline: 0;
+}
+
+@media (max-width: 520px) {
+  .swal-popup--reminder-delete {
+    padding-top: 22px;
+  }
+
+  .swal-text--reminder-delete {
+    margin-right: 20px;
+    margin-left: 20px;
+    font-size: 16px;
+  }
+
+  .swal-popup--reminder-delete .swal2-actions {
+    margin: 22px 0 0 !important;
+  }
+
+  .swal-popup--reminder-delete .swal-button--reminder-delete,
+  .swal-popup--reminder-delete .swal-button--reminder-payment,
+  .swal-popup--reminder-delete .swal-button--reminder-cancel {
+    min-height: 56px;
+    font-size: 15px;
+  }
+}
+
 .swal-actions--spaced {
   gap: 20px;
 }
@@ -2147,6 +2249,63 @@ select {
 
 .modal-card--installment-edit {
   width: min(100%, 560px);
+}
+
+.modal-card--installment-edit--update {
+  width: min(100%, 420px);
+  padding: 26px 0 0;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.modal-card--installment-edit--update .installment-modal__header,
+.modal-card--installment-edit--update .modal-form {
+  padding-right: 24px;
+  padding-left: 24px;
+}
+
+.modal-card--installment-edit--update .modal-context {
+  color: #24303b;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.modal-card--installment-edit--update .installment-edit-actions {
+  width: calc(100% + 48px);
+  margin: 14px -24px 0;
+  gap: 0;
+}
+
+.modal-card--installment-edit--update .installment-edit-actions__button {
+  flex: 1 1 50%;
+  min-width: 0;
+  min-height: 58px;
+  border-radius: 0;
+  font-size: 17px;
+}
+
+.modal-card--installment-edit--update .installment-edit-actions .ghost-button {
+  order: 1;
+  border: 0;
+  background: #f4f0f1;
+  color: #24303b;
+}
+
+.modal-card--installment-edit--update .installment-edit-actions .primary-button {
+  order: 2;
+  border: 0;
+  background: var(--danger);
+  color: #24303b;
+}
+
+.modal-card--installment-edit--update .installment-edit-actions .ghost-button:hover {
+  background: #ece6e8;
+  font-size: 18px;
+}
+
+.modal-card--installment-edit--update .installment-edit-actions .primary-button:hover {
+  background: #c44157;
+  font-size: 18px;
 }
 
 .modal-card--installment-settle {

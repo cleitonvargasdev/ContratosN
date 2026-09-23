@@ -492,7 +492,7 @@
 
     <Teleport to="body">
       <div v-if="installmentEditModal.open" class="modal-backdrop" @click.self="closeInstallmentEditModal">
-        <section class="modal-card modal-card--installment-edit">
+        <section class="modal-card modal-card--installment-edit" :class="{ 'modal-card--installment-edit--update': installmentEditModal.mode === 'edit' }">
           <header class="panel__header panel__header--stacked installment-modal__header">
             <p class="modal-context">{{ installmentEditModal.mode === 'create' ? 'Informe os dados da nova parcela e confirme em salvar.' : 'Atualize os dados desta parcela e confirme em salvar.' }}</p>
           </header>
@@ -639,7 +639,7 @@ import {
   settleOpenContractInstallments,
   updateContractInstallment,
 } from '@/services/contractService'
-import { chooseReceiptToDeletePrompt, confirmActionAlert, errorAlert, infoAlert, playCashRegisterSound, showClientScoreLogPopup, successAlert } from '@/services/alertService'
+import { chooseReceiptToDeletePrompt, confirmActionAlert, errorAlert, infoAlert, playCashRegisterSound, receivePaymentPrompt, showClientScoreLogPopup, successAlert } from '@/services/alertService'
 import { listClientScoreLogs, listClients } from '@/services/clientService'
 import { listCitiesByUf, listFeriados } from '@/services/locationService'
 import { listPaymentPlans } from '@/services/paymentPlanService'
@@ -1443,12 +1443,16 @@ async function handleReceiveInstallment(installmentId: number | null) {
   }
 
   const remainingValue = row ? Math.max((row.valor_total ?? 0) - (row.valor_recebido ?? 0), 0) : null
-  installmentReceiveModal.open = true
+  const payment = await receivePaymentPrompt(remainingValue)
+  if (!payment) {
+    return
+  }
+
   installmentReceiveModal.installmentId = installmentId
   installmentReceiveModal.saldoRestante = remainingValue ?? 0
-  installmentReceiveModal.valorRecebido = formatDecimalValue(remainingValue ?? 0) || formatDecimalValue(0)
-  installmentReceiveModal.juros = formatDecimalValue(0) || formatDecimalValue(0)
-  syncInstallmentReceiveInterest()
+  installmentReceiveModal.valorRecebido = formatDecimalValue(payment.valorRecebido) || formatDecimalValue(0)
+  installmentReceiveModal.juros = formatDecimalValue(payment.juros ?? 0) || formatDecimalValue(0)
+  await saveInstallmentReceive()
 }
 
 function closeInstallmentReceiveModal() {
@@ -1512,9 +1516,20 @@ async function handleSettleInstallment(installmentId: number | null) {
   }
 
   const installment = persistedInstallments.value.find((item) => item.id === installmentId)
-  installmentSettleModal.open = true
+  const reopening = installment ? canReopenInstallment(installment) : false
+  const confirmed = await confirmActionAlert(
+    reopening ? 'Reabrir parcela?' : 'Quitar parcela?',
+    reopening ? 'Deseja reabrir esta parcela?' : 'Deseja realizar quitacao desta parcela?',
+    'Sim',
+  )
+
+  if (!confirmed) {
+    return
+  }
+
   installmentSettleModal.installmentId = installmentId
-  installmentSettleModal.reopen = installment ? canReopenInstallment(installment) : false
+  installmentSettleModal.reopen = reopening
+  await saveInstallmentSettle()
 }
 
 function closeInstallmentSettleModal() {

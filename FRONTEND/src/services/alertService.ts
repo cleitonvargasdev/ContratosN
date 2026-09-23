@@ -21,11 +21,18 @@ const sharedClasses = {
   cancelButton: 'swal-button swal-button--ghost',
 }
 
-const confirmCancelClasses = {
-  ...sharedClasses,
-  actions: 'swal-actions swal-actions--spaced',
-  confirmButton: 'swal-button swal-button--success-soft swal-button--with-icon',
-  cancelButton: 'swal-button swal-button--danger-soft swal-button--with-icon',
+const reminderDeleteClasses = {
+  popup: 'swal-popup swal-popup--reminder-delete',
+  title: 'swal-title swal-title--reminder-delete',
+  htmlContainer: 'swal-text swal-text--reminder-delete',
+  actions: 'swal-actions swal-actions--reminder-delete',
+  confirmButton: 'swal-button swal-button--reminder-delete',
+  cancelButton: 'swal-button swal-button--reminder-cancel',
+}
+
+const reminderPaymentClasses = {
+  ...reminderDeleteClasses,
+  confirmButton: 'swal-button swal-button--reminder-payment',
 }
 
 const CASH_REGISTER_SOUND_PATH = '/sounds/cash.mp3'
@@ -35,16 +42,14 @@ export async function confirmDeleteAlert(): Promise<boolean> {
   const result = await Swal.fire({
     title: 'Excluir cadastro?',
     text: 'Essa acao remove o registro da lista.',
-    icon: 'warning',
     showCancelButton: true,
     confirmButtonText: 'Excluir',
     cancelButtonText: 'Cancelar',
     reverseButtons: true,
     buttonsStyling: false,
-    customClass: sharedClasses,
+    customClass: reminderDeleteClasses,
     background: '#fffaf9',
     color: '#24303b',
-    confirmButtonColor: '#d84b62',
   })
 
   return result.isConfirmed
@@ -54,13 +59,12 @@ export async function confirmActionAlert(title: string, text: string, confirmBut
   const result = await Swal.fire({
     title,
     text,
-    icon: 'question',
     showCancelButton: true,
-    confirmButtonText: buildSwalButtonLabel(confirmButtonText, 'confirm'),
-    cancelButtonText: buildSwalButtonLabel('Cancelar', 'cancel'),
+    confirmButtonText,
+    cancelButtonText: 'Cancelar',
     reverseButtons: true,
     buttonsStyling: false,
-    customClass: confirmCancelClasses,
+    customClass: reminderDeleteClasses,
     background: '#fffaf9',
     color: '#24303b',
   })
@@ -87,11 +91,11 @@ export async function receivePaymentPrompt(initialValue: number | null): Promise
       </div>
     `,
     showCancelButton: true,
-    confirmButtonText: buildSwalButtonLabel('Receber', 'confirm'),
-    cancelButtonText: buildSwalButtonLabel('Cancelar', 'cancel'),
+    confirmButtonText: 'Receber',
+    cancelButtonText: 'Cancelar',
     reverseButtons: true,
     buttonsStyling: false,
-    customClass: confirmCancelClasses,
+    customClass: reminderPaymentClasses,
     background: '#fffaf9',
     color: '#24303b',
     focusConfirm: false,
@@ -455,23 +459,6 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
-function buildSwalButtonLabel(label: string, tone: 'confirm' | 'cancel'): string {
-  const iconPath = tone === 'confirm'
-    ? 'M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'
-    : 'M18.3 5.71 12 12l6.3 6.29-1.41 1.41L10.59 13.41 4.29 19.7 2.88 18.29 9.17 12 2.88 5.71 4.29 4.29l6.3 6.3 6.29-6.3z'
-
-  return `
-    <span class="swal-button__content">
-      <span class="swal-button__icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24">
-          <path d="${iconPath}" fill="currentColor" />
-        </svg>
-      </span>
-      <span>${label}</span>
-    </span>
-  `
-}
-
 export async function chooseReceiptToDeletePrompt(items: ReceiptChoicePromptItem[]): Promise<number[] | null> {
   const result = await Swal.fire({
     title: 'Excluir pagamento',
@@ -493,11 +480,11 @@ export async function chooseReceiptToDeletePrompt(items: ReceiptChoicePromptItem
       </div>
     `,
     showCancelButton: true,
-    confirmButtonText: buildSwalButtonLabel('Excluir', 'confirm'),
-    cancelButtonText: buildSwalButtonLabel('Cancelar', 'cancel'),
+    confirmButtonText: 'Excluir',
+    cancelButtonText: 'Cancelar',
     reverseButtons: true,
     buttonsStyling: false,
-    customClass: confirmCancelClasses,
+    customClass: reminderDeleteClasses,
     background: '#fffaf9',
     color: '#24303b',
     preConfirm: () => {
