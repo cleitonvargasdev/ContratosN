@@ -2,7 +2,7 @@
   <section class="dashboard">
     <div class="dashboard__content">
       <aside class="dashboard__sidebar">
-        <form class="contract-search surface" @submit.prevent="openContract">
+        <form class="contract-search surface dashboard-card--blue" @submit.prevent="openContract">
           <div class="icon-box icon-box--orange">#</div>
           <div class="contract-search__copy"><p class="eyebrow">Acesso rápido</p><h2>Localizar contrato</h2></div>
           <button class="contract-search__create" type="button" title="Criar novo contrato" aria-label="Criar novo contrato" @click="goTo('contracts-create')">+</button>
@@ -15,7 +15,7 @@
           <button type="button" @click="goTo('batch-receipt')"><span class="shortcut-icon shortcut-icon--blue">↓</span><span>Baixa em lote</span><i>→</i></button>
         </nav>
 
-        <article class="renewals surface">
+        <article class="renewals surface dashboard-card--yellow">
           <header class="renewals__header"><div><p class="eyebrow">Renovações</p><h2>Contratos finalizando</h2></div><strong>{{ summary.total_contratos_finalizando }}</strong></header>
           <div class="renewals__filter"><span>Próximos <b>{{ endingDays }} dias</b></span><input v-model.number="endingDays" type="range" min="1" max="10" aria-label="Dias para finalização"><output>{{ endingDays }}</output></div>
           <div class="renewals__list">
@@ -28,7 +28,7 @@
       </aside>
 
       <main class="dashboard__main">
-        <article class="chart-panel surface">
+        <article class="chart-panel surface dashboard-card--green">
           <header class="chart-panel__header"><div><p class="eyebrow">Financeiro</p><h2>Recebidos e previsão</h2><p class="subtitle">{{ chartTitle }}</p></div><div class="chart-controls"><select v-model="grouping" aria-label="Agrupamento do gráfico"><option value="dia">Por dia</option><option value="ano">Por ano</option></select><input v-model="reference" :type="grouping === 'dia' ? 'month' : 'number'" aria-label="Período do gráfico"></div></header>
           <section class="kpis" aria-label="Totais do período"><div><span class="kpis__marker kpis__marker--green"></span><p>Recebido</p><strong>{{ currency(totalReceived) }}</strong></div><div><span class="kpis__marker kpis__marker--amber"></span><p>Previsão</p><strong>{{ currency(totalForecast) }}</strong></div><div class="kpis__difference"><p>Realização</p><strong>{{ achievement }}%</strong></div></section>
           <div class="chart" :class="{ 'chart--year': grouping === 'ano' }"><div v-for="point in visiblePoints" :key="point.label" class="chart__column" :title="`${point.label}: recebido ${currency(point.recebido)} | previsto ${currency(point.previsto)}`"><div class="chart__bars"><i class="bar bar--forecast" :style="{ height: barHeight(point.previsto) }"></i><i class="bar bar--received" :style="{ height: barHeight(point.recebido) }"></i></div><small>{{ point.label }}</small></div></div>
@@ -135,5 +135,57 @@ onMounted(loadDashboard)
 .contract-search__create:hover {
   border-color: #df7b28;
   background: #fff3e7;
+}
+
+/* Paleta dos cards: azul, amarelo, verde e rosa, conforme a referência. */
+.dashboard-card--blue {
+  background: #d9e8ff;
+  border-color: #78a9ff;
+}
+
+.dashboard-card--yellow {
+  background: #fff0bf;
+  border-color: #ecc96a;
+}
+
+.dashboard-card--green {
+  background: #dcefe2;
+  border-color: #a9d5b6;
+}
+
+.shortcuts button:nth-child(1) {
+  background: #fad9d6;
+  border-color: #e7aaa5;
+}
+
+.shortcuts button:nth-child(2) {
+  background: #fff0bf;
+  border-color: #ecc96a;
+}
+
+.shortcuts button:nth-child(3) {
+  background: #dcefe2;
+  border-color: #a9d5b6;
+}
+
+.dashboard-card--yellow .renewals__header strong,
+.dashboard-card--yellow .renewals__filter output,
+.dashboard-card--yellow .renewal-item small {
+  background: rgba(255, 255, 255, .55);
+}
+
+.dashboard-card--yellow .renewals__list,
+.dashboard-card--yellow .renewal-item {
+  border-color: rgba(158, 124, 37, .18);
+}
+
+.dashboard-card--green .chart-controls select,
+.dashboard-card--green .chart-controls input {
+  background: rgba(255, 255, 255, .72);
+  border-color: #b6d9c1;
+}
+
+.dashboard-card--green .chart {
+  border-color: rgba(70, 117, 83, .2);
 }
 </style>
