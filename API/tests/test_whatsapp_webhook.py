@@ -143,7 +143,8 @@ def test_disabled_tenant_cannot_register():
 
 
 @pytest.mark.parametrize("connected", [True, False])
-def test_status_reconciles_only_connected_sessions_and_reports_pending(monkeypatch, connected):
+@pytest.mark.parametrize("slow_webhook", [True, False])
+def test_status_reconciles_only_connected_sessions_and_reports_pending(monkeypatch, connected, slow_webhook):
     service = WhatsAppService.__new__(WhatsAppService)
     service._get_whatsapp_config = AsyncMock(return_value={
         "session_key": "cv-token", "expected_phone": None, "expected_phones": [],
@@ -154,6 +155,15 @@ def test_status_reconciles_only_connected_sessions_and_reports_pending(monkeypat
     })
     service._get_info_payload = AsyncMock(return_value={"connected": connected})
     reconcile = AsyncMock(return_value=False)
+    cancelled = []
+    if slow_webhook:
+        async def stall(*args):
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelled.append(True)
+        reconcile.side_effect = stall
+        monkeypatch.setattr("app.services.whatsapp_service.WEBHOOK_STATUS_TIMEOUT_SECONDS", 0.01)
     monkeypatch.setattr("app.services.whatsapp_service.ensure_whatsapp_webhook", reconcile)
     with tenant_scope(CV):
         result = asyncio.run(service.get_connection_status())
@@ -162,6 +172,8 @@ def test_status_reconciles_only_connected_sessions_and_reports_pending(monkeypat
         reconcile.assert_awaited_once()
         assert result["webhook_ready"] is False
         assert "Atualizar status" in result["message"]
+        if slow_webhook:
+            assert cancelled == [True]
     else:
         reconcile.assert_not_awaited()
         assert result["webhook_ready"] is None

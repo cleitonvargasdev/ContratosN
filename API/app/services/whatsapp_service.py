@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import logging
@@ -19,6 +20,7 @@ from app.services.whatsapp_webhook_service import ensure_whatsapp_webhook
 from app.tenancy.context import current_tenant, require_whatsapp_enabled
 
 logger = logging.getLogger(__name__)
+WEBHOOK_STATUS_TIMEOUT_SECONDS = 5.0
 
 
 class WhatsAppService:
@@ -55,7 +57,14 @@ class WhatsAppService:
 
 		webhook_ready = None
 		if connected:
-			webhook_ready = await ensure_whatsapp_webhook(self._create_http_client, config["session_key"])
+			try:
+				webhook_ready = await asyncio.wait_for(
+					ensure_whatsapp_webhook(self._create_http_client, config["session_key"]),
+					timeout=WEBHOOK_STATUS_TIMEOUT_SECONDS,
+				)
+			except TimeoutError:
+				webhook_ready = False
+				logger.warning("Verificacao do webhook excedeu o prazo; retornando status da conexao.")
 		message = self._build_status_message(
 			config["expected_phones"], config["country_code"], config["ninth_digit_rules"],
 			connected_phone, provider_status, verified, connected,

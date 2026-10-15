@@ -222,6 +222,9 @@ pendente. Atualizar status tenta novamente. `webhook_ready` na resposta vale
 `true` quando confirmado, `false` quando pendente, ou `null` quando nao foi
 verificado (desconectado ou modo legado). Nao e necessario ativar agendamentos.
 O QR code nao aguarda chamadas de webhook, preservando seu tempo de validade.
+A verificacao do webhook tem um limite total de 5 segundos, incluindo espera
+por consultas concorrentes. Ao exceder esse prazo, o status da conexao e
+devolvido normalmente com o chatbot pendente; Atualizar status tenta novamente.
 
 Se o provedor permitir, envie o segredo em `X-Webhook-Secret` e omita `key` da
 URL. O proxy externo tambem deve omitir query strings desses acessos dos logs.
