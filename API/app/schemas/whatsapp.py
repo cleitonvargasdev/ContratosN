@@ -11,6 +11,7 @@ class WhatsAppConnectionStatusRead(BaseModel):
     api_message: str | None = None
     provider_status: str | None = None
     verified: bool = False
+    webhook_ready: bool | None = None
     message: str | None = None
 
 

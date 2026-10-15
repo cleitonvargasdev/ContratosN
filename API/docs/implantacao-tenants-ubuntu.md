@@ -207,6 +207,22 @@ https://cvfinanceiro.vstec.net/webhooks/webhook?key=SEGREDO_CV
 https://bcfinanceiro.vstec.net/webhooks/webhook?key=SEGREDO_BC
 ```
 
+A tela de conexao verifica automaticamente esse cadastro quando o WhatsApp
+esta conectado, inclusive depois da leitura do QR code e em Atualizar status.
+A API consulta `GET /webhook` no endereco `QUEPASA_APIWPP_URL`, usando somente
+o `X-QUEPASA-TOKEN` da empresa. Se a URL completa nao estiver na lista
+`webhooks`, cadastra com `POST /api/webhook` e consulta novamente para confirmar.
+O segredo e lido do ambiente; nao e devolvido para a tela nem registrado em logs.
+Outros webhooks existentes sao preservados, inclusive URLs antigas: revise-os
+no provedor ao migrar dominios ou trocar segredos para evitar entregas obsoletas.
+
+Se a consulta ou o cadastro falhar, o WhatsApp continua mostrando seu estado
+real de conexao, mas a mensagem informa que o recebimento do chatbot esta
+pendente. Atualizar status tenta novamente. `webhook_ready` na resposta vale
+`true` quando confirmado, `false` quando pendente, ou `null` quando nao foi
+verificado (desconectado ou modo legado). Nao e necessario ativar agendamentos.
+O QR code nao aguarda chamadas de webhook, preservando seu tempo de validade.
+
 Se o provedor permitir, envie o segredo em `X-Webhook-Secret` e omita `key` da
 URL. O proxy externo tambem deve omitir query strings desses acessos dos logs.
 O Nginx interno nao registra acessos a `/webhooks/`, e o Compose desliga o log

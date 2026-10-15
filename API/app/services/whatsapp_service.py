@@ -15,6 +15,7 @@ from app.core.secrets import decrypt_secret
 from app.repositories.api_config_repository import ApiConfigRepository
 from app.core.config import ENV_FILE, settings
 from app.services.parameter_service import ParameterService
+from app.services.whatsapp_webhook_service import ensure_whatsapp_webhook
 from app.tenancy.context import current_tenant, require_whatsapp_enabled
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,18 @@ class WhatsAppService:
 			verified,
 		)
 
+		webhook_ready = None
+		if connected:
+			webhook_ready = await ensure_whatsapp_webhook(self._create_http_client, config["session_key"])
+		message = self._build_status_message(
+			config["expected_phones"], config["country_code"], config["ninth_digit_rules"],
+			connected_phone, provider_status, verified, connected,
+		)
+		if webhook_ready is False:
+			message = "WhatsApp conectado, mas nao foi possivel configurar o recebimento do chatbot. Clique em Atualizar status para tentar novamente."
+		elif webhook_ready is True:
+			message = f"{message} Recebimento do chatbot configurado."
+
 		return {
 			"session_key": config["session_key"],
 			"expected_phone": expected_phone,
@@ -62,15 +75,8 @@ class WhatsAppService:
 			"api_message": api_health["message"],
 			"provider_status": provider_status,
 			"verified": verified,
-			"message": self._build_status_message(
-				config["expected_phones"],
-				config["country_code"],
-				config["ninth_digit_rules"],
-				connected_phone,
-				provider_status,
-				verified,
-				connected,
-			),
+			"webhook_ready": webhook_ready,
+			"message": message,
 		}
 
 	async def create_session_qr_code(self) -> dict[str, Any]:
