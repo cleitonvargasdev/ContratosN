@@ -1,5 +1,6 @@
 import os
 import re
+from pathlib import Path
 
 from dotenv import dotenv_values
 from fastapi import HTTPException
@@ -39,7 +40,12 @@ class TenantDomain(RegistryBase):
 def secret_from_env(name: str) -> str:
     if not re.fullmatch(r"TENANT_[A-Z0-9_]+", name):
         raise HTTPException(503, "Referencia de configuracao da empresa invalida")
-    values = {**dotenv_values(ENV_FILE), **dotenv_values(ENV_LOCAL_FILE), **os.environ}
+    managed = {}
+    if settings.tenant_runtime_dir:
+        secret_file = Path(settings.tenant_runtime_dir) / "secrets" / f"{name}.secret"
+        if secret_file.is_file():
+            managed[name] = secret_file.read_text(encoding="utf-8").strip()
+    values = {**managed, **dotenv_values(ENV_FILE), **dotenv_values(ENV_LOCAL_FILE), **os.environ}
     value = values.get(name)
     if not value:
         raise HTTPException(503, "Configuracao da empresa indisponivel")

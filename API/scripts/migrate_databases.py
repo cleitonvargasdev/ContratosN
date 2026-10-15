@@ -26,6 +26,9 @@ async def tenant_urls() -> list[tuple[str, str]]:
 def main():
     targets = asyncio.run(tenant_urls()) if settings.tenancy_enabled else [("legacy", settings.sqlalchemy_sync_database_uri)]
     if not targets:
+        if settings.tenancy_enabled and settings.tenant_provisioning_enabled:
+            print("Nenhuma empresa ativa. Painel disponível para o primeiro provisionamento.")
+            return
         raise SystemExit("Nenhuma empresa ativa cadastrada; inicializacao interrompida.")
     identities = set()
     for tenant_id, url in targets:

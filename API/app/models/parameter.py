@@ -58,7 +58,7 @@ class Parametro(Base):
     whatsapp_cobranca_modelo: Mapped[str | None] = mapped_column(String(500), nullable=True)
     api_whatsapp: Mapped[str | None] = mapped_column(String(120), nullable=True)
     usuario_api_whatsapp: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    token_api_whatsapp: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    token_api_whatsapp: Mapped[str | None] = mapped_column(Text, nullable=True)
     regra_nono_dig_whats: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
     sufixo_whatsapp: Mapped[str | None] = mapped_column(String(30), nullable=True)
     msg_renovacao: Mapped[str | None] = mapped_column(Text, nullable=True)

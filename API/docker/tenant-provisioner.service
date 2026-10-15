@@ -1,0 +1,18 @@
+[Unit]
+Description=Provisionamento de empresas Tenant
+After=network-online.target docker.service nginx.service
+Wants=network-online.target
+Requires=docker.service nginx.service
+
+[Service]
+Type=simple
+User=root
+EnvironmentFile=/etc/tenant-provisioner.env
+ExecStart=/usr/bin/python3 /var/www/apicontratos/ContratosN/API/scripts/tenant_host_worker.py
+Restart=on-failure
+RestartSec=10
+UMask=0077
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

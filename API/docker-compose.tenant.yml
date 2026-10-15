@@ -1,5 +1,10 @@
 # Usar junto ao docker-compose.yml existente, na mesma pasta e projeto Compose.
 services:
+  api:
+    environment:
+      TENANT_RUNTIME_DIR: /run/tenant-runtime
+    volumes:
+      - ./tenant-runtime:/run/tenant-runtime
   tenant-web:
     build:
       context: ..

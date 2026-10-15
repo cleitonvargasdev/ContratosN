@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     tenancy_enabled: bool = Field(default=False, alias="TENANCY_ENABLED")
     tenant_registry_db_name: str = Field(default="tenant_registry", alias="TENANT_REGISTRY_DB_NAME")
     tenant_api_hosts: str = Field(default="", alias="TENANT_API_HOSTS")
+    tenant_runtime_dir: str = Field(default="", alias="TENANT_RUNTIME_DIR")
+    tenant_provisioning_enabled: bool = Field(default=False, alias="TENANT_PROVISIONING_ENABLED")
+    tenant_template_code: str = Field(default="", alias="TENANT_TEMPLATE_CODE")
 
     db_host: str = Field(alias="DB_HOST")
     db_port: int = Field(alias="DB_PORT")

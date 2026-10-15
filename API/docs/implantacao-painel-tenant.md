@@ -1,5 +1,10 @@
 # Tenant em tenants.vstec.net
 
+Para cadastrar uma empresa e criar automaticamente seu banco, configurações,
+domínio e HTTPS, consulte [Provisionamento automático](provisionamento-automatico-tenant.md).
+O fluxo abaixo instala o painel; o provisionador exige a preparação adicional
+do serviço no Ubuntu descrita nesse novo roteiro.
+
 O repositorio tem raiz em `PROJETOINI` e inclui tres projetos/pastas:
 
 ```text
@@ -74,8 +79,9 @@ acesse `https://tenants.vstec.net`, entre e confira usuarios e tenants.
 
 O cadastro de empresas continua exigindo os respectivos bancos e variaveis
 `TENANT_<CODIGO>_DATABASE_URL` e `TENANT_<CODIGO>_WEBHOOK_SECRET` na API.
-O painel pode cadastrar e editar empresas, dominios e ativacoes. Ele nao cria
-bancos de negocio nem DNS. Consulte `implantacao-tenants-ubuntu.md` para essa etapa.
+No modo de vincular banco existente, o painel cadastra empresas, dominios e
+ativacoes. O modo automático cria o banco e configura o site após instalar o
+provisionador. DNS permanece uma etapa externa, anterior ao cadastro.
 
 Estes arquivos preparam a implantacao; nao confirmam DNS, certificado, build
 Docker ou publicacao no servidor. Validar essas etapas no Ubuntu.

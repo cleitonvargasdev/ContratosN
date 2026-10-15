@@ -28,7 +28,7 @@ def pg_tmp_path():
         yield Path(directory)
 
 
-def test_full_clone_migrations_and_original_preserved(pg_tmp_path):
+def test_full_clone_migrations_and_original_preserved(pg_tmp_path, monkeypatch):
     tmp_path = pg_tmp_path
     pg_bin = Path(os.environ["POSTGRES_BIN"])
     bash = os.environ["BASH_BIN"]
@@ -104,7 +104,7 @@ def test_full_clone_migrations_and_original_preserved(pg_tmp_path):
                     cursor.execute("SELECT score_atualizacao_automatica, whatsapp_cobranca_automatica FROM parametros")
                     assert cursor.fetchone() == (False, False)
                     cursor.execute("SELECT version_num FROM alembic_version")
-                    assert cursor.fetchone() == ("20260810_0049",)
+                    assert cursor.fetchone() == ("20261015_0050",)
                     cursor.execute("INSERT INTO tenant_probe (value) VALUES ('new') RETURNING id")
                     assert cursor.fetchone() == (2,)
             finally:
@@ -120,5 +120,87 @@ def test_full_clone_migrations_and_original_preserved(pg_tmp_path):
         finally:
             source.close()
         assert len(list((tmp_path / "backups").glob("*.dump"))) == 1
+
+        # Provision a separate empty business database, never a copy of source business rows.
+        from app.core.config import settings
+        from app.core.secrets import encrypt_secret, decrypt_secret
+        from app.core.security import verify_password
+        from app.tenancy.bootstrap import seed_database
+        from scripts.tenant_provision import create_owned_database
+        for key, value in {"db_host": "127.0.0.1", "db_port": port, "db_user": "tenant_test", "db_password": password}.items():
+            monkeypatch.setattr(settings, key, value)
+        job_id = "b" * 32
+        provision_url = create_owned_database(job_id, "isolated-test-password")
+        migrate(provision_url.render_as_string(hide_password=False))
+        snapshot = {"profiles": [{"nome": "Operacional", "descricao": "Modelo", "ativo": True, "permissions": []}],
+                    "parameters": {"nome_fantasia": "Sua empresa", "razao_social": "Sua razão social",
+                        "score_valor_inicial": 500, "score_pontos_atraso_parcela": -4,
+                        "api_whatsapp": "quepasa", "usuario_api_whatsapp": "user@example.test",
+                        "token_api_whatsapp": encrypt_secret("token-with-thirty-six-characters-long"),
+                        "sufixo_whatsapp": "@s.whatsapp.net", "pais_whatsapp": 55},
+                    "apis": [{"nome_api": "quepasa", "funcionalidade": "mensagem", "url": "https://example.test/send",
+                              "key1": "X-TOKEN", "value1": "{token_api_whatsapp}"}]}
+        seed_database(provision_url, job_id, "new.example.test", snapshot)
+        target = create_engine(provision_url)
+        try:
+            with target.connect() as connection:
+                from sqlalchemy import text
+                row = connection.execute(text("SELECT login, funcao, senha_hash FROM usuarios")).one()
+                assert row.login == "Admin" and row.funcao == "Administrador"
+                assert verify_password("Admin", row.senha_hash)
+                assert connection.scalar(text("SELECT count(*) FROM contratos")) == 0
+                assert connection.scalar(text("SELECT count(*) FROM clientes")) == 0
+                assert connection.scalar(text("SELECT count(*) FROM usuarios_perfis up JOIN perfis p ON p.id=up.perfil_id WHERE p.nome='Administrador'")) == 1
+                params = connection.execute(text("SELECT * FROM parametros")).one()
+                assert params.nome_fantasia == "Sua empresa" and params.score_valor_inicial == 500
+                assert params.score_pontos_atraso_parcela == -4
+                assert decrypt_secret(params.token_api_whatsapp) == "token-with-thirty-six-characters-long"
+                assert params.whatsapp_cobranca_automatica is False
+                assert connection.scalar(text("SELECT count(*) FROM apis")) == 1
+                assert connection.scalar(text("SELECT count(*) FROM apis a JOIN usuarios u ON u.id=a.usuario_id WHERE u.login='Admin'")) == 1
+            # Resume must preserve already initialized users, parameters and API rows.
+            with target.begin() as connection:
+                connection.execute(text("UPDATE parametros SET nome_fantasia='Empresa editada'"))
+            assert create_owned_database(job_id, "isolated-test-password").database == provision_url.database
+            seed_database(provision_url, job_id, "new.example.test", snapshot)
+            with target.connect() as connection:
+                assert connection.scalar(text("SELECT count(*) FROM usuarios")) == 1
+                assert connection.scalar(text("SELECT nome_fantasia FROM parametros")) == "Empresa editada"
+                assert connection.scalar(text("SELECT count(*) FROM apis")) == 1
+        finally:
+            target.dispose()
+
+        # Exercise the durable queue/CLI on PostgreSQL, including secret files and state.
+        from sqlalchemy.orm import Session
+        from app.tenancy.registry import RegistryBase, TenantRecord, TenantDomain, secret_from_env
+        from app.tenancy.provisioning import ProvisionJob, encode_payload
+        from scripts.tenant_provision import run as provision_command
+        monkeypatch.setattr(settings, "tenant_registry_db_name", "tenant_registry")
+        monkeypatch.setattr(settings, "tenant_runtime_dir", str(tmp_path / "runtime"))
+        monkeypatch.setattr(settings, "tenant_provisioning_enabled", True)
+        monkeypatch.setattr(settings, "tenancy_enabled", True)
+        registry_engine = create_engine(url("tenant_registry"))
+        queue_id = "c" * 32
+        try:
+            RegistryBase.metadata.create_all(registry_engine)
+            with Session(registry_engine) as session:
+                session.add(TenantRecord(id="new", company_code="new", active=False,
+                    database_url_env="TENANT_AUTO_TEST_DATABASE_URL", webhook_secret_env="TENANT_AUTO_TEST_WEBHOOK_SECRET",
+                    public_base_url="https://new.example.test", automations_enabled=False, whatsapp_enabled=False))
+                session.flush()
+                session.add(TenantDomain(hostname="new.example.test", tenant_id="new"))
+                session.add(ProvisionJob(id=queue_id, tenant_id="new", payload=encode_payload(snapshot)))
+                session.commit()
+            assert provision_command("next")["id"] == queue_id
+            assert provision_command("prepare", queue_id)["state"] == "running"
+            assert "tenant_" + queue_id in secret_from_env("TENANT_AUTO_TEST_DATABASE_URL")
+            assert len(secret_from_env("TENANT_AUTO_TEST_WEBHOOK_SECRET")) >= 32
+            provision_command("prepare", queue_id)  # Resume is idempotent through the real worker entry point.
+            provision_command("fail", queue_id, "certificate")
+            with Session(registry_engine) as session:
+                assert session.get(TenantRecord, "new").active is False
+                assert session.get(ProvisionJob, queue_id).state == "failed"
+        finally:
+            registry_engine.dispose()
     finally:
         run([pg_bin / "pg_ctl", "-D", cluster, "-m", "fast", "-w", "stop"], check=False)

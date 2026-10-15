@@ -24,7 +24,19 @@ Acesse **http://127.0.0.1:5175**. Login inicial: **ADMIN**, senha: **Admin**. Cl
 
 Copie `.env.example` para `.env.local` se precisar alterar a porta da API. Não coloque senhas de banco ou segredos em variáveis `VITE_*`: elas são públicas no navegador.
 
-## Cadastro de tenants
+## Criação automática de empresas
+
+O botão Novo tenant abre o formulário para criar uma empresa com banco vazio,
+usuário Admin / Admin, perfil Administrador, parâmetros genéricos, regras de
+score e cadastros de APIs copiados do modelo. Os dados do WhatsApp são sugeridos
+e podem ser ajustados. A fila mostra cada etapa, falhas e a opção de retomar.
+
+Esse fluxo depende da instalação única do serviço no Ubuntu conforme
+[Provisionamento automático](../API/docs/provisionamento-automatico-tenant.md).
+O domínio deve estar previamente apontado. Somente o worker configura o Nginx
+e emite o certificado. O frontend não precisa receber credenciais PostgreSQL.
+
+## Vincular banco existente (modo manual)
 
 Prepare o banco PostgreSQL exclusivo da empresa, execute as migrações de negócio e configure na API as variáveis `TENANT_<CODIGO>_DATABASE_URL` e `TENANT_<CODIGO>_WEBHOOK_SECRET` (segredo com pelo menos 32 caracteres). Reinicie a API após alterar variáveis do processo. Depois cadastre no painel:
 
@@ -32,7 +44,7 @@ Prepare o banco PostgreSQL exclusivo da empresa, execute as migrações de negó
 - Nomes das variáveis de conexão e webhook (nunca os valores secretos).
 - Ativação do tenant, automações e WhatsApp.
 
-O painel persiste no mesmo registro usado pela API. Não cria nem clona bancos de empresas, não configura DNS e não configura credenciais de WhatsApp. Código e referência de banco ficam fixos depois do cadastro para evitar troca de banco enquanto há conexões abertas. Tenants podem ser desativados; não há exclusão destrutiva. Domínios adicionais existentes são preservados ao editar.
+O modo manual vincula o banco já preparado ao registro central. A criação automática do banco e do site fica no fluxo descrito acima. O DNS deve ser configurado previamente nos dois casos. Código e referência de banco ficam fixos depois do cadastro para evitar troca de banco enquanto há conexões abertas. Tenants podem ser desativados; não há exclusão destrutiva. Domínios adicionais existentes são preservados ao editar.
 
 O roteamento das empresas depende de `TENANCY_ENABLED=true` na API. O painel administrativo funciona independentemente dessa opção. Consulte também `../API/docs/implantacao-tenants-ubuntu.md` para implantação e ativação dos serviços.
 

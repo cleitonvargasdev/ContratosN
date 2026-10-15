@@ -4,6 +4,7 @@ __pycache__/
 .mypy_cache/
 .env
 tenant-backups/
+tenant-runtime/
 *.dump
 .env.*
 !.env.http.example

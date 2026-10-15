@@ -13,6 +13,12 @@ para copiar `Contratos` para CV e BC, cadastrar os dominios e ativar o sistema.
 
 ## Painel administrativo Tenant
 
+Para criar banco, cadastros iniciais, domínio e HTTPS pelo painel, consulte
+[Provisionamento automático de tenants](docs/provisionamento-automatico-tenant.md).
+
+Consulte [Processos Ubuntu](docs/Processos%20Ubuntu.md) para os procedimentos
+de atualização, bancos de dados, domínios, Nginx e certificados HTTPS.
+
 O frontend independente fica em `../TENANT` (Vue 3, porta 5175) e utiliza esta
 API nas rotas `/api/platform`. O login administrativo usa `cad_usuario` no
 banco separado `tenant_registry`; tokens dos usuarios das empresas nao dao
@@ -26,8 +32,9 @@ Inicialize o registro e o acesso administrativo antes do primeiro uso:
 
 O comando cria o banco se necessario e cadastra `ADMIN`, senha inicial `Admin`,
 somente quando nao existem usuarios administrativos. Reexecutar preserva as
-senhas. O cadastro pelo painel inclui dominios e flags dos tenants; bancos das
-empresas e variaveis de conexao precisam ser preparados no servidor.
+senhas. O painel permite vincular bancos existentes ou solicitar a criação
+automática após instalar o provisionador no Ubuntu. No modo manual, bancos e
+variaveis de conexao precisam ser preparados no servidor.
 
 Veja `../TENANT/README.md` para iniciar o frontend e configurar o proxy da API.
 Para `tenants.vstec.net`, consulte o [roteiro do painel no Ubuntu](docs/implantacao-painel-tenant.md).
