@@ -1,5 +1,6 @@
 import asyncio
 import json
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -12,7 +13,7 @@ from app.core.secrets import decrypt_secret
 from app.tenancy import admin as admin_module
 from app.tenancy.provisioning import BootstrapInput, ProvisionJob, decode_payload, new_job
 from app.tenancy.registry import secret_from_env
-from scripts.tenant_host_worker import Worker, checked_domain, verify_dns
+from scripts.tenant_host_worker import Worker, checked_domain, execute, verify_dns
 from tests.test_tenant_admin import panel, authenticate
 
 
@@ -112,7 +113,8 @@ def test_worker_failure_never_marks_ready(monkeypatch):
     assert not any(action in {"finish", "activate"} for action, _ in calls)
 
 
-def test_nginx_is_owned_idempotent_and_preserves_certbot_changes(tmp_path, monkeypatch):
+@pytest.mark.parametrize("comment", [b"# ASCII comment\n", b"# Configura\xe7\xe3o SSL\n"])
+def test_nginx_is_owned_idempotent_and_preserves_certbot_changes(tmp_path, monkeypatch, comment):
     # Model symlinks for this Ubuntu worker test without requiring Windows symlink privilege.
     links = {}
     original_resolve, original_is_symlink = Path.resolve, Path.is_symlink
@@ -123,6 +125,9 @@ def test_nginx_is_owned_idempotent_and_preserves_certbot_changes(tmp_path, monke
     worker.nginx_root = tmp_path
     (tmp_path / "sites-available").mkdir()
     (tmp_path / "sites-enabled").mkdir()
+    existing = tmp_path / "sites-enabled" / "existing.conf"
+    existing_bytes = comment + b"server { server_name existing.example.test; }"
+    existing.write_bytes(existing_bytes)
     job = {"id": "a" * 32, "domain": "new.example.test"}
     calls = []
     monkeypatch.setattr("scripts.tenant_host_worker.execute", lambda cmd, **kw: calls.append(cmd))
@@ -130,15 +135,26 @@ def test_nginx_is_owned_idempotent_and_preserves_certbot_changes(tmp_path, monke
     target = tmp_path / "sites-available" / f"tenant-auto-{job['id']}.conf"
     text = target.read_text()
     assert "server_name new.example.test;" in text and "http://127.0.0.1:8080" in text
-    target.write_text(text + "\n# Certbot-managed SSL configuration\n")
+    certbot_bytes = text.encode("utf-8") + b"\n# Certbot-managed SSL configuration\n" + comment
+    target.write_bytes(certbot_bytes)
     worker.configure_nginx(job)
-    assert "Certbot-managed SSL" in target.read_text()
+    assert target.read_bytes() == certbot_bytes
+    assert existing.read_bytes() == existing_bytes
     assert calls[-1] == ["systemctl", "reload", "nginx"]
     conflict = tmp_path / "sites-enabled" / "other.conf"
-    conflict.write_text("server { server_name new.example.test; }")
+    conflict.write_bytes(comment + b"server { server_name new.example.test; }")
     with pytest.raises(ValueError):
         worker.configure_nginx(job)
-    assert "Certbot-managed SSL" in target.read_text()
+    assert target.read_bytes() == certbot_bytes
+
+
+def test_execute_handles_non_utf8_output_without_hiding_command_failure():
+    script = "import sys; sys.stdout.buffer.write(b'ok\\xff'); sys.stderr.buffer.write(b'private\\xe7')"
+    result = execute([sys.executable, "-c", script])
+    assert result.encode("utf-8", errors="surrogateescape") == b"ok\xff"
+    with pytest.raises(RuntimeError) as error:
+        execute([sys.executable, "-c", script + "; sys.exit(1)"])
+    assert str(error.value) == f"Comando falhou: {sys.executable}"
 
 
 def test_provisioning_allows_first_start_without_active_tenants(monkeypatch):

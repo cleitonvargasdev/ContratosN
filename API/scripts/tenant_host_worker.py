@@ -35,7 +35,8 @@ def verify_dns(domain, allowed_ips):
 
 def execute(command, *, timeout=120):
     # Never shell=True and never echo stderr: it can include API/database credentials.
-    result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
+    result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8",
+                            errors="surrogateescape", timeout=timeout)
     if result.returncode:
         raise RuntimeError(f"Comando falhou: {command[0]}")
     return result.stdout
@@ -75,12 +76,13 @@ class Worker:
         for path in (self.nginx_root / "sites-enabled").iterdir():
             if path == enabled or not path.is_file():
                 continue
-            content = path.read_text()
+            # Existing virtual hosts may contain comments saved with legacy encodings.
+            content = path.read_text(encoding="utf-8", errors="surrogateescape")
             for directive in re.findall(r"server_name\s+([^;]+);", content):
                 if domain in directive.split():
                     raise ValueError("Domínio já configurado em outro virtual host")
         if available.exists():
-            if marker not in available.read_text():
+            if marker not in available.read_text(encoding="utf-8", errors="surrogateescape"):
                 raise ValueError("Virtual host não pertence a esta criação")
         else:
             content = f"""{marker}
@@ -105,7 +107,7 @@ server {{
 }}
 """
             # Exclusive creation refuses accidental overwrite; retries retain Certbot changes.
-            with available.open("x") as output:
+            with available.open("x", encoding="utf-8") as output:
                 output.write(content)
         if enabled.is_symlink():
             if enabled.resolve() != available.resolve():
