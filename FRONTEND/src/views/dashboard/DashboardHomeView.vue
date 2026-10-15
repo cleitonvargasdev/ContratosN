@@ -137,55 +137,187 @@ onMounted(loadDashboard)
   background: #fff3e7;
 }
 
-/* Paleta dos cards: azul, amarelo, verde e rosa, conforme a referência. */
+/* Fundos neutros; cores funcionais concentradas nos indicadores e nas ações. */
+.dashboard {
+  --card-blue: #355f87;
+  --card-teal: #237b69;
+  --card-amber: #946017;
+}
+
+.surface {
+  background: #fff;
+  border-color: #e2e7ec;
+  box-shadow: 0 6px 20px rgba(31, 45, 61, .045);
+}
+
 .dashboard-card--blue {
-  background: #d9e8ff;
-  border-color: #78a9ff;
+  background: #f7f9fc;
+  border-color: #dce5ef;
+}
+
+.dashboard-card--blue .eyebrow,
+.dashboard-card--blue .icon-box--orange {
+  color: var(--card-blue);
+}
+
+.dashboard-card--blue .icon-box--orange {
+  background: #e7eef7;
+}
+
+.contract-search__copy {
+  padding-right: 42px;
+}
+
+.contract-search input {
+  background: #fff;
+  border-color: #d9e2ec;
+}
+
+.contract-search__input button {
+  background: var(--card-blue);
+}
+
+.contract-search__input button:hover {
+  background: #284b6c;
+}
+
+.contract-search .contract-search__create {
+  color: var(--card-blue);
+  background: #fff;
+  border-color: #d9e2ec;
+}
+
+.contract-search .contract-search__create:hover {
+  background: #e7eef7;
+  border-color: #b6cadf;
+}
+
+.shortcuts button {
+  background: #fff;
+  border-color: #e2e7ec;
+  box-shadow: 0 3px 12px rgba(31, 45, 61, .025);
+}
+
+.shortcuts button:hover {
+  background: #f8fafc;
+  border-color: #cbd6e0;
+  box-shadow: 0 7px 18px rgba(31, 45, 61, .065);
+}
+
+.shortcut-icon--rose {
+  background: #f0ebf5;
+  color: #74538d;
+}
+
+.shortcut-icon--orange {
+  background: #fbefdd;
+  color: var(--card-amber);
+}
+
+.shortcut-icon--blue {
+  background: #e6f2ee;
+  color: var(--card-teal);
+}
+
+.shortcuts i {
+  color: #687b8c;
 }
 
 .dashboard-card--yellow {
-  background: #fff0bf;
-  border-color: #ecc96a;
+  background: #fffdf8;
+  border-color: #eae2d3;
+}
+
+.dashboard-card--yellow .eyebrow,
+.renewal-item b,
+.renewal-item:hover span,
+.renewals .text-button {
+  color: var(--card-amber);
+}
+
+.renewals__header strong {
+  background: #faedcf;
+  color: #875714;
+}
+
+.renewals__filter input {
+  accent-color: #ad792c;
+}
+
+.renewals__filter output {
+  background: #f4efe5;
+  color: #735b36;
+}
+
+.renewals__list,
+.renewal-item {
+  border-color: #eee7dc;
+}
+
+.renewal-item:hover {
+  background: #faf5e9;
+}
+
+.renewal-item small {
+  background: #f0f2f4;
+  color: #596775;
+}
+
+.renewal-item small.today {
+  background: #fce9e4;
+  color: #a04332;
 }
 
 .dashboard-card--green {
-  background: #dcefe2;
-  border-color: #a9d5b6;
+  background: #fff;
+  border-color: #e2e7ec;
 }
 
-.shortcuts button:nth-child(1) {
-  background: #fad9d6;
-  border-color: #e7aaa5;
+.dashboard-card--green .eyebrow {
+  color: var(--card-teal);
 }
 
-.shortcuts button:nth-child(2) {
-  background: #fff0bf;
-  border-color: #ecc96a;
+.chart-controls select,
+.chart-controls input {
+  background: #f8fafb;
+  border-color: #dfe5ea;
 }
 
-.shortcuts button:nth-child(3) {
-  background: #dcefe2;
-  border-color: #a9d5b6;
+.kpis__marker--green,
+.bar--received,
+.legend--received {
+  background: var(--card-teal);
 }
 
-.dashboard-card--yellow .renewals__header strong,
-.dashboard-card--yellow .renewals__filter output,
-.dashboard-card--yellow .renewal-item small {
-  background: rgba(255, 255, 255, .55);
+.kpis__marker--amber,
+.bar--forecast,
+.legend--forecast {
+  background: #d4a35b;
 }
 
-.dashboard-card--yellow .renewals__list,
-.dashboard-card--yellow .renewal-item {
-  border-color: rgba(158, 124, 37, .18);
+.bar--forecast {
+  opacity: 1;
 }
 
-.dashboard-card--green .chart-controls select,
-.dashboard-card--green .chart-controls input {
-  background: rgba(255, 255, 255, .72);
-  border-color: #b6d9c1;
+.kpis__difference strong {
+  color: #355f87;
 }
 
-.dashboard-card--green .chart {
-  border-color: rgba(70, 117, 83, .2);
+.chart {
+  border-color: #e4e9ee;
+  background: repeating-linear-gradient(to bottom, transparent 0, transparent 71px, #edf1f4 72px);
 }
+
+.chart__column small,
+.chart-legend {
+  color: #647484;
+}
+
+.dashboard button:focus-visible,
+.dashboard input:focus-visible,
+.dashboard select:focus-visible {
+  outline: 2px solid var(--card-blue);
+  outline-offset: 3px;
+}
+
 </style>
