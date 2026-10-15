@@ -11,6 +11,29 @@ de banco unico continua sendo o padrao.
 Consulte o [roteiro de implantacao no Ubuntu](docs/implantacao-tenants-ubuntu.md)
 para copiar `Contratos` para CV e BC, cadastrar os dominios e ativar o sistema.
 
+## Painel administrativo Tenant
+
+O frontend independente fica em `../TENANT` (Vue 3, porta 5175) e utiliza esta
+API nas rotas `/api/platform`. O login administrativo usa `cad_usuario` no
+banco separado `tenant_registry`; tokens dos usuarios das empresas nao dao
+acesso ao painel.
+
+Inicialize o registro e o acesso administrativo antes do primeiro uso:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.init_tenant_admin
+```
+
+O comando cria o banco se necessario e cadastra `ADMIN`, senha inicial `Admin`,
+somente quando nao existem usuarios administrativos. Reexecutar preserva as
+senhas. O cadastro pelo painel inclui dominios e flags dos tenants; bancos das
+empresas e variaveis de conexao precisam ser preparados no servidor.
+
+Veja `../TENANT/README.md` para iniciar o frontend e configurar o proxy da API.
+Para `tenants.vstec.net`, consulte o [roteiro do painel no Ubuntu](docs/implantacao-painel-tenant.md).
+Reinicie a API para disponibilizar as novas rotas. O painel funciona mesmo com
+`TENANCY_ENABLED=false`; essa opcao controla o roteamento dos dados de negocio.
+
 ## Executar
 
 ```powershell

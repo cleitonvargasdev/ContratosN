@@ -77,6 +77,9 @@ class TenantMiddleware:
         if not settings.tenancy_enabled or scope["type"] not in {"http", "websocket"}:
             return await self.app(scope, receive, send)
         path = scope.get("path", "")
+        # Platform routes authenticate against cad_usuario, never a business tenant.
+        if path.startswith("/api/platform/"):
+            return await self.app(scope, receive, send)
         if path in {"/", "/health", "/swagger", "/swagger/oauth2-redirect", "/redoc", "/openapi.json"} or scope.get("method") == "OPTIONS":
             return await self.app(scope, receive, send)
         body = b""

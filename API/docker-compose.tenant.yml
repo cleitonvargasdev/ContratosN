@@ -1,0 +1,11 @@
+# Usar junto ao docker-compose.yml existente, na mesma pasta e projeto Compose.
+services:
+  tenant-web:
+    build:
+      context: ..
+      dockerfile: API/docker/tenant-nginx.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:8081:80"

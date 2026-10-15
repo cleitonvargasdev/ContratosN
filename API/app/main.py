@@ -12,6 +12,7 @@ from app.db.session import AsyncSessionLocal, dispose_engines
 from app.tenancy.context import tenant_scope
 from app.tenancy.middleware import TenantMiddleware
 from app.tenancy.registry import registry
+from app.tenancy.admin import router as tenant_admin_router
 from app.services.parameter_service import ParameterService
 from app.services.whatsapp_chatbot_session_cleanup_service import WhatsAppChatbotSessionCleanupService
 
@@ -55,6 +56,7 @@ app.add_middleware(TenantMiddleware)
 logger = logging.getLogger(__name__)
 
 app.include_router(api_router, prefix=settings.api_v1_prefix)
+app.include_router(tenant_admin_router)
 app.include_router(webhook_router, prefix="/webhooks", tags=["webhooks"])
 
 

@@ -23,6 +23,7 @@ from app.realtime.chat_events import ChatEventBroker
 from app.realtime.user_events import UserEventBroker, user_event_broker
 from app.repositories.user_repository import UserRepository
 from app.tenancy.context import Tenant, current_tenant, public_base_url, tenant_key, tenant_scope
+from app.tenancy.admin import AdminUser, AdminSession
 from app.tenancy.events import TenantEventBroker
 from app.tenancy.middleware import TenantMiddleware
 from app.tenancy.registry import RegistryBase, TenantDomain, TenantRecord, TenantRegistry, registry
@@ -259,7 +260,7 @@ def test_registry_uses_separate_metadata_and_preserves_inactive_status(tmp_path)
             assert (await instance.find(company_code="cv")).id == "cv"
             assert await instance.find(hostname="unknown.test") is None
             assert await instance.list_active() == []
-            assert set(RegistryBase.metadata.tables) == {"tenants", "tenant_domains"}
+            assert set(RegistryBase.metadata.tables) == {"tenants", "tenant_domains", "cad_usuario", "tenant_admin_sessions"}
         finally:
             await instance.dispose()
     asyncio.run(run())
