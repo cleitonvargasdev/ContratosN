@@ -14,14 +14,14 @@ services:
       - "host.docker.internal:host-gateway"
     expose:
       - "8007"
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8007"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8007", "--no-access-log"]
 
   web:
     build:
       context: ..
       dockerfile: API/docker/frontend-nginx.Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL}
+        VITE_API_URL: ${VITE_API_URL:-/api/v1}
     container_name: contratos-web
     restart: unless-stopped
     depends_on:

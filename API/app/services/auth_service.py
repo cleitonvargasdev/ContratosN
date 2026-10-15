@@ -7,6 +7,7 @@ from app.core.security import create_access_token, verify_password
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import TokenPair
+from app.tenancy.context import validate_token_tenant
 
 
 class AuthService:
@@ -53,6 +54,7 @@ class AuthService:
 
         try:
             payload = jwt.decode(refresh_token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+            validate_token_tenant(payload)
             login = payload.get("sub")
             token_type = payload.get("token_type")
             if not isinstance(login, str) or token_type != "refresh":

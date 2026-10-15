@@ -1,6 +1,7 @@
 import asyncio
 
 from fastapi import WebSocket
+from app.tenancy.events import TenantEventBroker
 
 
 class ChatEventBroker:
@@ -80,4 +81,4 @@ class ChatEventBroker:
         return delivered
 
 
-chat_event_broker = ChatEventBroker()
+chat_event_broker = TenantEventBroker(ChatEventBroker)

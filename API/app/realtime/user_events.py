@@ -2,6 +2,7 @@ import asyncio
 from collections.abc import Iterable
 
 from fastapi import WebSocket
+from app.tenancy.events import TenantEventBroker
 
 
 class UserEventBroker:
@@ -49,4 +50,4 @@ class UserEventBroker:
                     self._connections.discard(connection)
 
 
-user_event_broker = UserEventBroker()
+user_event_broker = TenantEventBroker(UserEventBroker)

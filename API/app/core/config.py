@@ -3,6 +3,7 @@ from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import URL
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -14,6 +15,9 @@ class Settings(BaseSettings):
     project_name: str = "API Contratos"
     project_version: str = "0.1.0"
     api_v1_prefix: str = "/api/v1"
+    tenancy_enabled: bool = Field(default=False, alias="TENANCY_ENABLED")
+    tenant_registry_db_name: str = Field(default="tenant_registry", alias="TENANT_REGISTRY_DB_NAME")
+    tenant_api_hosts: str = Field(default="", alias="TENANT_API_HOSTS")
 
     db_host: str = Field(alias="DB_HOST")
     db_port: int = Field(alias="DB_PORT")
@@ -52,24 +56,19 @@ class Settings(BaseSettings):
 
     @property
     def sqlalchemy_database_uri(self) -> str:
-        return (
-            f"postgresql+asyncpg://{self.db_user}:{self.db_password}"
-            f"@{self.db_host}:{self.db_port}/{self.db_name}"
-        )
+        return self.database_url("postgresql+asyncpg", self.db_name)
 
     @property
     def sqlalchemy_sync_database_uri(self) -> str:
-        return (
-            f"postgresql+psycopg2://{self.db_user}:{self.db_password}"
-            f"@{self.db_host}:{self.db_port}/{self.db_name}"
-        )
+        return self.database_url("postgresql+psycopg2", self.db_name)
 
     @property
     def admin_database_uri(self) -> str:
-        return (
-            f"postgresql+psycopg2://{self.db_user}:{self.db_password}"
-            f"@{self.db_host}:{self.db_port}/postgres"
-        )
+        return self.database_url("postgresql+psycopg2", "postgres")
+
+    def database_url(self, driver: str, database: str) -> str:
+        return URL.create(driver, username=self.db_user, password=self.db_password,
+                          host=self.db_host, port=self.db_port, database=database).render_as_string(hide_password=False)
 
     @property
     def cors_allow_origins(self) -> list[str]:

@@ -9,6 +9,7 @@ from fastapi import HTTPException, Request, status
 
 from app.core.config import settings
 from app.core.security import create_access_token
+from app.tenancy.context import public_base_url
 from app.models.client import Cliente
 from app.models.contract import Contrato
 from app.models.whatsapp_chatbot import Solicitacao, WhatsAppChatbotSession
@@ -614,7 +615,7 @@ class WhatsAppChatbotService:
             expires_minutes=15,
         )
         route_path = request.app.url_path_for("print_contract_public", contract_id=str(contract_id))
-        base_url = (settings.public_api_base_url or str(request.base_url)).rstrip("/")
+        base_url = public_base_url(str(request.base_url))
         if any(loopback in base_url.lower() for loopback in ("127.0.0.1", "localhost", "0.0.0.0")):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

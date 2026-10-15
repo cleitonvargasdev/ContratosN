@@ -2,6 +2,15 @@
 
 Projeto teste com FastAPI assíncrona, SQLAlchemy 2, PostgreSQL e Alembic.
 
+## Banco por empresa (tenant)
+
+O modo multitenant e ativado por `TENANCY_ENABLED=true`. Cada dominio usa seu
+proprio banco, com cadastro administrativo em `tenant_registry`. O modo atual
+de banco unico continua sendo o padrao.
+
+Consulte o [roteiro de implantacao no Ubuntu](docs/implantacao-tenants-ubuntu.md)
+para copiar `Contratos` para CV e BC, cadastrar os dominios e ativar o sistema.
+
 ## Executar
 
 ```powershell
@@ -142,7 +151,7 @@ Nesse modo, o banco sobe no servico `db` e fica persistido no volume `postgres_d
 
 ### Observacoes importantes
 
-- O servico `api` roda `alembic upgrade head` antes de iniciar o Uvicorn.
+- O servico `api` roda `python -m scripts.migrate_databases` antes de iniciar o Uvicorn (Alembic no banco unico ou em cada tenant ativo).
 - Se o PostgreSQL estiver instalado no mesmo Ubuntu, fora do Docker, use `DB_HOST=host.docker.internal`.
 - Se seu banco atual ja tem os dados e a estrutura esperada, a API vai ler esses dados diretamente.
 - Se houver migracoes novas ainda nao aplicadas, o Alembic vai tentar aplicá-las ao subir. Por isso o backup antes da primeira subida e obrigatorio na pratica.

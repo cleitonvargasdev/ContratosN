@@ -15,6 +15,7 @@ from app.core.secrets import decrypt_secret
 from app.repositories.api_config_repository import ApiConfigRepository
 from app.core.config import ENV_FILE, settings
 from app.services.parameter_service import ParameterService
+from app.tenancy.context import current_tenant, require_whatsapp_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +176,7 @@ class WhatsAppService:
 		required_user: bool = False,
 		required_token: bool = False,
 	) -> dict[str, Any]:
+		require_whatsapp_enabled()
 		parameter = await self.parameter_service.get_parameters()
 		country_code = self._normalize_country_code(parameter.pais_whatsapp)
 		ninth_digit_rules = self._parse_ninth_digit_rules(parameter.regra_nono_dig_whats)
@@ -186,14 +188,19 @@ class WhatsAppService:
 				detail="Configure o Telefone 1 ou Telefone 2 em Parametros antes de conectar o WhatsApp.",
 			)
 
-		session_key = self._clean_text(parameter.token_api_whatsapp) or settings.quepasa_token.strip() or "CONTRATOS"
+		tenant = current_tenant.get()
+		session_key = self._clean_text(parameter.token_api_whatsapp)
+		if tenant is None:
+			session_key = session_key or settings.quepasa_token.strip() or "CONTRATOS"
 		if required_token and not session_key:
 			raise HTTPException(
 				status_code=status.HTTP_400_BAD_REQUEST,
 				detail="Configure o token da API do WhatsApp em Parametros antes de conectar.",
 			)
 
-		quepasa_user = self._clean_text(parameter.usuario_api_whatsapp) or (settings.quepasa_user.strip() if settings.quepasa_user else None)
+		quepasa_user = self._clean_text(parameter.usuario_api_whatsapp)
+		if tenant is None:
+			quepasa_user = quepasa_user or (settings.quepasa_user.strip() if settings.quepasa_user else None)
 		if required_user and not quepasa_user:
 			raise HTTPException(
 				status_code=status.HTTP_400_BAD_REQUEST,
@@ -219,7 +226,7 @@ class WhatsAppService:
 		if quepasa_user:
 			return quepasa_user
 
-		env_user = dotenv_values(ENV_FILE).get("QUEPASA_USER")
+		env_user = dotenv_values(ENV_FILE).get("QUEPASA_USER") if current_tenant.get() is None else None
 		if isinstance(env_user, str) and env_user.strip():
 			return env_user.strip()
 

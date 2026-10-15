@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends
+from typing import Annotated
+from fastapi import APIRouter, Depends, Form
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +27,7 @@ def get_auth_service(session: AsyncSession = Depends(get_db_session)) -> AuthSer
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     service: AuthService = Depends(get_auth_service),
+    company_code: Annotated[str | None, Form(description="Codigo da empresa no aplicativo (cv, bc). No site, o dominio identifica a empresa.")] = None,
 ) -> TokenPair:
     return await service.login(form_data.username, form_data.password)
 

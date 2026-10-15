@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.tenancy.context import current_tenant
 from app.core.timezone import get_local_timezone
 from app.core.secrets import encrypt_secret, secret_matches, secret_needs_reencryption
 from app.repositories.api_config_repository import ApiConfigRepository
@@ -58,8 +59,8 @@ class ParameterService:
             flag_whatsapp_telefone1=False,
             flag_whatsapp_telefone2=False,
             api_whatsapp="quepasa",
-            usuario_api_whatsapp=(settings.quepasa_user.strip() if settings.quepasa_user else "cleitinhojt@gmail.com"),
-            token_api_whatsapp=settings.quepasa_token.strip() or "CONTRATOS",
+            usuario_api_whatsapp=None if current_tenant.get() else (settings.quepasa_user.strip() if settings.quepasa_user else "cleitinhojt@gmail.com"),
+            token_api_whatsapp=None if current_tenant.get() else settings.quepasa_token.strip() or "CONTRATOS",
             sufixo_whatsapp="@s.whatsapp.net",
             ligar_websocket=False,
             silenciar_mensagem=False,
@@ -82,10 +83,10 @@ class ParameterService:
         if not parameter.api_whatsapp:
             parameter.api_whatsapp = "quepasa"
             changed = True
-        if not parameter.usuario_api_whatsapp:
+        if not parameter.usuario_api_whatsapp and current_tenant.get() is None:
             parameter.usuario_api_whatsapp = default_user
             changed = True
-        if not parameter.token_api_whatsapp:
+        if not parameter.token_api_whatsapp and current_tenant.get() is None:
             parameter.token_api_whatsapp = default_token
             changed = True
         if not parameter.sufixo_whatsapp:

@@ -3,6 +3,8 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .env
+tenant-backups/
+*.dump
 .env.*
 !.env.http.example
 !.env.local.example

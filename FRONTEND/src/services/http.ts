@@ -25,7 +25,7 @@ export function clearTokens(): void {
 }
 
 export function buildWebSocketUrl(path: string, params: Record<string, string> = {}): string {
-  const baseUrl = new URL(API_URL.endsWith('/') ? API_URL : `${API_URL}/`)
+  const baseUrl = new URL(API_URL.endsWith('/') ? API_URL : `${API_URL}/`, window.location.origin)
   baseUrl.protocol = baseUrl.protocol === 'https:' ? 'wss:' : 'ws:'
 
   const url = new URL(path.replace(/^\//, ''), baseUrl)

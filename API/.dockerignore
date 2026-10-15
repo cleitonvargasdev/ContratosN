@@ -1,5 +1,11 @@
 .git
 .gitignore
+.env
+.env.*
+!*.example
+*.dump
+*.backup
+tenant-backups
 .venv
 __pycache__
 *.pyc

@@ -8,12 +8,13 @@ import os
 import time
 
 import psycopg2
+from app.core.config import settings
 
 host = os.environ["DB_HOST"]
 port = int(os.environ.get("DB_PORT", "5432"))
 user = os.environ["DB_USER"]
 password = os.environ["DB_PASSWORD"]
-database = os.environ["DB_NAME"]
+database = settings.tenant_registry_db_name if settings.tenancy_enabled else settings.db_name
 
 deadline = time.time() + 60
 last_error = None
@@ -37,7 +38,7 @@ else:
 PY
 
 echo "Running Alembic migrations..."
-alembic upgrade head
+python -m scripts.migrate_databases
 
 echo "Starting API..."
 exec "$@"

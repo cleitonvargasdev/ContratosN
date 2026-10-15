@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_current_active_user, get_db_session, get_pagination_params, require_permission
 from app.core.config import settings
 from app.core.security import create_access_token
+from app.tenancy.context import public_base_url, validate_token_tenant
 from app.models.user import User
 from app.schemas.accounts_receivable import (
     AccountsReceivableListParams,
@@ -61,6 +62,7 @@ def _create_contract_pdf_token(contract_id: int) -> str:
 def _validate_contract_pdf_token(token: str, contract_id: int) -> None:
     try:
         payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        validate_token_tenant(payload)
     except JWTError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token do PDF invalido") from exc
 
@@ -71,7 +73,7 @@ def _validate_contract_pdf_token(token: str, contract_id: int) -> None:
 def _build_public_contract_pdf_url(request: Request, contract_id: int) -> str:
     token = _create_contract_pdf_token(contract_id)
     route_path = request.app.url_path_for("print_contract_public", contract_id=str(contract_id))
-    base_url = (settings.public_api_base_url or str(request.base_url)).rstrip("/")
+    base_url = public_base_url(str(request.base_url))
     parsed = urlparse(base_url)
     hostname = (parsed.hostname or "").strip().lower()
     if hostname in {"127.0.0.1", "localhost", "0.0.0.0"}:

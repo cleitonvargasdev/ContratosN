@@ -13,6 +13,7 @@ from app.models.user import User
 from app.repositories.access_control_repository import AccessControlRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.pagination import PaginationParams
+from app.tenancy.context import validate_token_tenant
 
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -32,6 +33,7 @@ def decode_access_token_subject(token: str) -> str:
 
     try:
         payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        validate_token_tenant(payload)
         login = payload.get("sub")
         token_type = payload.get("token_type")
         if not isinstance(login, str) or token_type != "access":
@@ -54,7 +56,7 @@ async def get_user_from_access_token(token: str, session: AsyncSession) -> User:
 
     repository = UserRepository(session)
     user = await repository.get_by_login(login)
-    if user is None:
+    if user is None or not user.ativo:
         raise _raise_invalid_credentials()
     return user
 

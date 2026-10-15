@@ -20,6 +20,7 @@ class TokenPair(BaseModel):
 class TokenPayload(BaseModel):
     sub: str
     token_type: str
+    tenant_id: str | None = None
 
 
 class RefreshTokenRequest(BaseModel):

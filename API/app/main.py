@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,7 +8,10 @@ from fastapi.responses import RedirectResponse
 from app.api.v1.router import api_router
 from app.controllers.webhook_controller import router as webhook_router
 from app.core.config import settings
-from app.db.session import AsyncSessionLocal
+from app.db.session import AsyncSessionLocal, dispose_engines
+from app.tenancy.context import tenant_scope
+from app.tenancy.middleware import TenantMiddleware
+from app.tenancy.registry import registry
 from app.services.parameter_service import ParameterService
 from app.services.whatsapp_chatbot_session_cleanup_service import WhatsAppChatbotSessionCleanupService
 
@@ -46,30 +50,42 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(TenantMiddleware)
+
+logger = logging.getLogger(__name__)
 
 app.include_router(api_router, prefix=settings.api_v1_prefix)
 app.include_router(webhook_router, prefix="/webhooks", tags=["webhooks"])
 
 
+async def _run_for_tenants(action, *, automation: bool = False) -> None:
+    tenants = await registry.list_active() if settings.tenancy_enabled else [None]
+    for tenant in tenants:
+        if tenant is not None and automation and not tenant.automations_enabled:
+            continue
+        try:
+            with tenant_scope(tenant):
+                async with AsyncSessionLocal() as session:
+                    await action(session)
+        except Exception:
+            logger.error("Rotina falhou para empresa %s", tenant.id if tenant else "legacy")
+
+
 async def _parameter_scheduler_loop() -> None:
     while True:
         try:
-            async with AsyncSessionLocal() as session:
-                service = ParameterService(session)
-                await service.run_due_scheduled_actions()
+            await _run_for_tenants(lambda session: ParameterService(session).run_due_scheduled_actions(), automation=True)
         except Exception:
-            pass
+            logger.error("Nao foi possivel consultar empresas para rotinas")
         await asyncio.sleep(60)
 
 
 async def _chatbot_session_cleanup_loop() -> None:
     while True:
         try:
-            async with AsyncSessionLocal() as session:
-                service = WhatsAppChatbotSessionCleanupService(session)
-                await service.close_inactive_sessions()
+            await _run_for_tenants(lambda session: WhatsAppChatbotSessionCleanupService(session).close_inactive_sessions())
         except Exception:
-            pass
+            logger.error("Nao foi possivel consultar empresas para limpeza de sessoes")
         await asyncio.sleep(600)
 
 
@@ -96,6 +112,9 @@ async def stop_parameter_scheduler() -> None:
             await chatbot_cleanup_task
         except asyncio.CancelledError:
             pass
+
+    await dispose_engines()
+    await registry.dispose()
 
 
 @app.get("/", include_in_schema=False)

@@ -35,6 +35,8 @@ server {
     }
 
     location /webhooks/ {
+        # Webhook URLs may carry a secret query parameter.
+        access_log off;
         proxy_pass http://api:8007;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
