@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.core.security import hash_password
 from app.tenancy.admin import AdminUser
 from app.tenancy.registry import RegistryBase, registry
+from app.tenancy.initial_config import ensure_config
 
 
 async def seed_admin():
@@ -15,6 +16,8 @@ async def seed_admin():
         async with registry.engine.begin() as connection:
             await connection.run_sync(RegistryBase.metadata.create_all)
         async with registry.session_factory()() as session:
+            await ensure_config(session)
+            await session.commit()
             if await session.scalar(select(AdminUser.id).limit(1)) is None:
                 session.add(AdminUser(nome="Administrador", login="ADMIN", senha_hash=hash_password("Admin"), ativo=True))
                 await session.commit()

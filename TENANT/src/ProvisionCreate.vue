@@ -57,13 +57,13 @@ async function save() {
           <fieldset :disabled="saving"><legend>Parâmetros do WhatsApp</legend>
             <p class="muted">Integração: <strong>quepasa</strong>. Revise as sugestões antes de continuar.</p>
             <label>Usuário da API<input v-model="form.usuario_api_whatsapp" maxlength="100" autocomplete="off" /></label>
-            <label class="checkbox-label"><input v-model="form.usar_token_modelo" type="checkbox" /> Usar o token atual da empresa modelo {{ defaults.has_token ? '(configurado)' : '(não configurado)' }}</label>
+            <label class="checkbox-label"><input v-model="form.usar_token_modelo" type="checkbox" /> Usar o token da configuração inicial {{ defaults.has_token ? '(configurado)' : '(não configurado)' }}</label>
             <label v-if="!form.usar_token_modelo">Token da API<input v-model="form.token_api_whatsapp" type="password" maxlength="120" autocomplete="new-password" placeholder="Token da conexão desta empresa" /></label>
             <div class="form-grid"><label>Sufixo<input v-model="form.sufixo_whatsapp" required maxlength="30" /></label><label>País<input v-model.number="form.pais_whatsapp" required type="number" min="1" max="999" /></label></div>
             <label>Mensagem de renovação<textarea v-model="form.msg_renovacao" rows="3" maxlength="10000"></textarea></label>
             <label>Mensagem de negociação<textarea v-model="form.msg_negociacao" rows="3" maxlength="10000"></textarea></label>
             <label>Mensagem de campanha<textarea v-model="form.msg_campanha" rows="3" maxlength="10000"></textarea></label>
-            <p class="field-note">Usar o mesmo token reaproveita a conexão de WhatsApp do modelo. WhatsApp e automações começam desativados; habilite após conferir a conexão de cada empresa.</p>
+            <p class="field-note">Usar o mesmo token reaproveita a conexão de WhatsApp configurada nos padrões. WhatsApp e automações começam desativados; habilite após conferir a conexão de cada empresa.</p>
           </fieldset>
           <details><summary>Padrões que serão carregados</summary><p>Perfis: {{ defaults.profiles.join(', ') || 'Administrador' }}. {{ defaults.api_count }} cadastros de APIs.</p><dl class="score-defaults"><template v-for="(value, key) in defaults.score" :key="key"><dt>{{ scoreLabels[key] || key }}</dt><dd>{{ value }}</dd></template></dl></details>
           <p class="field-note">O processo valida o domínio, cria o banco, carrega os padrões, configura HTTPS e testa o login. Você acompanha cada etapa no painel e pode retomar em caso de falha.</p>

@@ -43,7 +43,7 @@ def test_queue_requires_admin_and_worker_and_reserves_domain(panel, monkeypatch)
     monkeypatch.setattr(admin_module, "worker_available", lambda: False)
     assert client.post("/api/platform/tenants", headers=headers, json=payload).status_code == 503
     monkeypatch.setattr(admin_module, "worker_available", lambda: True)
-    monkeypatch.setattr(admin_module, "read_template", AsyncMock(return_value=template()))
+    monkeypatch.setattr(admin_module, "read_initial_config", AsyncMock(return_value=template()))
     response = client.post("/api/platform/tenants", headers=headers, json=payload)
     assert response.status_code == 201, response.text
     row = response.json()

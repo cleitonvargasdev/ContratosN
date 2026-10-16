@@ -5,7 +5,7 @@ import time
 from typing import Annotated
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import Boolean, ForeignKey, Integer, String, delete, select
@@ -17,7 +17,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.config import settings
 from app.core.security import hash_password, verify_password
 from app.tenancy.registry import RegistryBase, TenantDomain, TenantRecord, registry, secret_from_env
-from app.tenancy.provisioning import BootstrapInput, ProvisionJob, job_output, new_job, read_template, worker_available
+from app.tenancy.provisioning import BootstrapInput, ProvisionJob, job_output, new_job, worker_available
+from app.tenancy.initial_config import ConfigUpdate, config_output, ensure_config, read_initial_config, save_config
 
 
 class AdminUser(RegistryBase):
@@ -263,7 +264,7 @@ async def create_tenant(data: TenantInput, db: DB, admin: Admin):
     if data.provision:
         if not worker_available():
             raise HTTPException(503, "Serviço de criação indisponível. Configure o provisionador no Ubuntu e ative o modo multitenant")
-        job = new_job(data.code, await read_template(), data.bootstrap)
+        job = new_job(data.code, await read_initial_config(), data.bootstrap)
         data.database_url_env = f"TENANT_AUTO_{job.id.upper()}_DATABASE_URL"
         data.webhook_secret_env = f"TENANT_AUTO_{job.id.upper()}_WEBHOOK_SECRET"
         data.active = data.automations_enabled = data.whatsapp_enabled = False
@@ -311,15 +312,30 @@ async def update_tenant(tenant_id: str, data: TenantInput, db: DB, admin: Admin)
 
 @router.get("/provision/defaults")
 async def provisioning_defaults(admin: Admin):
-    snapshot = await read_template()
+    snapshot = await read_initial_config()
     parameters = snapshot["parameters"]
     return {"available": worker_available(), "bootstrap": {
-        "nome_fantasia": "Sua empresa", "razao_social": "Sua razão social", "usar_token_modelo": True,
+        "nome_fantasia": parameters.get("nome_fantasia", "Sua empresa"),
+        "razao_social": parameters.get("razao_social", "Sua razão social"), "usar_token_modelo": True,
         **{key: parameters.get(key) or (55 if key == "pais_whatsapp" else "") for key in (
             "usuario_api_whatsapp", "sufixo_whatsapp", "pais_whatsapp", "msg_renovacao", "msg_negociacao", "msg_campanha")}},
         "has_token": bool(parameters.get("token_api_whatsapp")),
         "score": {key: value for key, value in parameters.items() if key.startswith("score_")},
         "profiles": [p["nome"] for p in snapshot["profiles"]], "api_count": len(snapshot["apis"])}
+
+
+@router.get("/provision/config")
+async def initial_configuration(db: DB, admin: Admin, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    row = await ensure_config(db)
+    await db.commit()
+    return config_output(row)
+
+
+@router.put("/provision/config")
+async def update_initial_configuration(data: ConfigUpdate, db: DB, admin: Admin, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    return await save_config(db, data, admin)
 
 
 @router.get("/provision/jobs")

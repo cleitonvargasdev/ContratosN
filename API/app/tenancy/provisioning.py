@@ -127,8 +127,10 @@ def worker_available():
 
 
 def new_job(tenant_id, snapshot, bootstrap):
-    options = bootstrap.model_dump(exclude={"usar_token_modelo", "token_api_whatsapp"})
-    params = {**snapshot["parameters"], **options}
+    # Omitted per-company fields inherit the saved platform defaults.
+    options = bootstrap.model_dump(exclude={"usar_token_modelo", "token_api_whatsapp"}, exclude_unset=True)
+    defaults = BootstrapInput().model_dump(exclude={"usar_token_modelo", "token_api_whatsapp"})
+    params = {**defaults, **snapshot["parameters"], **options}
     params["token_api_whatsapp"] = (snapshot["parameters"].get("token_api_whatsapp", "")
         if bootstrap.usar_token_modelo else (bootstrap.token_api_whatsapp or ""))
     params["token_api_whatsapp"] = encrypt_secret(params["token_api_whatsapp"])

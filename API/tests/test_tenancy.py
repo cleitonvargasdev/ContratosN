@@ -260,7 +260,7 @@ def test_registry_uses_separate_metadata_and_preserves_inactive_status(tmp_path)
             assert (await instance.find(company_code="cv")).id == "cv"
             assert await instance.find(hostname="unknown.test") is None
             assert await instance.list_active() == []
-            assert set(RegistryBase.metadata.tables) == {"tenants", "tenant_domains", "cad_usuario", "tenant_admin_sessions", "tenant_provision_jobs"}
+            assert set(RegistryBase.metadata.tables) == {"tenants", "tenant_domains", "cad_usuario", "tenant_admin_sessions", "tenant_provision_jobs", "tenant_bootstrap_config"}
         finally:
             await instance.dispose()
     asyncio.run(run())

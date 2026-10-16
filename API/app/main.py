@@ -93,6 +93,9 @@ async def _chatbot_session_cleanup_loop() -> None:
 
 @app.on_event("startup")
 async def start_parameter_scheduler() -> None:
+    if settings.tenancy_enabled or settings.tenant_provisioning_enabled:
+        from app.tenancy.initial_config import initialize_config
+        await initialize_config()
     app.state.parameter_scheduler_task = asyncio.create_task(_parameter_scheduler_loop())
     app.state.chatbot_session_cleanup_task = asyncio.create_task(_chatbot_session_cleanup_loop())
 

@@ -183,6 +183,34 @@ def test_full_clone_migrations_and_original_preserved(pg_tmp_path, monkeypatch):
         queue_id = "c" * 32
         try:
             RegistryBase.metadata.create_all(registry_engine)
+            # First startup loads the config once; later startup preserves edits.
+            import asyncio
+            from app.tenancy import initial_config
+            from app.tenancy.registry import registry
+            from app.tenancy.provisioning import BootstrapInput, new_job, decode_payload
+            from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+            from sqlalchemy.engine import make_url
+            config_source = {**snapshot, "profiles": [], "parameters": {**snapshot["parameters"], "token_api_whatsapp": "test-token"}}
+            monkeypatch.setattr(initial_config, "bundled_config", lambda: initial_config.ConfigData.model_validate(config_source).snapshot())
+
+            async def initialize_and_read():
+                engine = create_async_engine(make_url(url("tenant_registry")).set(drivername="postgresql+asyncpg"))
+                monkeypatch.setattr(registry, "engine", engine)
+                monkeypatch.setattr(registry, "sessions", async_sessionmaker(engine, expire_on_commit=False))
+                try:
+                    await initial_config.initialize_config()
+                    async with registry.sessions() as db:
+                        row = await db.get(initial_config.InitialConfig, 1)
+                        row.version = 2
+                        await db.commit()
+                    await initial_config.initialize_config()
+                    return await initial_config.read_initial_config()
+                finally:
+                    await engine.dispose()
+
+            saved_config = asyncio.run(initialize_and_read())
+            assert saved_config["config_version"] == 2
+            snapshot = decode_payload(new_job("new", saved_config, BootstrapInput()).payload)
             with Session(registry_engine) as session:
                 session.add(TenantRecord(id="new", company_code="new", active=False,
                     database_url_env="TENANT_AUTO_TEST_DATABASE_URL", webhook_secret_env="TENANT_AUTO_TEST_WEBHOOK_SECRET",
@@ -194,6 +222,12 @@ def test_full_clone_migrations_and_original_preserved(pg_tmp_path, monkeypatch):
             assert provision_command("next")["id"] == queue_id
             assert provision_command("prepare", queue_id)["state"] == "running"
             assert "tenant_" + queue_id in secret_from_env("TENANT_AUTO_TEST_DATABASE_URL")
+            configured_engine = create_engine(make_url(secret_from_env("TENANT_AUTO_TEST_DATABASE_URL")).set(drivername="postgresql+psycopg2"))
+            try:
+                with configured_engine.connect() as connection:
+                    assert connection.execute(text("SELECT nome FROM perfis")).scalars().all() == ["Administrador"]
+            finally:
+                configured_engine.dispose()
             assert len(secret_from_env("TENANT_AUTO_TEST_WEBHOOK_SECRET")) >= 32
             provision_command("prepare", queue_id)  # Resume is idempotent through the real worker entry point.
             provision_command("fail", queue_id, "certificate")

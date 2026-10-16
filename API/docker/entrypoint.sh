@@ -14,7 +14,7 @@ host = os.environ["DB_HOST"]
 port = int(os.environ.get("DB_PORT", "5432"))
 user = os.environ["DB_USER"]
 password = os.environ["DB_PASSWORD"]
-database = settings.tenant_registry_db_name if settings.tenancy_enabled else settings.db_name
+database = "postgres" if settings.tenancy_enabled or settings.tenant_provisioning_enabled else settings.db_name
 
 deadline = time.time() + 60
 last_error = None
@@ -35,6 +35,14 @@ while time.time() < deadline:
         time.sleep(2)
 else:
     raise SystemExit(f"PostgreSQL did not become available in time: {last_error}")
+PY
+
+echo "Initializing Tenant registry when enabled..."
+python - <<'PY'
+from app.core.config import settings
+if settings.tenancy_enabled or settings.tenant_provisioning_enabled:
+    from scripts.init_tenant_admin import main
+    main()
 PY
 
 echo "Running Alembic migrations..."

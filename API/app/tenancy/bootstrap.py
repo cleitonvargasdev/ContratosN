@@ -23,7 +23,11 @@ def seed_database(url, job_id, domain, snapshot):
                 return
             if session.scalar(select(func.count()).select_from(User)):
                 raise ValueError("Banco não está vazio; inicialização recusada")
-            # Migrations provide built-in profiles; merge template profiles without source IDs.
+            # Only in this empty, uninitialized database: replace migration defaults
+            # so profiles removed from the platform config do not reappear.
+            session.execute(delete(ProfilePermission))
+            session.execute(delete(Profile))
+            # Create configured profiles without source IDs.
             for definition in snapshot["profiles"]:
                 profile = session.scalar(select(Profile).where(Profile.nome == definition["nome"]))
                 if profile is None:

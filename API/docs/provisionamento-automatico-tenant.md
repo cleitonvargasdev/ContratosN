@@ -6,12 +6,12 @@ O painel Tenant passa a oferecer **Criar tenant e publicar site**, além da opç
 
 - Um banco PostgreSQL novo e um usuário PostgreSQL exclusivo, com senha aleatória; banco e role usam identificador interno `tenant_<id-do-processo>`.
 - Todas as tabelas na versão atual do Alembic. Permanecem os cadastros básicos de localidades fornecidos pelas migrações.
-- Perfis e permissões da empresa modelo. O perfil **Administrador** fica ativo e recebe acesso completo ao catálogo atual.
+- Perfis e permissões da configuração inicial. O perfil **Administrador** fica ativo e recebe acesso completo ao catálogo atual.
 - Apenas um usuário: nome/função **Administrador**, login **Admin**, senha **Admin**, perfil **Administrador**. Email inicial `admin@<domínio>`; alterar depois se necessário.
 - Parâmetros com nome fantasia **Sua empresa** e razão social **Sua razão social**, editáveis no cadastro.
-- Regras de score atuais, regras do nono dígito e configuração básica de cobrança do modelo. Agendamentos e automações começam desativados.
-- Cadastros da tabela `apis` do modelo, vinculados ao novo administrador; nenhum usuário de origem é copiado.
-- Integração **quepasa**. O formulário sugere usuário, sufixo, país e mensagens do modelo. Permite usar o token atual sem exibi-lo ou informar outro token.
+- Regras de score, regras do nono dígito e configuração básica de cobrança salvas no Tenant. Agendamentos e automações começam desativados.
+- Cadastros de APIs da configuração inicial, vinculados ao novo administrador; nenhum usuário de origem é copiado.
+- Integração **quepasa**. O formulário sugere usuário, sufixo, país e mensagens da configuração inicial. Permite usar o token salvo sem exibi-lo ou informar outro token.
 - Virtual host Nginx, certificado HTTPS e teste de login no domínio novo.
 
 Não são copiados clientes, contratos, recebimentos, contas, produtos, fornecedores, histórico, sessões ou chaves de acesso de usuários das empresas existentes. A seleção de configurações é explícita, sem clonar o banco de negócio.
@@ -20,15 +20,23 @@ WhatsApp começa desativado no registro: reaproveitar um token pode apontar para
 
 ## De onde vêm os padrões
 
-Por padrão, o modelo é o banco configurado em `DB_NAME`, normalmente `Contratos`. Para usar uma empresa já cadastrada, informar no `API/.env`:
+Os padrões ficam na tabela `tenant_bootstrap_config` do banco central `tenant_registry`, com conteúdo criptografado, versão, data e login do último administrador que salvou. O provisionamento não consulta mais um banco de empresa para obter os padrões.
 
-```dotenv
-TENANT_TEMPLATE_CODE=cv
-```
+A carga de instalação está em `app/tenancy/initial_config.json`, exportada dos dados atuais: 2 perfis, 5 APIs e os parâmetros permitidos, sem usuários, clientes ou movimentações. O arquivo é criptografado porque contém também credenciais de integrações. **Preservar no ambiente de destino a chave que gerou o arquivo (`SECRET_ENCRYPTION_KEY`, ou `JWT_SECRET_KEY` quando usada como alternativa).** Uma chave diferente impede a primeira carga; não há inserção parcial da configuração.
 
-Deixar a variável vazia para utilizar `DB_NAME`. O banco modelo deve estar acessível e ter parâmetros cadastrados. A leitura é somente de configuração e usa uma transação PostgreSQL somente leitura. A criação salva uma fotografia protegida desses padrões; retomar a mesma criação utiliza essa fotografia, não os valores que tenham mudado depois.
+Ao iniciar o container com multitenancy ou provisionamento habilitado, o entrypoint cria o registro se necessário e executa `scripts.init_tenant_admin`. A primeira carga insere a configuração; as seguintes preservam edições e senhas existentes. A API também verifica a tabela de configuração ao iniciar. Fora do Docker, criar o registro inicialmente com `python -m scripts.init_tenant_admin`.
 
-Os valores vistos no formulário são sugestões; o token não é devolvido ao navegador. O usuário pode substituí-lo no cadastro. Não há token real fixado no código-fonte ou neste documento.
+### Editar pelo painel
+
+Abrir **Configuração inicial** no menu Tenant. O formulário permite editar nomes sugeridos da empresa, score, cobrança, WhatsApp, regras do nono dígito, perfis/permissões e cadastros de APIs. O perfil Administrador sempre recebe acesso completo na criação.
+
+O token WhatsApp não é retornado ao navegador: escolher manter, substituir ou remover. Os cadastros de APIs são acessíveis somente a administradores autenticados; as respostas desse formulário usam `Cache-Control: no-store`.
+
+Salvar afeta apenas novas criações. Cada processo guarda uma cópia dos dados e da versão utilizada, preservada nas retomadas. Uma edição baseada em versão antiga é recusada: recarregar antes de salvar novamente. WhatsApp, agendamentos e automações continuam desativados inicialmente.
+
+### Gerar outra carga de instalação (opcional)
+
+`python -m scripts.export_tenant_initial_config` exporta explicitamente os dados permitidos do banco indicado por `TENANT_TEMPLATE_CODE`, ou de `DB_NAME` quando a variável está vazia. Substitui o arquivo de instalação, sem alterar uma configuração já salva no registro. Esse comando só é necessário para preparar outra carga; o funcionamento normal não depende da empresa modelo. Não incluir a chave de criptografia no código-fonte.
 
 ## Arquitetura operacional
 
@@ -85,7 +93,7 @@ docker compose -f docker-compose.yml -f docker-compose.tenant.yml run --rm --no-
 docker compose -f docker-compose.yml -f docker-compose.tenant.yml up -d api web tenant-web
 ```
 
-O inicializador adiciona `tenant_provision_jobs` ao registro e preserva seus usuários. As migrações de negócio ampliam o campo do token WhatsApp para comportar criptografia. Usar os dois arquivos Compose em todas as atualizações para preservar o volume de credenciais.
+O inicializador adiciona `tenant_provision_jobs` e `tenant_bootstrap_config` ao registro e preserva seus usuários e configurações existentes. As migrações de negócio ampliam o campo do token WhatsApp para comportar criptografia. Usar os dois arquivos Compose em todas as atualizações para preservar o volume de credenciais.
 
 Se usa `docker-compose.with-db.yml`, incluí-lo em todos os comandos e na configuração do worker abaixo, mantendo o mesmo projeto Compose e seus volumes.
 

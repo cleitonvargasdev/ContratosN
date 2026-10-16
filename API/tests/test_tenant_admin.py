@@ -154,6 +154,9 @@ def test_lockout_and_expired_session(panel):
 
 
 def test_bootstrap_is_idempotent_and_preserves_password(tmp_path, monkeypatch):
+    from app.tenancy import initial_config
+    monkeypatch.setattr(initial_config, "bundled_config", lambda: initial_config.ConfigData(
+        parameters=initial_config.Parameters(), profiles=[], apis=[]).snapshot())
     engine = create_async_engine(f"sqlite+aiosqlite:///{(tmp_path / 'seed.db').as_posix()}")
     factory = async_sessionmaker(engine, expire_on_commit=False)
 
