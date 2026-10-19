@@ -49,9 +49,14 @@
 
       <div class="field-group field-group--span-2">
         <span>Quadro de estoque</span>
-        <div class="summary-row">
-          <article v-for="entry in stockSummary" :key="entry.label" class="summary-chip"><strong :class="entry.value < 0 ? 'feedback--error' : ''">{{ entry.value }}</strong><span>{{ entry.label }}</span></article>
-          <button v-if="isEdit" class="secondary-button" type="button" @click="stockOpen = true">Movimentar estoque</button>
+        <div class="table-wrap stock-grid">
+          <table class="data-table data-table--users">
+            <thead><tr><th v-for="entry in stockSummary" :key="entry.label" scope="col">{{ entry.label }}</th><th v-if="isEdit" class="actions-column" scope="col">Ações</th></tr></thead>
+            <tbody><tr class="data-table__row">
+              <td v-for="entry in stockSummary" :key="entry.label"><strong :class="entry.value < 0 ? 'feedback--error' : ''">{{ entry.value }}</strong></td>
+              <td v-if="isEdit" class="actions-cell"><StockMovementButton @click="stockOpen = true" /></td>
+            </tr></tbody>
+          </table>
         </div>
         <small v-if="!isEdit">Salve o produto para dar entrada no estoque inicial.</small>
       </div>
@@ -85,6 +90,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import StockMovementButton from '@/components/products/StockMovementButton.vue'
 import ProductStockModal from '@/components/products/ProductStockModal.vue'
 import type { BrandOption, ProductInput } from '@/models/product'
 import { errorAlert, successAlert } from '@/services/alertService'
@@ -266,6 +272,9 @@ function syncDisplayFields() {
 </script>
 
 <style scoped>
+.stock-grid { width: 100%; max-width: 520px; }
+.stock-grid table { width: 100%; }
+
 .status-switch {
   display: inline-flex;
   align-items: center;

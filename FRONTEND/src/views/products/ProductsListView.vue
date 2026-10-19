@@ -68,7 +68,7 @@
                 {{ item.ativo ? 'Ativo' : 'Inativo' }}
               </span>
             </td>
-            <td class="actions-cell"><button class="secondary-button" type="button" @click="stockProduct = item">Estoque</button>
+            <td class="actions-cell"><StockMovementButton @click="stockProduct = item" />
               <button class="icon-action" type="button" title="Alterar cadastro" aria-label="Alterar cadastro" @click="router.push({ name: 'products-edit', params: { id: item.produto_id } })">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92L5.92 19.58zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.13 1.13 3.75 3.75 1.14-1.12z" fill="currentColor"/></svg>
               </button>
@@ -109,6 +109,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
+import StockMovementButton from '@/components/products/StockMovementButton.vue'
 import ProductStockModal from '@/components/products/ProductStockModal.vue'
 import type { Product } from '@/models/product'
 import type { BrandOption, ProductListResponse } from '@/models/product'
