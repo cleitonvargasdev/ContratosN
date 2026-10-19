@@ -91,6 +91,16 @@ async def _chatbot_session_cleanup_loop() -> None:
         await asyncio.sleep(600)
 
 
+async def _wallet_cleanup_loop() -> None:
+    from app.services.mobile_wallet_service import WalletArtifacts
+    while True:
+        try:
+            await asyncio.to_thread(WalletArtifacts().cleanup)
+        except Exception:
+            logger.exception("Falha na limpeza dos arquivos temporarios de carteira")
+        await asyncio.sleep(3600)
+
+
 @app.on_event("startup")
 async def start_parameter_scheduler() -> None:
     if settings.tenancy_enabled or settings.tenant_provisioning_enabled:
@@ -98,10 +108,18 @@ async def start_parameter_scheduler() -> None:
         await initialize_config()
     app.state.parameter_scheduler_task = asyncio.create_task(_parameter_scheduler_loop())
     app.state.chatbot_session_cleanup_task = asyncio.create_task(_chatbot_session_cleanup_loop())
+    app.state.wallet_cleanup_task = asyncio.create_task(_wallet_cleanup_loop())
 
 
 @app.on_event("shutdown")
 async def stop_parameter_scheduler() -> None:
+    wallet_task = getattr(app.state, "wallet_cleanup_task", None)
+    if wallet_task is not None:
+        wallet_task.cancel()
+        try:
+            await wallet_task
+        except asyncio.CancelledError:
+            pass
     task = getattr(app.state, "parameter_scheduler_task", None)
     if task is not None:
         task.cancel()

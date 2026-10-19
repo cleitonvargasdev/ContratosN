@@ -1,0 +1,27 @@
+# Nginx do host Ubuntu; encaminha para o web existente na porta 8080.
+# Ativar TLS com Certbot antes de usar login ou credenciais.
+server {
+    listen 80;
+    server_name api.vstec.net;
+    client_max_body_size 25m;
+
+    location /api/v1/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /health {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        return 404;
+    }
+}
