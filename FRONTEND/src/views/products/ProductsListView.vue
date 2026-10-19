@@ -68,13 +68,16 @@
                 {{ item.ativo ? 'Ativo' : 'Inativo' }}
               </span>
             </td>
-            <td class="actions-cell"><StockMovementButton @click="stockProduct = item" />
+            <td class="actions-cell">
+              <div class="product-actions">
               <button class="icon-action" type="button" title="Alterar cadastro" aria-label="Alterar cadastro" @click="router.push({ name: 'products-edit', params: { id: item.produto_id } })">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92L5.92 19.58zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.13 1.13 3.75 3.75 1.14-1.12z" fill="currentColor"/></svg>
               </button>
               <button class="icon-action icon-action--danger" type="button" title="Excluir cadastro" aria-label="Excluir cadastro" @click="handleDelete(item.produto_id)">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7zm3 3v8h2v-8H9zm4 0v8h2v-8h-2zM9 2h6l1 2h4v2H4V4h4l1-2z" fill="currentColor"/></svg>
               </button>
+              <StockMovementButton @click="stockProduct = item" />
+              </div>
             </td>
           </tr>
         </tbody>
@@ -212,3 +215,16 @@ function formatGuarantee(value: number | null) {
   return `${value} ${value === 1 ? 'dia' : 'dias'}`
 }
 </script>
+
+<style scoped>
+.product-actions {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.product-actions > :deep(button) {
+  flex: 0 0 30px;
+}
+</style>
