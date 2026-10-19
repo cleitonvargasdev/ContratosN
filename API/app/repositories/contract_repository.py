@@ -170,6 +170,7 @@ class ContractRepository:
             select(ContratoComodato)
             .options(selectinload(ContratoComodato.avalista), selectinload(ContratoComodato.items))
             .where(ContratoComodato.contrato_id == contract_id)
+            .execution_options(populate_existing=True)
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
@@ -187,6 +188,8 @@ class ContractRepository:
             await self.session.flush()
         else:
             record.avalista_cliente_id = avalista_id
+
+        record.versao = (record.versao or 0) + 1
 
         await self.session.execute(delete(ContratoComodatoItem).where(ContratoComodatoItem.comodato_id == record.comodato_id))
         for item in items:

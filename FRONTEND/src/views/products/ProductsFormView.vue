@@ -47,9 +47,17 @@
         <input v-model="form.garantia" class="field" min="0" type="number" />
       </label>
 
-      <label class="field-group">
-        <span>Estoque</span>
-        <input v-model="form.estoque" class="field" min="0" type="number" />
+      <div class="field-group field-group--span-2">
+        <span>Quadro de estoque</span>
+        <div class="summary-row">
+          <article v-for="entry in stockSummary" :key="entry.label" class="summary-chip"><strong :class="entry.value < 0 ? 'feedback--error' : ''">{{ entry.value }}</strong><span>{{ entry.label }}</span></article>
+          <button v-if="isEdit" class="secondary-button" type="button" @click="stockOpen = true">Movimentar estoque</button>
+        </div>
+        <small v-if="!isEdit">Salve o produto para dar entrada no estoque inicial.</small>
+      </div>
+      <label class="field-group field-group--span-2">
+        <span><input v-model="form.permite_vender_sem_estoque" type="checkbox" /> Permitir venda sem estoque</span>
+        <small>Permite saldo negativo na condição vendida (novo ou usado).</small>
       </label>
 
       <label class="field-group">
@@ -69,6 +77,7 @@
     </form>
 
     <p v-if="state.error" class="feedback feedback--error">{{ state.error }}</p>
+    <ProductStockModal v-if="stockOpen" :product-id="Number(route.params.id)" @close="stockOpen = false" @changed="refreshStock" />
   </section>
 </template>
 
@@ -76,6 +85,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import ProductStockModal from '@/components/products/ProductStockModal.vue'
 import type { BrandOption, ProductInput } from '@/models/product'
 import { errorAlert, successAlert } from '@/services/alertService'
 import { createProduct, getProductById, listBrandOptions, updateProduct } from '@/services/productService'
@@ -91,10 +101,18 @@ const form = reactive({
   marca_id: '',
   garantia: '',
   ativo: true,
-  estoque: '',
+  permite_vender_sem_estoque: false,
   modelo: '',
   cor: '',
 })
+const stockOpen = ref(false)
+const stock = reactive({ novos: 0, usados: 0 })
+const stockSummary = computed(() => [{ label: 'Novos', value: stock.novos }, { label: 'Usados', value: stock.usados }, { label: 'Total', value: stock.novos + stock.usados }])
+async function refreshStock() {
+  const record = await getProductById(Number(route.params.id))
+  stock.novos = record.estoque_novos
+  stock.usados = record.estoque_usados
+}
 const display = reactive({
   valor_compra: '',
   valor_venda: '',
@@ -118,7 +136,9 @@ async function initialize() {
       form.marca_id = record.marca_id == null ? '' : String(record.marca_id)
       form.garantia = formatIntegerInput(record.garantia)
       form.ativo = record.ativo
-      form.estoque = formatIntegerInput(record.estoque)
+      form.permite_vender_sem_estoque = record.permite_vender_sem_estoque
+      stock.novos = record.estoque_novos
+      stock.usados = record.estoque_usados
       form.modelo = record.modelo ?? ''
       form.cor = record.cor ?? ''
     }
@@ -143,7 +163,7 @@ async function handleSubmit() {
       marca_id: parseNullableInteger(form.marca_id),
       garantia: parseNullableInteger(form.garantia),
       ativo: Boolean(form.ativo),
-      estoque: parseNullableInteger(form.estoque),
+      permite_vender_sem_estoque: form.permite_vender_sem_estoque,
       modelo: normalizeText(form.modelo),
       cor: normalizeText(form.cor),
     }

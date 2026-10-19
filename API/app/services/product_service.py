@@ -1,5 +1,9 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import exists, select
+from app.models.stock import MovimentoEstoque
+from app.models.contract_commodato import ContratoComodatoItem
+from app.services.stock_service import StockService
 
 from app.repositories.product_repository import ProductRepository
 from app.schemas.product import (
@@ -70,22 +74,30 @@ class ProductService:
 
     async def create_product(self, payload: ProductCreate) -> ProductRead:
         data = await self._normalize_product_payload(payload.model_dump())
+        if data.pop("estoque", None) not in (None, 0):
+            raise HTTPException(400, "Cadastre o produto e utilize Dar entrada para informar o estoque inicial")
+        data["estoque"] = 0
         record = await self.repository.create_product(data)
         return ProductRead.model_validate(record)
 
     async def update_product(self, produto_id: int, payload: ProductUpdate) -> ProductRead | None:
-        record = await self.repository.get_product_by_id(produto_id)
+        record = await StockService(self.repository.session).lock_product(produto_id)
         if record is None:
             return None
 
         data = await self._normalize_product_payload(payload.model_dump(exclude_unset=True), partial=True)
+        if "estoque" in data and data.pop("estoque") != record.estoque:
+            raise HTTPException(400, "Utilize as movimentações para alterar o estoque")
         saved = await self.repository.update_product(record, data)
         return ProductRead.model_validate(saved)
 
     async def delete_product(self, produto_id: int) -> bool:
-        record = await self.repository.get_product_by_id(produto_id)
+        record = await StockService(self.repository.session).lock_product(produto_id)
         if record is None:
             return False
+        for model in (MovimentoEstoque, ContratoComodatoItem):
+            if await self.repository.session.scalar(select(exists().where(model.produto_id == produto_id))):
+                raise HTTPException(409, "Produto possui histórico ou vínculo com contrato. Inative o cadastro.")
         await self.repository.delete_product(record)
         return True
 
@@ -114,7 +126,7 @@ class ProductService:
             if values.get(field) is not None:
                 values[field] = self._round_currency(float(values[field]))
 
-        for field, message in (("garantia", "Garantia invalida"), ("estoque", "Estoque invalido")):
+        for field, message in (("garantia", "Garantia invalida"),):
             if values.get(field) is not None and int(values[field]) < 0:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
 

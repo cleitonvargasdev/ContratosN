@@ -60,6 +60,7 @@ class ProductBase(BaseModel):
     marca_id: int | None = None
     garantia: int | None = None
     ativo: bool = True
+    permite_vender_sem_estoque: bool = False
     estoque: int | None = None
     modelo: str | None = None
     cor: str | None = None
@@ -92,6 +93,9 @@ class ProductUpdate(ProductBase):
 
 class ProductRead(ProductBase):
     produto_id: int
+    estoque_novos: int = 0
+    estoque_usados: int = 0
+    estoque_versao: int = 0
     marca_descricao: str | None = None
     marca: BrandRead | None = None
 

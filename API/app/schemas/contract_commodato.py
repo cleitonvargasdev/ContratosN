@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Literal
 
 
 def _strip_to_none(value: object) -> str | None:
@@ -22,6 +23,7 @@ def _normalize_money(value: object) -> float | None:
 
 
 class ContractComodatoItemWrite(BaseModel):
+    condicao: Literal["novo", "usado"] = "novo"
     item_id: int | None = None
     produto_id: int | None = None
     quantidade: int = Field(default=1, ge=1)
@@ -40,11 +42,14 @@ class ContractComodatoItemWrite(BaseModel):
 
 
 class ContractComodatoWrite(BaseModel):
+    versao_esperada: int = 0
     avalista_id: int | None = None
     items: list[ContractComodatoItemWrite] = Field(default_factory=list)
 
 
 class ContractComodatoItemRead(BaseModel):
+    condicao: Literal["novo", "usado"] = "novo"
+    quantidade_devolvida: int = 0
     item_id: int
     produto_id: int
     produto_descricao: str
@@ -56,6 +61,9 @@ class ContractComodatoItemRead(BaseModel):
 
 
 class ContractComodatoRead(BaseModel):
+    venda_confirmada: bool = False
+    estoque_legado: bool = False
+    versao: int = 0
     contrato_id: int
     avalista_id: int | None = None
     avalista_nome: str | None = None

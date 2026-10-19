@@ -21,10 +21,31 @@ from app.schemas.product import (
     ProductUpdate,
 )
 from app.services.product_service import ProductService
+from app.services.stock_service import StockService
+from app.schemas.stock import StockHistory, StockMovementRead, StockWrite
 
 
 brands_router = APIRouter(dependencies=[Depends(get_current_active_user)])
 products_router = APIRouter(dependencies=[Depends(get_current_active_user)])
+
+
+@products_router.get("/{produto_id}/estoque", response_model=StockHistory, summary="Histórico do estoque")
+async def stock_history(
+    produto_id: int,
+    pagination: PaginationParams = Depends(get_pagination_params),
+    _: User = Depends(require_permission("produtos", "read")),
+    session: AsyncSession = Depends(get_db_session),
+):
+    return await StockService(session).history(produto_id, pagination.page, pagination.page_size)
+
+
+@products_router.post("/{produto_id}/estoque", response_model=StockMovementRead, summary="Movimentar estoque")
+async def stock_move(
+    produto_id: int, payload: StockWrite,
+    user: User = Depends(require_permission("produtos", "update")),
+    session: AsyncSession = Depends(get_db_session),
+):
+    return await StockService(session).move(produto_id, payload, user)
 
 
 def get_product_service(session: AsyncSession = Depends(get_db_session)) -> ProductService:

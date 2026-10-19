@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="props.open" class="modal-backdrop" @click.self="emit('close')">
+    <div v-if="props.open" class="modal-backdrop" @click.self="!busy && emit('close')">
       <section class="modal-card modal-card--comodato">
         <header class="panel__header panel__header--stacked comodato-modal__header">
           <div>
@@ -14,7 +14,7 @@
             <span>Avalista</span>
             <div class="comodato-modal__picker-embedded">
               <input :value="selectedAvalistaLabel" class="field field--readonly comodato-modal__picker-field comodato-modal__picker-field--embedded" readonly type="text" />
-              <button class="comodato-modal__picker-button comodato-modal__picker-button--embedded" type="button" title="Pesquisar avalista" aria-label="Pesquisar avalista" @click="openAvalistaLookup">
+              <button :disabled="currentValue?.venda_confirmada || busy" class="comodato-modal__picker-button comodato-modal__picker-button--embedded" type="button" title="Pesquisar avalista" aria-label="Pesquisar avalista" @click="openAvalistaLookup">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M10.5 4a6.5 6.5 0 1 0 4.03 11.6l4.44 4.44 1.41-1.41-4.44-4.44A6.5 6.5 0 0 0 10.5 4Zm0 2a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z" fill="currentColor" />
                 </svg>
@@ -28,7 +28,9 @@
               <span class="comodato-modal__selected">{{ draft.items.length }} item(ns) • {{ formatCurrency(orderTotal) }}</span>
             </div>
 
-            <div class="comodato-modal__item-form">
+            <p v-if="currentValue?.venda_confirmada" class="feedback feedback--info">Venda confirmada. A quitação não movimenta estoque. Registre somente as devoluções recebidas.</p>
+            <p v-if="currentValue?.estoque_legado" class="feedback feedback--info">Comodato anterior ao controle de estoque: sem nova saída automática.</p>
+            <div v-if="!currentValue?.venda_confirmada" class="comodato-modal__item-form">
               <label class="field-group comodato-modal__field--product">
                 <span>Produto</span>
                 <div class="comodato-modal__picker-embedded">
@@ -42,6 +44,9 @@
               </label>
 
               <label class="field-group comodato-modal__field--compact">
+                <span>Condição e saldo</span>
+                <select v-model="draft.itemCondicao" class="field"><option value="novo">Novo · {{ selectedProduct?.estoque_novos ?? 0 }} disponíveis</option><option value="usado">Usado · {{ selectedProduct?.estoque_usados ?? 0 }} disponíveis</option></select>
+                <small v-if="selectedProduct?.permite_vender_sem_estoque">Permite venda com saldo negativo.</small>
                 <span>Quantidade</span>
                 <input v-model="draft.itemQuantidade" class="field" inputmode="numeric" min="1" type="number" />
               </label>
@@ -78,7 +83,7 @@
                 <thead>
                   <tr>
                     <th>Produto</th>
-                    <th>Qtd.</th>
+                    <th>Condição</th><th>Qtd.</th><th>Devolvidos</th>
                     <th>Vl. unit.</th>
                     <th>Subtotal</th>
                     <th class="comodato-modal__actions-header">Ações</th>
@@ -86,23 +91,23 @@
                 </thead>
                 <tbody>
                   <tr v-if="draft.items.length === 0">
-                    <td colspan="5">Nenhum produto incluído.</td>
+                    <td colspan="7">Nenhum produto incluído.</td>
                   </tr>
                   <tr v-for="(item, index) in draft.items" :key="item.localKey">
                     <td>{{ item.produto_descricao }}</td>
-                    <td>{{ item.quantidade }}</td>
+                    <td>{{ item.condicao === 'usado' ? 'Usado' : 'Novo' }}</td><td>{{ item.quantidade }}</td><td>{{ item.quantidade_devolvida }}</td>
                     <td>{{ formatCurrency(item.valor_unitario) }}</td>
                     <td>{{ formatCurrency(itemSubtotalValue(item)) }}</td>
                     <td class="comodato-modal__actions-column">
-                      <div class="comodato-modal__actions-cell">
-                        <button class="contract-installments__action contract-installments__action--edit" type="button" title="Editar item" aria-label="Editar item" @click="editItem(index)">
+                      <div class="comodato-modal__actions-cell"><button v-if="currentValue?.venda_confirmada && item.quantidade_devolvida < item.quantidade" class="secondary-button" :disabled="busy" type="button" @click="returnItem = item">Devolver</button>
+                        <button v-if="!currentValue?.venda_confirmada" class="contract-installments__action contract-installments__action--edit" type="button" title="Editar item" aria-label="Editar item" @click="editItem(index)">
                           <span class="contract-installments__action-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24">
                               <path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92L5.92 19.58zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.13 1.13 3.75 3.75 1.14-1.12z" fill="currentColor" />
                             </svg>
                           </span>
                         </button>
-                        <button class="contract-installments__action contract-installments__action--delete" type="button" title="Excluir item" aria-label="Excluir item" @click="removeItem(index)">
+                        <button v-if="!currentValue?.venda_confirmada" class="contract-installments__action contract-installments__action--delete" type="button" title="Excluir item" aria-label="Excluir item" @click="removeItem(index)">
                           <span class="contract-installments__action-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24">
                               <path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7zm3 3v8h2v-8H9zm4 0v8h2v-8h-2zM9 2h6l1 2h4v2H4V4h4l1-2z" fill="currentColor" />
@@ -118,9 +123,9 @@
           </section>
 
           <div class="form-actions comodato-modal__footer">
-            <button class="ghost-button" :disabled="props.saving" type="button" @click="emit('close')">Fechar</button>
+            <button class="ghost-button" :disabled="props.saving || busy" type="button" @click="emit('close')">Fechar</button>
             <button
-              v-if="hasExistingComodato"
+              v-if="hasExistingComodato && !currentValue?.venda_confirmada"
               class="ghost-button ghost-button--danger"
               :disabled="props.saving"
               type="button"
@@ -128,7 +133,8 @@
             >
               Excluir comodato
             </button>
-            <button class="primary-button primary-button--success" :disabled="props.saving" type="button" @click="emitSave">
+            <button v-if="!currentValue?.venda_confirmada" class="primary-button primary-button--accent-soft" :disabled="busy || props.saving || dirty || !currentValue?.items.length" type="button" @click="confirmSale">Confirmar venda e dar saída</button>
+            <button v-if="!currentValue?.venda_confirmada" class="primary-button primary-button--success" :disabled="props.saving || busy" type="button" @click="emitSave">
               {{ props.saving ? 'Salvando...' : 'Salvar comodato' }}
             </button>
             <button class="primary-button primary-button--accent-soft" :disabled="props.saving || draft.items.length === 0" type="button" @click="emit('print')">
@@ -213,6 +219,8 @@
                 @click="selectProduct(product)"
               >
                 <strong>{{ product.descricao || `Produto ${product.produto_id}` }}</strong>
+                <strong :class="product.estoque_novos < 0 || product.estoque_usados < 0 ? 'feedback--error' : ''">Novos: {{ product.estoque_novos }} · Usados: {{ product.estoque_usados }} · Total: {{ product.estoque }}</strong>
+                <small v-if="product.permite_vender_sem_estoque">Venda sem estoque permitida</small>
                 <span>{{ product.marca_descricao || product.modelo || product.cor || 'Sem complemento' }}</span>
                 <small>Valor: {{ formatCurrency(product.valor_venda) }}</small>
               </button>
@@ -228,6 +236,7 @@
         </section>
       </div>
     </div>
+    <ProductStockModal v-if="returnItem" :product-id="returnItem.produto_id" :return-item-id="returnItem.item_id" :return-remaining="returnItem.quantidade - returnItem.quantidade_devolvida" @close="returnItem = null" @changed="refreshAfterReturn" />
   </Teleport>
 </template>
 
@@ -237,7 +246,10 @@ import { computed, reactive, ref, watch } from 'vue'
 import type { Client } from '@/models/client'
 import type { ContractComodato, ContractComodatoInput, ContractComodatoItemInput, ContractComodatoItemRead } from '@/models/contract'
 import type { Product } from '@/models/product'
-import { confirmActionAlert, infoAlert } from '@/services/alertService'
+import ProductStockModal from '@/components/products/ProductStockModal.vue'
+import { apiFetch } from '@/services/http'
+import { getContractComodato } from '@/services/contractService'
+import { confirmActionAlert, infoAlert, successAlert, errorAlert } from '@/services/alertService'
 import { listProducts } from '@/services/productService'
 
 type DraftItem = ContractComodatoItemRead & { localKey: string }
@@ -256,8 +268,36 @@ const emit = defineEmits<{
   save: [payload: ContractComodatoInput]
   print: []
   delete: []
+  updated: [value: ContractComodato]
 }>()
 
+const busy = ref(false)
+const updatedValue = ref<ContractComodato | null>(null)
+const currentValue = computed(() => updatedValue.value ?? props.value)
+const returnItem = ref<DraftItem | null>(null)
+const selectedProduct = computed(() => productOptions.value.find(p => p.produto_id === draft.itemProdutoId))
+const dirty = computed(() => JSON.stringify(draft.items.map(({ localKey, ...item }) => item)) !== JSON.stringify(currentValue.value?.items ?? []) || draft.avalista_id !== (currentValue.value?.avalista_id ?? null) || draft.itemProdutoId !== null)
+async function confirmSale() {
+  if (!props.contractId || dirty.value || busy.value) return
+  busy.value = true
+  try {
+    if (!(await confirmActionAlert('Confirmar venda e dar saída?', 'As quantidades serão descontadas de novos ou usados. Após confirmar, os itens serão preservados no histórico.', 'Confirmar venda'))) return
+    updatedValue.value = await apiFetch<ContractComodato>(`/contratos/${props.contractId}/comodato/confirmar-venda`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ versao_esperada: currentValue.value?.versao }) })
+    emit('updated', updatedValue.value)
+    syncFromProps()
+    await loadProducts()
+    await successAlert('Venda confirmada e saída registrada.')
+  } catch (error) { await errorAlert(error instanceof Error ? error.message : 'Falha ao confirmar venda') }
+  finally { busy.value = false }
+}
+async function refreshAfterReturn() {
+  if (!props.contractId) return
+  updatedValue.value = await getContractComodato(props.contractId)
+  emit('updated', updatedValue.value)
+  syncFromProps()
+  returnItem.value = null
+  await loadProducts()
+}
 const productsLoading = ref(false)
 const productsError = ref('')
 const productOptions = ref<Product[]>([])
@@ -272,6 +312,7 @@ const draft = reactive({
   productTerm: '',
   itemProdutoId: null as number | null,
   itemQuantidade: '1',
+  itemCondicao: 'novo' as 'novo' | 'usado',
   itemValorUnitario: '',
   itemObservacao: '',
   editingItemIndex: null as number | null,
@@ -324,7 +365,7 @@ const selectedProductLabel = computed(() => {
 const itemSubtotal = computed(() => {
   const quantity = Number(draft.itemQuantidade)
   const unitValue = parseMoney(draft.itemValorUnitario) ?? 0
-  if (!Number.isFinite(quantity) || quantity <= 0) {
+  if (!Number.isSafeInteger(quantity) || quantity <= 0) {
     return 0
   }
   return quantity * unitValue
@@ -350,10 +391,9 @@ watch(
     if (!open) {
       return
     }
+    updatedValue.value = null
     syncFromProps()
-    if (productOptions.value.length === 0) {
-      void loadProducts()
-    }
+    void loadProducts()
   },
   { immediate: true },
 )
@@ -362,17 +402,18 @@ watch(
   () => props.value,
   () => {
     if (props.open) {
+      updatedValue.value = null
       syncFromProps()
     }
   },
 )
 
 function syncFromProps() {
-  draft.avalista_id = props.value?.avalista_id ?? null
+  draft.avalista_id = currentValue.value?.avalista_id ?? null
   draft.avalistaTerm = ''
   draft.productTerm = ''
   draft.editingItemIndex = null
-  draft.items = (props.value?.items ?? []).map((item) => ({ ...item, localKey: `saved-${item.item_id}` }))
+  draft.items = (currentValue.value?.items ?? []).map((item) => ({ ...item, localKey: `saved-${item.item_id}` }))
   resetItemEditor()
   avalistaLookupOpen.value = false
   productLookupOpen.value = false
@@ -383,7 +424,13 @@ async function loadProducts() {
   productsError.value = ''
   try {
     const response = await listProducts({ page: 1, page_size: 100, ativo: true })
-    productOptions.value = [...response.items]
+    const products = [...response.items]
+    for (let page = 2; products.length < response.total; page++) {
+      const next = await listProducts({ page, page_size: 100, ativo: true })
+      if (!next.items.length) break
+      products.push(...next.items)
+    }
+    productOptions.value = products
   } catch (error) {
     productsError.value = error instanceof Error ? error.message : 'Falha ao carregar produtos'
   } finally {
@@ -457,6 +504,7 @@ function closeProductLookup() {
 function resetItemEditor() {
   draft.itemProdutoId = null
   draft.itemQuantidade = '1'
+  draft.itemCondicao = 'novo'
   draft.itemValorUnitario = ''
   draft.itemObservacao = ''
   draft.editingItemIndex = null
@@ -473,7 +521,7 @@ function addOrUpdateItem() {
   }
 
   const quantity = Number(draft.itemQuantidade)
-  if (!Number.isFinite(quantity) || quantity <= 0) {
+  if (!Number.isSafeInteger(quantity) || quantity <= 0) {
     void infoAlert('Informe uma quantidade válida para o produto.')
     return
   }
@@ -489,6 +537,8 @@ function addOrUpdateItem() {
     produto_id: product.produto_id,
     produto_descricao: product.descricao || `Produto ${product.produto_id}`,
     quantidade: quantity,
+    condicao: draft.itemCondicao,
+    quantidade_devolvida: 0,
     valor_unitario: parseMoney(draft.itemValorUnitario),
     observacao: draft.itemObservacao.trim() || null,
     localKey: draft.editingItemIndex === null ? `local-${nextLocalKey.value++}` : draft.items[draft.editingItemIndex]?.localKey ?? `local-${nextLocalKey.value++}`,
@@ -508,6 +558,7 @@ function editItem(index: number) {
   draft.editingItemIndex = index
   draft.itemProdutoId = item.produto_id
   draft.itemQuantidade = String(item.quantidade)
+  draft.itemCondicao = item.condicao
   draft.itemValorUnitario = formatMoneyInput(item.valor_unitario)
   draft.itemObservacao = item.observacao || ''
 }
@@ -527,11 +578,13 @@ function itemSubtotalValue(item: { quantidade: number; valor_unitario: number | 
 
 function emitSave() {
   const payload: ContractComodatoInput = {
+    versao_esperada: currentValue.value?.versao ?? 0,
     avalista_id: draft.avalista_id,
     items: draft.items.map<ContractComodatoItemInput>((item) => ({
       item_id: item.item_id > 0 ? item.item_id : null,
       produto_id: item.produto_id,
       quantidade: item.quantidade,
+      condicao: item.condicao,
       valor_unitario: item.valor_unitario,
       observacao: item.observacao,
     })),

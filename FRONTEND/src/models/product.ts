@@ -35,6 +35,10 @@ export interface Product {
   garantia: number | null
   ativo: boolean
   estoque: number | null
+  estoque_novos: number
+  estoque_usados: number
+  estoque_versao: number
+  permite_vender_sem_estoque: boolean
   modelo: string | null
   cor: string | null
   marca?: Brand | null
@@ -47,7 +51,7 @@ export interface ProductInput {
   marca_id: number | null
   garantia: number | null
   ativo: boolean
-  estoque: number | null
+  permite_vender_sem_estoque: boolean
   modelo: string | null
   cor: string | null
 }

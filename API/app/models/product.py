@@ -26,6 +26,10 @@ class Produto(Base):
     garantia: Mapped[int | None] = mapped_column(Integer, nullable=True)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     estoque: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    estoque_novos: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    estoque_usados: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    estoque_versao: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    permite_vender_sem_estoque: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     modelo: Mapped[str | None] = mapped_column(String(20), nullable=True)
     cor: Mapped[str | None] = mapped_column(String(15), nullable=True)
 

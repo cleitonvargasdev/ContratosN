@@ -294,6 +294,8 @@ export interface ContractReceipt {
 }
 
 export interface ContractComodatoItemRead {
+  condicao: 'novo' | 'usado'
+  quantidade_devolvida: number
   item_id: number
   produto_id: number
   produto_descricao: string
@@ -303,6 +305,9 @@ export interface ContractComodatoItemRead {
 }
 
 export interface ContractComodato {
+  venda_confirmada: boolean
+  estoque_legado: boolean
+  versao: number
   contrato_id: number
   avalista_id: number | null
   avalista_nome: string | null
@@ -313,6 +318,7 @@ export interface ContractComodato {
 }
 
 export interface ContractComodatoItemInput {
+  condicao: 'novo' | 'usado'
   item_id: number | null
   produto_id: number
   quantidade: number
@@ -321,6 +327,7 @@ export interface ContractComodatoItemInput {
 }
 
 export interface ContractComodatoInput {
+  versao_esperada: number
   avalista_id: number | null
   items: ContractComodatoItemInput[]
 }

@@ -28,6 +28,8 @@ from app.schemas.accounts_receivable import (
 )
 from app.schemas.contract import BatchReceiptContractSearchParams, BatchReceiptContractSearchResponse, ContractCreate, ContractListParams, ContractListResponse, ContractRead, ContractUpdate, ContractWhatsAppDocumentSendResponse
 from app.schemas.contract_commodato import ContractComodatoRead, ContractComodatoWrite
+from app.schemas.stock import SaleConfirm
+from app.services.stock_service import StockService
 from app.schemas.pagination import PaginationParams
 from app.services.accounts_receivable_service import AccountsReceivableService
 from app.services.contract_report_service import ContractReportService
@@ -191,6 +193,16 @@ async def get_contract_commodato(
     _: User = Depends(require_permission("contratos", "read")),
     service: ContractService = Depends(get_contract_service),
 ) -> ContractComodatoRead:
+    return await service.get_contract_commodato(contract_id)
+
+
+@router.post("/{contract_id}/comodato/confirmar-venda", response_model=ContractComodatoRead, summary="Confirmar venda e dar saída no estoque")
+async def confirm_contract_sale(
+    contract_id: int, payload: SaleConfirm,
+    user: User = Depends(require_permission("contratos", "update")),
+    service: ContractService = Depends(get_contract_service),
+) -> ContractComodatoRead:
+    await StockService(service.repository.session).confirm_sale(contract_id, payload.versao_esperada, user)
     return await service.get_contract_commodato(contract_id)
 
 

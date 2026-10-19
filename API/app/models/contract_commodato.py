@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -12,6 +12,9 @@ class ContratoComodato(Base):
     comodato_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, index=True)
     contrato_id: Mapped[int] = mapped_column(ForeignKey("contratos.contratos_id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
     avalista_cliente_id: Mapped[int | None] = mapped_column(ForeignKey("clientes.clientes_id", ondelete="SET NULL"), nullable=True, index=True)
+    venda_confirmada: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    estoque_legado: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    versao: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
     avalista: Mapped[object | None] = relationship("Cliente", lazy="selectin")
 
@@ -32,6 +35,8 @@ class ContratoComodatoItem(Base):
     produto_id: Mapped[int] = mapped_column(ForeignKey("produtos.produto_id"), nullable=False, index=True)
     descricao_produto: Mapped[str] = mapped_column(String(120), nullable=False)
     quantidade: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    condicao: Mapped[str] = mapped_column(String(10), nullable=False, default="novo", server_default="novo")
+    quantidade_devolvida: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     valor_unitario: Mapped[float | None] = mapped_column(Numeric(19, 2, asdecimal=False), nullable=True)
     observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
 

@@ -19,6 +19,7 @@ from app.schemas.contract import (
     ContractUpdate,
 )
 from app.schemas.contract_commodato import ContractComodatoRead, ContractComodatoWrite
+from app.services.stock_service import StockService
 
 
 LOCKED_CONTRACT_FIELDS = {
@@ -254,6 +255,7 @@ class ContractService:
         return round(float(contract.valor_empretismo), 4)
 
     async def delete_contract(self, contract_id: int) -> bool:
+        await self._guard_stock_contract(contract_id)
         contract = await self.repository.get_by_id(contract_id)
         if contract is None:
             return False
@@ -272,6 +274,7 @@ class ContractService:
         return self._build_commodato_read(contract_id, record)
 
     async def save_contract_commodato(self, contract_id: int, payload: ContractComodatoWrite) -> ContractComodatoRead:
+        await self._guard_stock_contract(contract_id, payload.versao_esperada)
         contract = await self.repository.get_by_id(contract_id)
         if contract is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contrato nao encontrado")
@@ -298,6 +301,7 @@ class ContractService:
             normalized_items.append(
                 {
                     "produto_id": item.produto_id,
+                    "condicao": item.condicao,
                     "descricao_produto": product.descricao,
                     "quantidade": item.quantidade,
                     "valor_unitario": item.valor_unitario if item.valor_unitario is not None else product.valor_venda,
@@ -309,11 +313,21 @@ class ContractService:
         return self._build_commodato_read(contract_id, saved)
 
     async def delete_contract_commodato(self, contract_id: int) -> bool:
+        await self._guard_stock_contract(contract_id)
         contract = await self.repository.get_by_id(contract_id)
         if contract is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contrato nao encontrado")
 
         return await self.repository.delete_commodato_by_contract_id(contract_id)
+
+    async def _guard_stock_contract(self, contract_id: int, version: int | None = None):
+        await StockService(self.repository.session).lock_contract(contract_id)
+        record = await self.repository.get_commodato_by_contract_id(contract_id)
+        if record is not None:
+            if record.venda_confirmada:
+                raise HTTPException(409, "Venda confirmada: preserve os itens e registre a devolução dos produtos recebidos.")
+            if version is not None and record.versao != version:
+                raise HTTPException(409, "Comodato alterado por outro usuário. Reabra e confira os itens.")
 
     async def _sync_contract_financials_for_many(self, contracts: list[Contrato]) -> None:
         changed = False
@@ -372,6 +386,8 @@ class ContractService:
         items = [
             {
                 "item_id": item.item_id,
+                "condicao": item.condicao,
+                "quantidade_devolvida": item.quantidade_devolvida,
                 "produto_id": item.produto_id,
                 "produto_descricao": item.descricao_produto,
                 "quantidade": item.quantidade,
@@ -383,6 +399,9 @@ class ContractService:
         total_quantidade = sum(int(item["quantidade"]) for item in items)
         return ContractComodatoRead(
             contrato_id=contract_id,
+            venda_confirmada=record.venda_confirmada,
+            estoque_legado=record.estoque_legado,
+            versao=record.versao,
             avalista_id=avalista_id,
             avalista_nome=avalista_nome,
             items=items,

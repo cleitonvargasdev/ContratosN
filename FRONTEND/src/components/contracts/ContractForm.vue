@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="panel form-panel contract-form-panel">
     <div class="contract-tabs" role="tablist" aria-label="Abas do contrato">
       <button class="contract-tabs__button" :class="{ 'contract-tabs__button--active': activeTab === 'dados' }" type="button" @click="activeTab = 'dados'">
@@ -598,6 +598,7 @@
       @delete="deleteComodato"
       @print="handlePrintComodato"
       @save="saveComodato"
+      @updated="contractComodato = $event"
     />
   </section>
 </template>
@@ -1350,13 +1351,18 @@ async function loadComodato(contractId: number) {
   }
 }
 
-function openComodatoModal() {
+async function openComodatoModal() {
   if (!currentContractId.value) {
     void infoAlert('Salve o contrato antes de abrir o comodato.')
     return
   }
 
-  comodatoModalOpen.value = true
+  try {
+    contractComodato.value = await getContractComodato(currentContractId.value)
+    comodatoModalOpen.value = true
+  } catch (error) {
+    await errorAlert(error instanceof Error ? error.message : 'Falha ao carregar comodato')
+  }
 }
 
 function closeComodatoModal() {
@@ -1372,7 +1378,6 @@ async function saveComodato(payload: ContractComodatoInput) {
   comodatoSaving.value = true
   try {
     contractComodato.value = await saveContractComodato(currentContractId.value, payload)
-    comodatoModalOpen.value = false
     void successAlert('Comodato salvo com sucesso.', 'update')
   } catch (error) {
     await errorAlert(error instanceof Error ? error.message : 'Falha ao salvar comodato')

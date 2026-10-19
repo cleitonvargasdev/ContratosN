@@ -42,15 +42,15 @@
             <th>Cor</th>
             <th>Compra</th>
             <th>Venda</th>
-            <th>Estoque</th>
+            <th>Novos</th><th>Usados</th><th>Total</th>
             <th>Garantia</th>
             <th>Status</th>
             <th class="actions-column">Ações</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-if="state.loading"><td colspan="11">Carregando produtos...</td></tr>
-          <tr v-else-if="state.result.items.length === 0"><td colspan="11">Nenhum produto encontrado.</td></tr>
+          <tr v-if="state.loading"><td colspan="13">Carregando produtos...</td></tr>
+          <tr v-else-if="state.result.items.length === 0"><td colspan="13">Nenhum produto encontrado.</td></tr>
           <tr v-for="item in state.result.items" :key="item.produto_id" class="data-table__row">
             <td>{{ item.produto_id }}</td>
             <td>{{ item.descricao ?? '-' }}</td>
@@ -59,14 +59,16 @@
             <td>{{ item.cor ?? '-' }}</td>
             <td>{{ formatCurrency(item.valor_compra) }}</td>
             <td>{{ formatCurrency(item.valor_venda) }}</td>
-            <td>{{ item.estoque ?? '-' }}</td>
+            <td><span :class="['pill', item.estoque_novos < 0 ? 'pill--danger' : 'pill--success']">{{ item.estoque_novos }}</span></td>
+            <td><span :class="['pill', item.estoque_usados < 0 ? 'pill--danger' : 'pill--success']">{{ item.estoque_usados }}</span></td>
+            <td><strong>{{ item.estoque }}</strong><small v-if="item.permite_vender_sem_estoque"> · Venda sem estoque</small></td>
             <td>{{ formatGuarantee(item.garantia) }}</td>
             <td>
               <span :class="['pill', item.ativo ? 'pill--success' : 'pill--danger']">
                 {{ item.ativo ? 'Ativo' : 'Inativo' }}
               </span>
             </td>
-            <td class="actions-cell">
+            <td class="actions-cell"><button class="secondary-button" type="button" @click="stockProduct = item">Estoque</button>
               <button class="icon-action" type="button" title="Alterar cadastro" aria-label="Alterar cadastro" @click="router.push({ name: 'products-edit', params: { id: item.produto_id } })">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92L5.92 19.58zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.13 1.13 3.75 3.75 1.14-1.12z" fill="currentColor"/></svg>
               </button>
@@ -99,6 +101,7 @@
         <button class="pagination-compact__button" type="button" :disabled="state.result.page >= totalPages" @click="changePage(totalPages)">&#187;</button>
       </div>
     </footer>
+    <ProductStockModal v-if="stockProduct" :product-id="stockProduct.produto_id" @close="stockProduct = null" @changed="fetchRecords" />
   </section>
 </template>
 
@@ -106,10 +109,13 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
+import ProductStockModal from '@/components/products/ProductStockModal.vue'
+import type { Product } from '@/models/product'
 import type { BrandOption, ProductListResponse } from '@/models/product'
 import { confirmDeleteAlert, errorAlert, successAlert } from '@/services/alertService'
 import { deleteProduct, listBrandOptions, listProducts } from '@/services/productService'
 
+const stockProduct = ref<Product | null>(null)
 const router = useRouter()
 const brandFilter = ref('')
 const statusFilter = ref('')
