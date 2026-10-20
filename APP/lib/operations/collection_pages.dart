@@ -440,7 +440,10 @@ class _ClientsPageState extends State<ClientsPage> {
           text: TextSpan(
             style: DefaultTextStyle.of(context).style.copyWith(fontSize: 12),
             children: [
-              TextSpan(text: '$leftLabel '),
+              TextSpan(
+                text: '$leftLabel ',
+                style: const TextStyle(color: Colors.black),
+              ),
               TextSpan(
                 text: leftValue,
                 style: TextStyle(color: leftValueColor, fontWeight: FontWeight.w700),
@@ -455,7 +458,10 @@ class _ClientsPageState extends State<ClientsPage> {
           text: TextSpan(
             style: DefaultTextStyle.of(context).style.copyWith(fontSize: 12),
             children: [
-              TextSpan(text: '$rightLabel '),
+              TextSpan(
+                text: '$rightLabel ',
+                style: const TextStyle(color: Colors.black),
+              ),
               TextSpan(
                 text: rightValue,
                 style: TextStyle(color: rightValueColor, fontWeight: FontWeight.w700),
