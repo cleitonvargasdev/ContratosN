@@ -32,7 +32,9 @@ IconData statusIcon(VisitStatus status) => switch (status) {
 
 Color statusColor(VisitStatus status) => switch (status) {
   VisitStatus.paid => Colors.green.shade800,
-  VisitStatus.unpaid || VisitStatus.partialUnpaid || VisitStatus.closed => Colors.red.shade800,
+  VisitStatus.unpaid ||
+  VisitStatus.partialUnpaid ||
+  VisitStatus.closed => Colors.red.shade800,
   _ => Colors.blueGrey,
 };
 
@@ -227,21 +229,20 @@ class _ClientsPageState extends State<ClientsPage> {
                       ),
                     ),
                   if (!_ordering)
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
                         children: [
                           for (var i = 0; i < 3; i++)
-                            Padding(
-                              padding: const EdgeInsets.all(4),
-                              child: ChoiceChip(
-                                selected: _filter == i,
-                                label: Text(
-                                  '${['Restando', 'Todas', 'Fora da lista'][i]} '
-                                  '(${_clients.where((c) => _matches(c, i)).length})',
-                                ),
-                                onSelected: (_) => setState(() => _filter = i),
+                            ChoiceChip(
+                              selected: _filter == i,
+                              label: Text(
+                                '${['Restando', 'Todas', 'Fora'][i]} '
+                                '(${_clients.where((c) => _matches(c, i)).length})',
                               ),
+                              onSelected: (_) => setState(() => _filter = i),
                             ),
                         ],
                       ),
@@ -399,28 +400,45 @@ class _ClientsPageState extends State<ClientsPage> {
                       '${c.data['nome'] ?? 'Sem nome'}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                   ),
-                  const Icon(Icons.chevron_right, size: 18, color: Colors.black87),
+                  Icon(
+                    visitComplete(c.status)
+                        ? statusIcon(c.status)
+                        : Icons.chevron_right,
+                    size: 18,
+                    color: visitComplete(c.status)
+                        ? statusColor(c.status)
+                        : Colors.black87,
+                  ),
                 ],
               ),
-              if (address.isNotEmpty) Text(address, maxLines: 1, overflow: TextOverflow.ellipsis),
-              if (place.isNotEmpty) Text(place, maxLines: 1, overflow: TextOverflow.ellipsis),
+              if (address.isNotEmpty)
+                Text(address, maxLines: 1, overflow: TextOverflow.ellipsis),
+              if (place.isNotEmpty)
+                Text(place, maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 5),
               _summaryRow('C:', '', 'F:', phone, rightValueColor: Colors.black),
               const SizedBox(height: 4),
-              _summaryRow('CONTRATOS:', '${c.contracts.length}', 'TURNO COB.:',
-                  '${c.data['turno_cobranca'] ?? ''}',
-                  leftValueColor: Colors.blue.shade800,
-                  rightValueColor: Colors.black),
+              _summaryRow(
+                'CONTRATOS:',
+                '${c.contracts.length}',
+                'TURNO COB.:',
+                '${c.data['turno_cobranca'] ?? ''}',
+                leftValueColor: Colors.blue.shade800,
+                rightValueColor: Colors.black,
+              ),
               const SizedBox(height: 4),
-              _summaryRow('PARC. ATRASO:', '${c.overdueCount}', 'VALOR',
-                  moneyLabel(c.overdueBalance),
-                  leftValueColor: Colors.red.shade800,
-                  rightValueColor: Colors.red.shade800),
+              _summaryRow(
+                'PARC. ATRASO:',
+                '${c.overdueCount}',
+                'VALOR',
+                moneyLabel(c.overdueBalance),
+                leftValueColor: Colors.red.shade800,
+                rightValueColor: Colors.red.shade800,
+              ),
             ],
           ),
         ),
@@ -448,7 +466,10 @@ class _ClientsPageState extends State<ClientsPage> {
               ),
               TextSpan(
                 text: leftValue,
-                style: TextStyle(color: leftValueColor, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: leftValueColor,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -466,7 +487,10 @@ class _ClientsPageState extends State<ClientsPage> {
               ),
               TextSpan(
                 text: rightValue,
-                style: TextStyle(color: rightValueColor, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: rightValueColor,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -716,7 +740,20 @@ class _ClientContractsPageState extends State<ClientContractsPage> {
               ),
           ],
         ),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: answer == null
+            ? const Icon(Icons.chevron_right)
+            : Icon(
+                answer == 'payment'
+                    ? Icons.check_circle
+                    : answer == 'unpaid'
+                    ? Icons.thumb_down
+                    : Icons.store_mall_directory_outlined,
+                color: answer == 'payment'
+                    ? Colors.green.shade800
+                    : answer == 'unpaid'
+                    ? Colors.red.shade800
+                    : Colors.blue.shade800,
+              ),
         onTap: _busy
             ? null
             : () async {

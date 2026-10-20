@@ -153,45 +153,6 @@ class _ReceiptPageState extends State<ReceiptPage> {
       setState(() => _error = e.message);
       return;
     }
-    final total = payments.fold<int>(0, (sum, p) => sum + p['amount_units']!);
-    final interest = payments.fold<int>(
-      0,
-      (sum, p) =>
-          sum +
-          (p['amount_units']! > p['balance_units']!
-              ? p['amount_units']! - p['balance_units']!
-              : 0),
-    );
-    final approved = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          kind == 'payment' ? 'Confirmar recebimento' : 'Registrar Não pagou',
-        ),
-        content: Text(
-          kind == 'payment'
-              ? payments.isEmpty
-                    ? 'Nenhuma parcela ficará marcada como recebida.\n\n'
-                          'Ao confirmar, o recebimento pendente será removido deste aparelho.'
-                    : '${payments.length} parcelas selecionadas.\nTotal: ${moneyLabel(total)}\n'
-                          'Inclui juros adicionais: ${moneyLabel(interest)}\n\n'
-                          'O registro será salvo no aparelho, pendente de envio.'
-              : 'Registrar que não houve pagamento neste contrato?'
-                    '${_selected.isNotEmpty ? '\nOs valores selecionados não serão recebidos.' : ''}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirmar'),
-          ),
-        ],
-      ),
-    );
-    if (approved != true || !mounted) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -234,7 +195,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
               removeOnly
                   ? 'Recebimento pendente removido deste aparelho.'
                   : location!['status'] == 'timeout'
-                  ? 'Salvo sem coordenadas após 30 segundos. Pendente de envio.'
+                  ? 'Salvo sem coordenadas apÃ³s 30 segundos. Pendente de envio.'
                   : 'Salvo no aparelho. Pendente de envio.',
             ),
           ),
@@ -248,7 +209,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
     } catch (_) {
       if (mounted) {
         setState(
-          () => _error = 'Não foi possível salvar. Confira os registros em Recebimentos antes de tentar novamente.',
+          () => _error = 'NÃ£o foi possÃ­vel salvar. Confira os registros em Recebimentos antes de tentar novamente.',
         );
       }
     } finally {
@@ -275,88 +236,92 @@ class _ReceiptPageState extends State<ReceiptPage> {
       canPop: !_busy,
       child: Scaffold(
         appBar: AppBar(title: Text('Contrato ${widget.contractId}')),
-        body: ListView(
-          padding: const EdgeInsets.all(8),
-          children: [
-            Text(
-              widget.clientName,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            if (_locked)
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    'Este contrato já tem resposta pendente. Consulte ou remova '
-                    'o registro em Recebimentos para corrigir.',
-                  ),
-                ),
+        body: SafeArea(
+          top: false,
+          minimum: const EdgeInsets.only(bottom: 8),
+          child: ListView(
+            padding: const EdgeInsets.all(8),
+            children: [
+              Text(
+                widget.clientName,
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-            const SizedBox(height: 6),
-            _totalHeader(),
-            const SizedBox(height: 8),
-            _installmentHeader(),
-            for (var i = 0; i < widget.installments.length; i++)
-              _installment(i),
-            const SizedBox(height: 12),
-            Text(
-              valid
-                  ? 'Total selecionado: ${moneyLabel(total)}'
-                  : 'Confira os valores digitados.',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            if (valid) Text('Juros adicionais: ${moneyLabel(interest)}'),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    _error!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
+              if (_locked)
+                const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text(
+                      'Este contrato jÃ¡ tem resposta pendente. Consulte ou remova '
+                      'o registro em Recebimentos para corrigir.',
                     ),
                   ),
                 ),
+              const SizedBox(height: 6),
+              _totalHeader(),
+              const SizedBox(height: 8),
+              _installmentHeader(),
+              for (var i = 0; i < widget.installments.length; i++)
+                _installment(i),
+              const SizedBox(height: 12),
+              Text(
+                valid
+                    ? 'Total selecionado: ${moneyLabel(total)}'
+                    : 'Confira os valores digitados.',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-            if (_busy)
-              const Column(
+              if (valid) Text('Juros adicionais: ${moneyLabel(interest)}'),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ),
+              if (_busy)
+                const Column(
+                  children: [
+                    LinearProgressIndicator(),
+                    Text(
+                      'Obtendo GPS e salvandoâ€¦ Aguarde atÃ© 30 segundos pela localizaÃ§Ã£o.',
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 8),
+              Row(
                 children: [
-                  LinearProgressIndicator(),
-                  Text(
-                    'Obtendo GPS e salvando… Aguarde até 30 segundos pela localização.',
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _busy || _locked || widget.answer == 'payment'
+                          ? null
+                          : () => _confirm('unpaid'),
+                      icon: const Icon(Icons.thumb_down),
+                      label: const Text('NÃ£o pagou'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: _busy || _locked || !valid
+                          ? null
+                          : () => _confirm('payment'),
+                      icon: const Icon(Icons.check),
+                      label: const Text('Confirmar'),
+                    ),
                   ),
                 ],
               ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _busy || _locked || widget.answer == 'payment'
-                        ? null
-                        : () => _confirm('unpaid'),
-                    icon: const Icon(Icons.thumb_down),
-                    label: const Text('Não pagou'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: _busy || _locked || !valid
-                        ? null
-                        : () => _confirm('payment'),
-                    icon: const Icon(Icons.check),
-                    label: const Text('Confirmar'),
-                  ),
-                ),
-              ],
-            ),
-            const Text(
-              'A localização é solicitada ao confirmar. Com GPS ligado e '
-              'autorizado, uma tentativa sem posição por 30 segundos permite salvar sem coordenadas.',
-            ),
-          ],
+              const Text(
+                'A localizaÃ§Ã£o Ã© solicitada ao confirmar. Com GPS ligado e '
+                'autorizado, uma tentativa sem posiÃ§Ã£o por 30 segundos permite salvar sem coordenadas.',
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -371,32 +336,36 @@ class _ReceiptPageState extends State<ReceiptPage> {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            const SizedBox(
-              width: _prefixColumnsWidth,
-              child: Text(
-                'DIGITAR VALOR',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-              ),
-            ),
+            const SizedBox(width: _prefixColumnsWidth),
             SizedBox(
               width: valueWidth,
-              child: TextField(
-                controller: _total,
-                enabled: !_busy && !_locked,
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  prefixText: 'R\$ ',
-                  hintText: 'Total',
-                  border: OutlineInputBorder(),
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'DIGITAR VALOR',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 3),
+                  TextField(
+                    controller: _total,
+                    enabled: !_busy && !_locked,
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      prefixText: 'R\$ ',
+                      hintText: 'Total',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
               ),
             ),
             SizedBox(
@@ -582,9 +551,9 @@ class _PendingOperationsPageState extends State<PendingOperationsPage> {
       builder: (context) => AlertDialog(
         title: const Text('Remover resposta pendente?'),
         content: const Text(
-          'Este registro ainda não foi enviado. Remova somente '
-          'para corrigir uma marcação. Se recebeu dinheiro, registre o valor correto novamente. '
-          'Ao remover Fechado, a ocorrência será removida de todos os contratos do cliente.',
+          'Este registro ainda nÃ£o foi enviado. Remova somente '
+          'para corrigir uma marcaÃ§Ã£o. Se recebeu dinheiro, registre o valor correto novamente. '
+          'Ao remover Fechado, a ocorrÃªncia serÃ¡ removida de todos os contratos do cliente.',
         ),
         actions: [
           TextButton(
@@ -607,7 +576,7 @@ class _PendingOperationsPageState extends State<PendingOperationsPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Não foi possível remover. Tente novamente.'),
+            content: Text('NÃ£o foi possÃ­vel remover. Tente novamente.'),
           ),
         );
       }
@@ -618,7 +587,7 @@ class _PendingOperationsPageState extends State<PendingOperationsPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Recebimentos e ocorrências')),
+    appBar: AppBar(title: const Text('Recebimentos e ocorrÃªncias')),
     body: FutureBuilder<List<Map<String, Object?>>>(
       future: _rows,
       builder: (context, snapshot) {
@@ -636,15 +605,15 @@ class _PendingOperationsPageState extends State<PendingOperationsPage> {
               child: Padding(
                 padding: EdgeInsets.all(16),
                 child: Text(
-                  'Registros salvos neste aparelho. O envio de lotes será '
-                  'habilitado após a integração com a API.',
+                  'Registros salvos neste aparelho. O envio de lotes serÃ¡ '
+                  'habilitado apÃ³s a integraÃ§Ã£o com a API.',
                 ),
               ),
             ),
             if (rows.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('Nenhum recebimento ou ocorrência pendente.'),
+                child: Text('Nenhum recebimento ou ocorrÃªncia pendente.'),
               ),
             for (final row in rows) _row(row),
           ],
@@ -664,7 +633,7 @@ class _PendingOperationsPageState extends State<PendingOperationsPage> {
     final location = payload['location'] as Map<String, dynamic>;
     final kind = switch (row['kind']) {
       'payment' => 'Recebimento',
-      'unpaid' => 'Não pagou',
+      'unpaid' => 'NÃ£o pagou',
       _ => 'Fechado',
     };
     return Card(
@@ -674,23 +643,23 @@ class _PendingOperationsPageState extends State<PendingOperationsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '$kind • Contrato ${row['contract_id']}',
+              '$kind â€¢ Contrato ${row['contract_id']}',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             Text(
-              'Cliente ${row['client_id']} • ${dueLabel(row['recorded_at'])}',
+              'Cliente ${row['client_id']} â€¢ ${dueLabel(row['recorded_at'])}',
             ),
             if (payments.isNotEmpty) ...[
               Text('Total: ${moneyLabel(total)}'),
               for (final p in payments)
                 Text(
                   'Parcela ID ${p['parcel_id']}: ${moneyLabel(p['amount_units'] as int)}'
-                  ' • Juros: ${moneyLabel(p['interest_units'] as int)}',
+                  ' â€¢ Juros: ${moneyLabel(p['interest_units'] as int)}',
                 ),
             ],
             Text(
               location['status'] == 'timeout'
-                  ? 'GPS: sem posição após 30 segundos'
+                  ? 'GPS: sem posiÃ§Ã£o apÃ³s 30 segundos'
                   : 'GPS registrado',
             ),
             const Text('Pendente de envio'),
