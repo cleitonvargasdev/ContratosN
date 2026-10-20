@@ -14,20 +14,23 @@ from app.services.mobile_wallet_service import WalletArtifacts, money_units, wal
 def test_query_filters_collector_and_open_balance():
     engine = create_engine('sqlite://')
     with engine.begin() as db:
-        db.exec_driver_sql('CREATE TABLE clientes (clientes_id INT, nome TEXT, endereco TEXT, nro TEXT, complemento TEXT, uf TEXT, telefone TEXT, celular01 TEXT, latitude TEXT, longitude TEXT, turno_cobranca TEXT, bairro_id INT, cidade_id INT)')
+        db.exec_driver_sql('CREATE TABLE clientes (clientes_id INT, nome TEXT, endereco TEXT, nro TEXT, complemento TEXT, uf TEXT, telefone TEXT, celular01 TEXT, latitude TEXT, longitude TEXT, turno_cobranca TEXT, bairro_id INT, cidade_id INT, usuario_id INT)')
         db.exec_driver_sql('CREATE TABLE contratos (contratos_id INT, cliente_id INT, obs TEXT, contrato_status INT, negociacao_id INT, usuario_id_vendedor INT)')
         db.exec_driver_sql('CREATE TABLE contas_receber (id INT, contratos_id INT, parcela_nro INT, vencimentol DATETIME, valor_total FLOAT, valor_recebido FLOAT, quitado BOOLEAN)')
         db.exec_driver_sql('CREATE TABLE bairros (bairro_id INT, bairro_nome TEXT)')
         db.exec_driver_sql('CREATE TABLE cidades (cidade_id INT, cidade TEXT)')
         db.exec_driver_sql('CREATE TABLE contratos_comodatos (contrato_id INT, comodato_id INT)')
-        db.exec_driver_sql("INSERT INTO clientes (clientes_id, nome) VALUES (1,'Cliente'), (2,'Outro')")
+        db.exec_driver_sql("INSERT INTO clientes (clientes_id, nome, usuario_id) VALUES (1,'Cliente',8), (2,'Outro',7)")
         db.exec_driver_sql("INSERT INTO contratos VALUES (10,1,'Observação',1,NULL,7), (20,2,'Outro cobrador',1,NULL,8)")
         db.exec_driver_sql('''INSERT INTO contas_receber VALUES
             (1,10,1,'2026-11-01',100,0,0), (2,10,2,'2026-10-01',100,25,NULL),
             (3,10,3,'2026-10-01',100,100,1), (4,10,4,'2026-10-01',100,100,0),
             (5,20,1,'2026-10-01',100,0,0), (6,10,5,'2026-10-01',100,0,1)''')
         rows = db.execute(wallet_query(7)).mappings().all()
+        assert {row['parcela_id'] for row in rows} == {5}
+        rows = db.execute(wallet_query(8)).mappings().all()
         assert {row['parcela_id'] for row in rows} == {1, 2}
+        assert db.execute(wallet_query(9)).mappings().all() == []
 
 
 def sample_row():

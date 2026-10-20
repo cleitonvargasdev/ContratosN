@@ -2,7 +2,7 @@
 
 ## Funcionalidade implementada
 
-A carteira é selecionada pelo campo `contratos.usuario_id_vendedor`, confirmado pelo usuário como cobrador do contrato. Exporta todas as parcelas com `quitado` diferente de verdadeiro e saldo positivo (`valor_total - valor_recebido`), inclusive parciais e a vencer. Não aplica filtro de atraso ou UF nesta etapa de carga completa.
+A carteira é selecionada pelo usuário responsável pelo cliente (`clientes.usuario_id`), comparado ao ID do usuário autenticado. O vendedor do contrato (`contratos.usuario_id_vendedor`) não define a carteira do app. Exporta todas as parcelas com `quitado` diferente de verdadeiro e saldo positivo (`valor_total - valor_recebido`), inclusive parciais e a vencer. Não aplica filtro de atraso ou UF nesta etapa de carga completa.
 
 Um único SELECT com JOINs lê parcelas, contratos, clientes e localidades no banco do tenant atual. O SQLite é preenchido em uma transação, fechado e compactado no servidor. As tabelas são `metadata`, `usuario`, `clientes`, `contratos` e `parcelas`. Contratos incluem observação, indicador de comodato e ID da negociação. O cadastro local de usuário contém somente ID, nome e login; não leva senha, hash, chave de API nem permissões administrativas.
 

@@ -42,7 +42,7 @@ def wallet_query(user_id: int):
     ).outerjoin(Bairro, Bairro.bairro_id == Cliente.bairro_id
     ).outerjoin(Cidade, Cidade.cidade_id == Cliente.cidade_id
     ).outerjoin(ContratoComodato, ContratoComodato.contrato_id == Contrato.contratos_id
-    ).where(Contrato.usuario_id_vendedor == user_id,
+    ).where(Cliente.usuario_id == user_id,
             ContaReceber.quitado.is_not(True), balance > 0
     ).order_by(Cliente.nome, Contrato.contratos_id, ContaReceber.vencimentol,
                ContaReceber.parcela_nro, ContaReceber.id).limit(MAX_ROWS + 1)
