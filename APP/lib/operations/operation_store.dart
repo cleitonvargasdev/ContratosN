@@ -172,6 +172,77 @@ class OperationStore {
     });
   }
 
+  /// Replaces every unsent receipt for one contract in a single transaction.
+  /// An empty list deliberately removes its previous local receipt.
+  Future<void> replacePendingPayment({
+    required String wallet,
+    required int client,
+    required int contract,
+    Map<String, Object?>? location,
+    required List<Map<String, int>> payments,
+  }) async {
+    if (wallet.isEmpty ||
+        payments.map((p) => p['parcel_id']).toSet().length != payments.length ||
+        payments.any((p) =>
+            p['parcel_id'] == null ||
+            (p['amount_units'] ?? 0) <= 0 ||
+            (p['balance_units'] ?? 0) <= 0)) {
+      throw StateError('Recebimento inválido.');
+    }
+    if (payments.isNotEmpty && location == null) {
+      throw StateError('Localização obrigatória.');
+    }
+    if (location != null &&
+        location['status'] != 'captured' && location['status'] != 'timeout') {
+      throw StateError('Localização obrigatória.');
+    }
+    if (location?['status'] == 'captured' &&
+        (location!['latitude'] is! num || location['longitude'] is! num)) {
+      throw StateError('Coordenadas inválidas.');
+    }
+    await (await database).transaction((txn) async {
+      final previous = await txn.query(
+        'operations',
+        where: 'company=? AND user_id=? AND wallet_id=? AND contract_id=?',
+        whereArgs: [...owner, wallet, contract],
+      );
+      if (previous.any((row) => row['kind'] != 'payment')) {
+        throw StateError('Contrato já possui outra resposta pendente.');
+      }
+      await txn.delete(
+        'operations',
+        where: 'company=? AND user_id=? AND wallet_id=? AND contract_id=? AND kind=?',
+        whereArgs: [...owner, wallet, contract, 'payment'],
+      );
+      if (payments.isEmpty) return;
+      final random = Random.secure();
+      final id = List.generate(
+        16,
+        (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+      ).join();
+      final items = payments.map((payment) {
+        final amount = payment['amount_units']!;
+        final balance = payment['balance_units']!;
+        return {
+          ...payment,
+          'principal_units': min(amount, balance),
+          'interest_units': max(amount - balance, 0),
+        };
+      }).toList();
+      await txn.insert('operations', {
+        'id': id,
+        'company': session.companyCode,
+        'user_id': session.userId,
+        'wallet_id': wallet,
+        'client_id': client,
+        'contract_id': contract,
+        'kind': 'payment',
+        'recorded_at': DateTime.now().toUtc().toIso8601String(),
+        'payload': jsonEncode({'location': location, 'payments': items}),
+      });
+    });
+  }
+
   Future<void> removePending(String id) async {
     await (await database).transaction((txn) async {
       final rows = await txn.query('operations',

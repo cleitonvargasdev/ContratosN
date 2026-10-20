@@ -19,6 +19,7 @@ class ReceiptPage extends StatefulWidget {
     required this.walletId,
     required this.installments,
     required this.blockedIds,
+    this.pendingPayments = const {},
     this.answer,
   });
   final WalletService service;
@@ -29,6 +30,7 @@ class ReceiptPage extends StatefulWidget {
   final List<Map<String, Object?>> installments;
   final String? answer;
   final Set<int> blockedIds;
+  final Map<int, int> pendingPayments;
   @override
   State<ReceiptPage> createState() => _ReceiptPageState();
 }
@@ -46,7 +48,21 @@ class _ReceiptPageState extends State<ReceiptPage> {
   bool get _locked =>
       (widget.answer != null && widget.answer != 'payment') || _saved;
   bool _blocked(int i) =>
-      widget.blockedIds.contains(widget.installments[i]['id']);
+      widget.blockedIds.contains(widget.installments[i]['id']) &&
+      !widget.pendingPayments.containsKey(widget.installments[i]['id']);
+  bool get _hasPendingPayment => widget.pendingPayments.isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    for (var i = 0; i < widget.installments.length; i++) {
+      final pending = widget.pendingPayments[widget.installments[i]['id']];
+      if (pending != null) {
+        _selected.add(i);
+        _amounts[i].text = moneyInput(pending);
+      }
+    }
+  }
   @override
   void dispose() {
     _total.dispose();
@@ -88,13 +104,36 @@ class _ReceiptPageState extends State<ReceiptPage> {
     }
   }
 
+  void _toggle(int i, bool checked) {
+    if (_busy || _locked || _blocked(i)) return;
+    try {
+      if (checked && parseMoney(_amounts[i].text) <= 0) {
+        throw const FormatException('Informe um valor maior que zero antes de marcar.');
+      }
+      setState(() {
+        _error = null;
+        if (checked) {
+          _selected.add(i);
+        } else {
+          _selected.remove(i);
+          _amounts[i].text = moneyInput(
+            widget.installments[i]['saldo_units'] as int,
+          );
+        }
+      });
+    } on FormatException catch (e) {
+      setState(() => _error = e.message);
+    }
+  }
+
   Future<void> _confirm(String kind) async {
     if (_busy || _locked) return;
     List<Map<String, int>> payments;
     try {
       payments = kind == 'payment' ? _payments() : [];
       if (kind == 'payment' &&
-          (payments.isEmpty || payments.any((p) => p['amount_units']! <= 0))) {
+          (payments.isEmpty && !_hasPendingPayment ||
+              payments.any((p) => p['amount_units']! <= 0))) {
         throw const FormatException(
           'Marque parcelas e informe valores maiores que zero.',
         );
@@ -120,7 +159,10 @@ class _ReceiptPageState extends State<ReceiptPage> {
         ),
         content: Text(
           kind == 'payment'
-              ? '${payments.length} parcelas selecionadas.\nTotal: ${moneyLabel(total)}\n'
+              ? payments.isEmpty
+                    ? 'Nenhuma parcela ficará marcada como recebida.\n\n'
+                        'Ao confirmar, o recebimento pendente será removido deste aparelho.'
+                    : '${payments.length} parcelas selecionadas.\nTotal: ${moneyLabel(total)}\n'
                     'Inclui juros adicionais: ${moneyLabel(interest)}\n\n'
                     'O registro será salvo no aparelho, pendente de envio.'
               : 'Registrar que não houve pagamento neste contrato?'
@@ -144,7 +186,8 @@ class _ReceiptPageState extends State<ReceiptPage> {
       _error = null;
     });
     try {
-      final location = await OperationLocation().capture();
+      final removeOnly = kind == 'payment' && payments.isEmpty;
+      final location = removeOnly ? null : await OperationLocation().capture();
       // The active wallet must still be the one whose balances were displayed.
       final session = widget.service.session;
       final active = await widget.service.local.activeWallet(
@@ -154,20 +197,32 @@ class _ReceiptPageState extends State<ReceiptPage> {
       if (active != widget.walletId) {
         throw const FormatException('A carteira mudou. Reabra o contrato.');
       }
-      await OperationStore(session).record(
-        wallet: widget.walletId,
-        client: widget.clientId,
-        contracts: [widget.contractId],
-        kind: kind,
-        location: location,
-        payments: payments,
-      );
+      if (kind == 'payment') {
+        await OperationStore(session).replacePendingPayment(
+          wallet: widget.walletId,
+          client: widget.clientId,
+          contract: widget.contractId,
+          location: location,
+          payments: payments,
+        );
+      } else {
+        await OperationStore(session).record(
+          wallet: widget.walletId,
+          client: widget.clientId,
+          contracts: [widget.contractId],
+          kind: kind,
+          location: location!,
+          payments: payments,
+        );
+      }
       if (mounted) {
         setState(() => _saved = true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              location['status'] == 'timeout'
+              removeOnly
+                  ? 'Recebimento pendente removido deste aparelho.'
+                  : location!['status'] == 'timeout'
                   ? 'Salvo sem coordenadas após 30 segundos. Pendente de envio.'
                   : 'Salvo no aparelho. Pendente de envio.',
             ),
@@ -210,12 +265,9 @@ class _ReceiptPageState extends State<ReceiptPage> {
       child: Scaffold(
         appBar: AppBar(title: Text('Contrato ${widget.contractId}')),
         body: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(8),
           children: [
-            Text(
-              widget.clientName,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text(widget.clientName, style: Theme.of(context).textTheme.titleMedium),
             if (_locked)
               const Card(
                 child: Padding(
@@ -226,31 +278,35 @@ class _ReceiptPageState extends State<ReceiptPage> {
                   ),
                 ),
               ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _total,
-              enabled: !_busy && !_locked,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Total para distribuir',
-                prefixText: 'R\$ ',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: _busy || _locked ? null : _distribute,
-                icon: const Icon(Icons.call_split),
-                label: const Text('Distribuir nas parcelas'),
-              ),
-            ),
-            const Text(
-              'Para acrescentar juros, edite o valor diretamente na parcela.',
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text('DIGITAR VALOR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                ),
+                SizedBox(
+                  width: 170,
+                  child: TextField(
+                    controller: _total,
+                    enabled: !_busy && !_locked,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      prefixText: 'R\$ ',
+                      hintText: 'Total',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        tooltip: 'Distribuir nas parcelas',
+                        onPressed: _busy || _locked ? null : _distribute,
+                        icon: const Icon(Icons.call_split),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
+            _installmentHeader(),
             for (var i = 0; i < widget.installments.length; i++)
               _installment(i),
             const SizedBox(height: 12),
@@ -283,20 +339,29 @@ class _ReceiptPageState extends State<ReceiptPage> {
                   ),
                 ],
               ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: _busy || _locked || !valid
-                  ? null
-                  : () => _confirm('payment'),
-              icon: const Icon(Icons.check),
-              label: const Text('Confirmar recebimento'),
-            ),
-            OutlinedButton.icon(
-              onPressed: _busy || _locked || widget.answer == 'payment'
-                  ? null
-                  : () => _confirm('unpaid'),
-              icon: const Icon(Icons.thumb_down),
-              label: const Text('Não pagou'),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _busy || _locked || widget.answer == 'payment'
+                        ? null
+                        : () => _confirm('unpaid'),
+                    icon: const Icon(Icons.thumb_down),
+                    label: const Text('Não pagou'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _busy || _locked || !valid
+                        ? null
+                        : () => _confirm('payment'),
+                    icon: const Icon(Icons.check),
+                    label: const Text('Confirmar'),
+                  ),
+                ),
+              ],
             ),
             const Text(
               'A localização é solicitada ao confirmar. Com GPS ligado e '
@@ -308,54 +373,57 @@ class _ReceiptPageState extends State<ReceiptPage> {
     );
   }
 
+  Widget _installmentHeader() => const Padding(
+    padding: EdgeInsets.fromLTRB(4, 0, 4, 3),
+    child: Row(
+      children: [
+        SizedBox(width: 35, child: Text('PARC.', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
+        SizedBox(width: 65, child: Text('VENCTO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
+        SizedBox(width: 45, child: Text('ATRASO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
+        Expanded(child: Text('VALOR', textAlign: TextAlign.right, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
+        SizedBox(width: 51, child: Text('MARCAR', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
+      ],
+    ),
+  );
+
   Widget _installment(int i) {
     final row = widget.installments[i];
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Parcela ${row['numero']} • ${dueLabel(row['vencimento'])}',
-                  ),
-                ),
-                Checkbox(
-                  value: _selected.contains(i),
-                  onChanged: _busy || _locked || _blocked(i)
-                      ? null
-                      : (checked) => setState(() {
-                          if (checked == true) {
-                            _selected.add(i);
-                          } else {
-                            _selected.remove(i);
-                          }
-                        }),
-                ),
-              ],
-            ),
-            Text('Saldo: ${moneyLabel(row['saldo_units'] as int)}'),
-            if (_blocked(i))
-              const Text('Recebimento pendente — confira em Recebimentos'),
-            const SizedBox(height: 8),
-            TextField(
+    final selected = _selected.contains(i);
+    final due = DateTime.tryParse('${row['vencimento'] ?? ''}'.split('T').first);
+    final now = DateTime.now();
+    final daysLate = due == null || !overdue(row['vencimento'], now)
+        ? ''
+        : '${now.difference(DateTime(due.year, due.month, due.day)).inDays}';
+    return Container(
+      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade300))),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      child: Row(
+        children: [
+          SizedBox(width: 35, child: Text('${row['numero']}', style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
+          SizedBox(width: 65, child: Text(dueLabel(row['vencimento']), style: const TextStyle(fontSize: 12))),
+          SizedBox(width: 45, child: Text(daysLate, style: TextStyle(fontSize: 12, color: Colors.red.shade800))),
+          Expanded(
+            child: TextField(
               controller: _amounts[i],
-              enabled: !_busy && !_locked && !_blocked(i),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Valor recebido',
-                prefixText: 'R\$ ',
-                border: OutlineInputBorder(),
-              ),
+              enabled: !_busy && !_locked && !_blocked(i) && !selected,
+              textAlign: TextAlign.right,
+              style: TextStyle(color: selected ? Colors.green.shade800 : null, fontWeight: FontWeight.w700),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
               onChanged: (_) => setState(() {}),
             ),
-          ],
-        ),
+          ),
+          SizedBox(
+            width: 51,
+            child: Checkbox(
+              value: selected,
+              visualDensity: VisualDensity.compact,
+              onChanged: _busy || _locked || _blocked(i)
+                  ? null
+                  : (checked) => _toggle(i, checked ?? false),
+            ),
+          ),
+        ],
       ),
     );
   }

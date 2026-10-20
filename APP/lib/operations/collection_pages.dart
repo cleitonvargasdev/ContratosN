@@ -487,6 +487,7 @@ class _ClientContractsPageState extends State<ClientContractsPage> {
   Map<int, List<Map<String, Object?>>> _contracts = {};
   Map<int, String> _answers = {};
   Map<int, Set<int>> _blocked = {};
+  Map<int, Map<int, int>> _pendingPayments = {};
   String? _wallet;
   bool _loading = true;
   bool _busy = false;
@@ -514,13 +515,20 @@ class _ClientContractsPageState extends State<ClientContractsPage> {
       final answers = await store.answers(_wallet ?? '');
       final pending = await store.pending();
       final blocked = <int, Set<int>>{};
+      final pendingPayments = <int, Map<int, int>>{};
       for (final row in pending.where((r) => r['wallet_id'] == _wallet)) {
         final payload =
             jsonDecode(row['payload'] as String) as Map<String, dynamic>;
         for (final p in payload['payments'] as List) {
+          final parcelId = p['parcel_id'] as int;
           blocked
               .putIfAbsent(row['contract_id'] as int, () => <int>{})
-              .add(p['parcel_id'] as int);
+              .add(parcelId);
+          if (row['kind'] == 'payment') {
+            pendingPayments
+                .putIfAbsent(row['contract_id'] as int, () => <int, int>{})
+                .putIfAbsent(parcelId, () => p['amount_units'] as int);
+          }
         }
       }
       final contracts = <int, List<Map<String, Object?>>>{};
@@ -532,6 +540,7 @@ class _ClientContractsPageState extends State<ClientContractsPage> {
           _contracts = contracts;
           _answers = answers;
           _blocked = blocked;
+          _pendingPayments = pendingPayments;
           _loading = false;
           _error = null;
         });
@@ -714,6 +723,7 @@ class _ClientContractsPageState extends State<ClientContractsPage> {
                       installments: rows,
                       answer: answer,
                       blockedIds: _blocked[id] ?? {},
+                      pendingPayments: _pendingPayments[id] ?? {},
                     ),
                   ),
                 );

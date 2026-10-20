@@ -79,6 +79,24 @@ void main() {
     },
   );
 
+  test('recebimento pendente pode ser substituído ou desmarcado', () async {
+    await store.replacePendingPayment(
+      wallet: 'wallet', client: 3, contract: 50, location: location,
+      payments: [
+        {'parcel_id': 8, 'amount_units': 8000000, 'balance_units': 10500000},
+      ],
+    );
+    var rows = (await store.pending()).where((row) => row['contract_id'] == 50);
+    expect(rows, hasLength(1));
+    var payment = (jsonDecode(rows.single['payload'] as String)['payments'] as List).single;
+    expect(payment['amount_units'], 8000000);
+    await store.replacePendingPayment(
+      wallet: 'wallet', client: 3, contract: 50, location: location, payments: const [],
+    );
+    rows = (await store.pending()).where((row) => row['contract_id'] == 50);
+    expect(rows, isEmpty);
+  });
+
   test(
     'fechado em grupo é atômico quando um contrato já tem resposta',
     () async {
