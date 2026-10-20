@@ -285,31 +285,65 @@ class _ReceiptPageState extends State<ReceiptPage> {
                 ),
               ),
             const SizedBox(height: 6),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text('DIGITAR VALOR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                ),
-                SizedBox(
-                  width: 170,
-                  child: TextField(
-                    controller: _total,
-                    enabled: !_busy && !_locked,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      prefixText: 'R\$ ',
-                      hintText: 'Total',
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        tooltip: 'Distribuir nas parcelas',
-                        onPressed: _busy || _locked ? null : _distribute,
-                        icon: const Icon(Icons.call_split),
-                      ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const SizedBox(width: 145),
+                  SizedBox(
+                    width: 98,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'DIGITAR VALOR',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 3),
+                        TextField(
+                          controller: _total,
+                          enabled: !_busy && !_locked,
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            prefixText: 'R\$ ',
+                            hintText: '0,00',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
+                  SizedBox(
+                    width: 51,
+                    child: Column(
+                      children: [
+                        const Text(
+                          'DIVIDIR',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 3),
+                        Tooltip(
+                          message: 'Distribuir nas parcelas',
+                          child: SizedBox(
+                            height: 40,
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              onPressed: _busy || _locked ? null : _distribute,
+                              style: OutlinedButton.styleFrom(padding: EdgeInsets.zero),
+                              child: const Icon(Icons.call_split, size: 20),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 8),
             _installmentHeader(),
