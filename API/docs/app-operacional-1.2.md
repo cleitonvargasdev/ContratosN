@@ -37,6 +37,6 @@ Resultado em 20/10/2026: 40 testes Flutter aprovados e `flutter analyze --no-pub
 
 APK release 1.2.0+3 gerado em `D:\PROJETOINI\APP\build\app\outputs\flutter-apk\app-release.apk`, com API `https://api.vstec.net/api/v1`, assinatura RSA 3072 validada pelo `apksigner` (esquema v2) e SHA-256 `9ea8b94406ff7fb073d029f2517b1e31c651cdac222ba2269aa78ad739edc4df`.
 
-A versão 1.2.1+4 compacta o formulário de recebimento. Antes do envio, uma parcela marcada mantém o valor recebido, inclusive parcial, bloqueado para edição. Desmarcar restaura o saldo aberto e libera o valor; confirmar sem parcelas marcadas remove o recebimento pendente local.
+A versão 1.2.2+5 compacta o formulário de recebimento. Antes do envio, uma parcela marcada mantém o valor recebido, inclusive parcial, bloqueado para edição. Desmarcar restaura o saldo aberto e libera o valor; confirmar sem parcelas marcadas remove o recebimento pendente local. A lista destaca somente os números de atraso e valores vencidos em vermelho, e o detalhe do contrato mostra a observação, comodato e negociação.
 
 Validação física necessária: permissões Android, GPS em ambiente interno/externo, navegação, encerramento/reabertura offline e atualização sobre o APK anterior.

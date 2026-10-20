@@ -9,6 +9,12 @@ import 'collection_pages.dart' show dueLabel;
 import 'location_service.dart';
 import 'operation_store.dart';
 
+String shortDueLabel(Object? value) {
+  final parts = '${value ?? ''}'.split('T').first.split('-');
+  if (parts.length != 3 || parts[0].length != 4) return 'Sem data';
+  return '${parts[2]}/${parts[1]}/${parts[0].substring(2)}';
+}
+
 class ReceiptPage extends StatefulWidget {
   const ReceiptPage({
     super.key,
@@ -380,7 +386,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
         SizedBox(width: 35, child: Text('PARC.', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
         SizedBox(width: 65, child: Text('VENCTO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
         SizedBox(width: 45, child: Text('ATRASO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
-        Expanded(child: Text('VALOR', textAlign: TextAlign.right, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
+        SizedBox(width: 98, child: Text('VALOR', textAlign: TextAlign.right, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
         SizedBox(width: 51, child: Text('MARCAR', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
       ],
     ),
@@ -400,14 +406,15 @@ class _ReceiptPageState extends State<ReceiptPage> {
       child: Row(
         children: [
           SizedBox(width: 35, child: Text('${row['numero']}', style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
-          SizedBox(width: 65, child: Text(dueLabel(row['vencimento']), style: const TextStyle(fontSize: 12))),
+          SizedBox(width: 65, child: Text(shortDueLabel(row['vencimento']), style: const TextStyle(fontSize: 12))),
           SizedBox(width: 45, child: Text(daysLate, style: TextStyle(fontSize: 12, color: Colors.red.shade800))),
-          Expanded(
+          SizedBox(
+            width: 98,
             child: TextField(
               controller: _amounts[i],
               enabled: !_busy && !_locked && !_blocked(i) && !selected,
               textAlign: TextAlign.right,
-              style: TextStyle(color: selected ? Colors.green.shade800 : null, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 12, color: selected ? Colors.green.shade800 : null, fontWeight: FontWeight.w700),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
               onChanged: (_) => setState(() {}),

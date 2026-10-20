@@ -374,7 +374,6 @@ class _ClientsPageState extends State<ClientsPage> {
       '${c.data['cidade'] ?? ''}'.trim(),
     ].where((part) => part.isNotEmpty).join(' • ');
     final phone = '${c.data['celular'] ?? c.data['telefone'] ?? ''}'.trim();
-    final alert = c.overdueCount > 0;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -401,12 +400,11 @@ class _ClientsPageState extends State<ClientsPage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: alert ? Colors.red.shade800 : null,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                  Icon(statusIcon(c.status), size: 18, color: statusColor(c.status)),
+                  const Icon(Icons.chevron_right, size: 18, color: Colors.black87),
                 ],
               ),
               if (address.isNotEmpty) Text(address, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -419,8 +417,8 @@ class _ClientsPageState extends State<ClientsPage> {
               const SizedBox(height: 4),
               _summaryRow('PARC. ATRASO:', '${c.overdueCount}', 'VALOR',
                   moneyLabel(c.overdueBalance),
-                  leftValueColor: alert ? Colors.red.shade800 : null,
-                  rightValueColor: Colors.blue.shade800),
+                  leftValueColor: Colors.red.shade800,
+                  rightValueColor: Colors.red.shade800),
             ],
           ),
         ),
@@ -693,11 +691,13 @@ class _ClientContractsPageState extends State<ClientContractsPage> {
                     : Colors.orange.shade900,
               ),
             ),
-            if (rows.first['comodato'] == 1) const Text('Comodato'),
+            Text(
+              'OBSERVAÇÃO: ${'${rows.first['observacao'] ?? ''}'.trim().isEmpty ? 'Não informada' : rows.first['observacao']}',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            if (rows.first['comodato'] == 1) const Text('COMODATO: Sim'),
             if (rows.first['negociacao_id'] != null)
-              Text('Negociação ${rows.first['negociacao_id']}'),
-            if ('${rows.first['observacao'] ?? ''}'.isNotEmpty)
-              Text('${rows.first['observacao']}'),
+              Text('NEGOCIAÇÃO: ${rows.first['negociacao_id']}'),
             if (answer != null)
               Text(
                 '${switch (answer) {
