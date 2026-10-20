@@ -42,6 +42,8 @@ class ReceiptPage extends StatefulWidget {
 }
 
 class _ReceiptPageState extends State<ReceiptPage> {
+  static const _prefixColumnsWidth = 145.0;
+  static const _markColumnWidth = 60.0;
   final _total = TextEditingController();
   late final _amounts = [
     for (final row in widget.installments)
@@ -69,6 +71,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
       }
     }
   }
+
   @override
   void dispose() {
     _total.dispose();
@@ -114,7 +117,9 @@ class _ReceiptPageState extends State<ReceiptPage> {
     if (_busy || _locked || _blocked(i)) return;
     try {
       if (checked && parseMoney(_amounts[i].text) <= 0) {
-        throw const FormatException('Informe um valor maior que zero antes de marcar.');
+        throw const FormatException(
+          'Informe um valor maior que zero antes de marcar.',
+        );
       }
       setState(() {
         _error = null;
@@ -167,10 +172,10 @@ class _ReceiptPageState extends State<ReceiptPage> {
           kind == 'payment'
               ? payments.isEmpty
                     ? 'Nenhuma parcela ficará marcada como recebida.\n\n'
-                        'Ao confirmar, o recebimento pendente será removido deste aparelho.'
+                          'Ao confirmar, o recebimento pendente será removido deste aparelho.'
                     : '${payments.length} parcelas selecionadas.\nTotal: ${moneyLabel(total)}\n'
-                    'Inclui juros adicionais: ${moneyLabel(interest)}\n\n'
-                    'O registro será salvo no aparelho, pendente de envio.'
+                          'Inclui juros adicionais: ${moneyLabel(interest)}\n\n'
+                          'O registro será salvo no aparelho, pendente de envio.'
               : 'Registrar que não houve pagamento neste contrato?'
                     '${_selected.isNotEmpty ? '\nOs valores selecionados não serão recebidos.' : ''}',
         ),
@@ -273,7 +278,10 @@ class _ReceiptPageState extends State<ReceiptPage> {
         body: ListView(
           padding: const EdgeInsets.all(8),
           children: [
-            Text(widget.clientName, style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              widget.clientName,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             if (_locked)
               const Card(
                 child: Padding(
@@ -285,66 +293,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
                 ),
               ),
             const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const SizedBox(width: 145),
-                  SizedBox(
-                    width: 98,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'DIGITAR VALOR',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 3),
-                        TextField(
-                          controller: _total,
-                          enabled: !_busy && !_locked,
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: const InputDecoration(
-                            isDense: true,
-                            prefixText: 'R\$ ',
-                            hintText: '0,00',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    width: 51,
-                    child: Column(
-                      children: [
-                        const Text(
-                          'DIVIDIR',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 3),
-                        Tooltip(
-                          message: 'Distribuir nas parcelas',
-                          child: SizedBox(
-                            height: 40,
-                            width: double.infinity,
-                            child: OutlinedButton(
-                              onPressed: _busy || _locked ? null : _distribute,
-                              style: OutlinedButton.styleFrom(padding: EdgeInsets.zero),
-                              child: const Icon(Icons.call_split, size: 20),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _totalHeader(),
             const SizedBox(height: 8),
             _installmentHeader(),
             for (var i = 0; i < widget.installments.length; i++)
@@ -413,58 +362,203 @@ class _ReceiptPageState extends State<ReceiptPage> {
     );
   }
 
-  Widget _installmentHeader() => const Padding(
-    padding: EdgeInsets.fromLTRB(4, 0, 4, 3),
-    child: Row(
-      children: [
-        SizedBox(width: 35, child: Text('PARC.', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
-        SizedBox(width: 65, child: Text('VENCTO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
-        SizedBox(width: 45, child: Text('ATRASO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
-        SizedBox(width: 98, child: Text('VALOR', textAlign: TextAlign.right, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
-        SizedBox(width: 51, child: Text('MARCAR', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
-      ],
+  Widget _totalHeader() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final valueWidth =
+            constraints.maxWidth - _prefixColumnsWidth - _markColumnWidth;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            const SizedBox(
+              width: _prefixColumnsWidth,
+              child: Text(
+                'DIGITAR VALOR',
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ),
+            SizedBox(
+              width: valueWidth,
+              child: TextField(
+                controller: _total,
+                enabled: !_busy && !_locked,
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  prefixText: 'R\$ ',
+                  hintText: 'Total',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: _markColumnWidth,
+              child: Column(
+                children: [
+                  const Text(
+                    'DIVIDIR',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 3),
+                  Tooltip(
+                    message: 'Distribuir nas parcelas',
+                    child: SizedBox(
+                      height: 40,
+                      width: 52,
+                      child: FilledButton(
+                        onPressed: _busy || _locked ? null : _distribute,
+                        style: FilledButton.styleFrom(padding: EdgeInsets.zero),
+                        child: const Icon(Icons.attach_money, size: 24),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+
+  Widget _installmentHeader() => Padding(
+    padding: const EdgeInsets.fromLTRB(4, 0, 4, 3),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final valueWidth =
+            constraints.maxWidth - _prefixColumnsWidth - _markColumnWidth;
+        return Row(
+          children: [
+            const SizedBox(
+              width: 35,
+              child: Text(
+                'PARC.',
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(
+              width: 65,
+              child: Text(
+                'VENCTO',
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(
+              width: 45,
+              child: Text(
+                'ATRASO',
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ),
+            SizedBox(
+              width: valueWidth,
+              child: const Text(
+                'VALOR',
+                textAlign: TextAlign.right,
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(
+              width: _markColumnWidth,
+              child: Text(
+                'MARCAR',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
     ),
   );
 
   Widget _installment(int i) {
     final row = widget.installments[i];
     final selected = _selected.contains(i);
-    final due = DateTime.tryParse('${row['vencimento'] ?? ''}'.split('T').first);
+    final due = DateTime.tryParse(
+      '${row['vencimento'] ?? ''}'.split('T').first,
+    );
     final now = DateTime.now();
     final daysLate = due == null || !overdue(row['vencimento'], now)
         ? ''
         : '${now.difference(DateTime(due.year, due.month, due.day)).inDays}';
     return Container(
-      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade300))),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      child: Row(
-        children: [
-          SizedBox(width: 35, child: Text('${row['numero']}', style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold))),
-          SizedBox(width: 65, child: Text(shortDueLabel(row['vencimento']), style: const TextStyle(fontSize: 12))),
-          SizedBox(width: 45, child: Text(daysLate, style: TextStyle(fontSize: 12, color: Colors.red.shade800))),
-          SizedBox(
-            width: 98,
-            child: TextField(
-              controller: _amounts[i],
-              enabled: !_busy && !_locked && !_blocked(i) && !selected,
-              textAlign: TextAlign.right,
-              style: TextStyle(fontSize: 12, color: selected ? Colors.green.shade800 : null, fontWeight: FontWeight.w700),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
-              onChanged: (_) => setState(() {}),
-            ),
-          ),
-          SizedBox(
-            width: 51,
-            child: Checkbox(
-              value: selected,
-              visualDensity: VisualDensity.compact,
-              onChanged: _busy || _locked || _blocked(i)
-                  ? null
-                  : (checked) => _toggle(i, checked ?? false),
-            ),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final valueWidth =
+              constraints.maxWidth - _prefixColumnsWidth - _markColumnWidth;
+          return Row(
+            children: [
+              SizedBox(
+                width: 35,
+                child: Text(
+                  '${row['numero']}',
+                  style: const TextStyle(
+                    color: Colors.blue,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 65,
+                child: Text(
+                  shortDueLabel(row['vencimento']),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+              SizedBox(
+                width: 45,
+                child: Text(
+                  daysLate,
+                  style: TextStyle(fontSize: 12, color: Colors.red.shade800),
+                ),
+              ),
+              SizedBox(
+                width: valueWidth,
+                child: TextField(
+                  controller: _amounts[i],
+                  enabled: !_busy && !_locked && !_blocked(i) && !selected,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: selected ? Colors.green.shade800 : null,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              SizedBox(
+                width: _markColumnWidth,
+                child: Checkbox(
+                  value: selected,
+                  visualDensity: VisualDensity.compact,
+                  onChanged: _busy || _locked || _blocked(i)
+                      ? null
+                      : (checked) => _toggle(i, checked ?? false),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -489,8 +583,8 @@ class _PendingOperationsPageState extends State<PendingOperationsPage> {
         title: const Text('Remover resposta pendente?'),
         content: const Text(
           'Este registro ainda não foi enviado. Remova somente '
-            'para corrigir uma marcação. Se recebeu dinheiro, registre o valor correto novamente. '
-            'Ao remover Fechado, a ocorrência será removida de todos os contratos do cliente.',
+          'para corrigir uma marcação. Se recebeu dinheiro, registre o valor correto novamente. '
+          'Ao remover Fechado, a ocorrência será removida de todos os contratos do cliente.',
         ),
         actions: [
           TextButton(
