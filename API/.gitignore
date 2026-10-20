@@ -2,9 +2,11 @@
 __pycache__/
 .pytest_cache/
 .mypy_cache/
+.app-operational/
 .env
 tenant-backups/
 tenant-runtime/
+mobile-wallets/
 *.dump
 .env.*
 !.env.http.example

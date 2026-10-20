@@ -16,7 +16,7 @@ Valores monetários são inteiros na escala 10.000 para preservar quatro casas d
 
 Todas as rotas revalidam o usuário ativo e a permissão `acesso_web`, mantendo a regra atual do login. Não recebem ID de outro cobrador nem nome do banco. Um ID de carga de outro usuário não permite baixar ou apagar seu arquivo.
 
-Os artefatos ficam em `MOBILE_WALLET_DIR` quando configurado; por padrão, na pasta temporária `contratos-mobile-wallets` dentro do container. Expiram após 24 horas; a limpeza roda a cada hora e na geração de uma nova carga. Recriar o container pode descartar cargas ainda não baixadas; nesse caso, gerar uma nova carteira. A implantação atual usa um container API. Com várias réplicas, será necessário armazenamento compartilhado dos artefatos.
+Os artefatos ficam em `MOBILE_WALLET_DIR` quando configurado; por padrão, na pasta temporária `contratos-mobile-wallets` dentro do container. Expiram após 24 horas; a limpeza roda a cada hora e na geração de uma nova carga. O `docker-compose.yml` usa o volume gerenciado `mobile_wallets` em `/var/lib/contratos/mobile-wallets`, portanto uma recriação normal do container preserva cargas ainda não baixadas. Com várias réplicas, será necessário armazenamento compartilhado entre todas elas.
 
 ## Instalação e consulta no aparelho
 
@@ -26,7 +26,7 @@ Cada empresa/usuário tem uma pasta local própria. O ponteiro para a carteira a
 
 Clientes, contratos, observações e parcelas podem ser consultados sem internet. A sessão é armazenada com `flutter_secure_storage`, sem senha, permitindo reabrir o aplicativo offline após um login bem-sucedido. Cada operação online passa pela API; o app tenta renovar o token uma vez quando recebe 401. Bloqueio remoto só é conhecido quando houver comunicação. Sair remove a sessão, mas preserva a carteira local segregada pelo usuário e empresa.
 
-Esta versão ainda não registra recebimentos, GPS de visitas, ocorrências ou lotes. Portanto, não substitui o aplicativo operacional. Antes de implementar essas gravações, a troca da carteira deverá considerar os movimentos pendentes; o banco de movimentações já está separado do banco da carteira.
+O app registra recebimentos, GPS de visitas e ocorrências localmente no banco de operações, separado da carteira. O envio e o processamento de lotes ainda não foram integrados à API; os registros permanecem pendentes no aparelho e o download de uma nova carteira fica bloqueado enquanto existirem pendências. Portanto, esta versão ainda não substitui o aplicativo operacional.
 
 ## Implantar a API no Ubuntu
 
@@ -37,6 +37,7 @@ app/services/mobile_wallet_service.py
 app/controllers/mobile_wallet_controller.py
 app/api/v1/router.py
 app/main.py
+docker-compose.yml
 ```
 
 Não há migração de banco para esta funcionalidade. Depois de enviar os arquivos:
@@ -47,6 +48,10 @@ docker compose -f docker-compose.yml -f docker-compose.tenant.yml up -d --build 
 docker compose -f docker-compose.yml -f docker-compose.tenant.yml logs --tail 60 api
 ```
 
+O volume `mobile_wallets` é criado automaticamente no primeiro `up`. Não usar
+`docker compose down -v` durante atualizações: esse comando remove os volumes
+gerenciados, inclusive as carteiras que ainda aguardam download.
+
 Após aparecer `Application startup complete`, recarregar os proxies, como foi necessário na configuração do domínio:
 
 ```bash
@@ -55,7 +60,7 @@ docker compose -f docker-compose.yml -f docker-compose.tenant.yml exec -T tenant
 curl --fail https://api.vstec.net/health
 ```
 
-O novo APK precisa dessas rotas implantadas; um 404 no download pode indicar API antiga. Instalar o APK 1.1.0+2 sobre o anterior, assinado com a mesma chave, fazer login como cobrador com contratos vinculados, baixar e conferir a carteira. Testar também modo avião, fechar/reabrir o app e consultar os contratos. Um usuário sem contratos atribuídos recebe uma carteira vazia, mesmo se for administrador.
+O novo APK precisa dessas rotas implantadas; um 404 no download pode indicar API antiga. Instalar o APK 1.2.0+3 sobre o anterior, assinado com a mesma chave, fazer login como cobrador com clientes vinculados, baixar e conferir a carteira. Testar também modo avião, fechar/reabrir o app e consultar os contratos. Um usuário sem clientes atribuídos recebe uma carteira vazia, mesmo se for administrador.
 
 ## Validação local
 

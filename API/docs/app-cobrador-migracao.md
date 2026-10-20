@@ -1,5 +1,23 @@
 # Migração do aplicativo do cobrador
 
+## Etapa atual — 20/10/2026
+
+Ver [app operacional 1.2](app-operacional-1.2.md) para telas, regras implementadas, validação e limites da etapa local. Envio de lotes, integração de solicitações e biometria continuam pendentes.
+
+## Referências visuais
+
+Consultar o [índice de referências do app](referencias-app/README.md) antes de construir as telas. A [página inicial](referencias-app/pagina-inicial.md) registra o menu e a disposição apresentados pelo usuário.
+
+A [tela de transmissão](referencias-app/transmissao.md) registra a seleção de estados, o download da carteira e o envio dos recebimentos do período.
+
+A [tela de clientes e consolidado](referencias-app/clientes.md) registra a ordem de visitas e as visões “Restando” (ainda não visitados), “Todas” (visitados e não visitados) e “Fora da lista” (vencimentos futuros disponíveis para recebimento). O usuário solicita modernizar a apresentação, preservando esse funcionamento.
+
+A [tela de contratos do cliente](referencias-app/contratos-cliente.md) é aberta ao selecionar um cliente e apresenta os contratos separadamente, legendas financeiras e a opção de marcar o cliente como “Fechado”.
+
+A [tela de recebimento por contrato](referencias-app/recebimento-contrato.md) registra seleção de parcelas, distribuição de um valor total, edição direta com excedente como juros e ocorrência “Não pagou”. Documenta também a proposta de GPS obrigatório com exceção após 30 segundos sem obter posição, desde que o serviço esteja ligado.
+
+O [fluxo de solicitações](referencias-app/solicitacoes.md) registra lista, seleção de cliente e formulário. Deve permitir pré-cadastro no app e integrar a solicitação ao módulo web existente, aproveitando seu fluxo de análise e vínculo com cliente/contrato.
+
 Registro de requisitos relatados pelo usuário em 19/10/2026. Documento de planejamento; não representa funcionalidades já implementadas na nova plataforma. Atualizar conforme novas definições forem fornecidas.
 
 ## Contexto e carga da carteira
@@ -114,7 +132,7 @@ Uma captura adicional enviada pelo usuário mostra a parcela 20 com o ícone de 
 - O usuário confirmou que a **mãozinha vermelha para baixo significa Não pagou**, uma ocorrência de cobrança.
 - Na captura dos contratos, o contrato 00276 aparece com uma confirmação verde, enquanto os contratos 00327 e 00340 aparecem com a mãozinha vermelha para baixo. Isso mostra indicadores distintos por contrato de um mesmo cliente.
 - Na lista de clientes, uma linha aparece com confirmação verde e outra com o carimbo **Fechado**. Preservar a identificação visual de Fechado como ocorrência.
-- A confirmação verde nessas telas não deve ser confundida automaticamente com quitação integral ou com processamento do lote. Seu significado exato e a regra para consolidar indicadores dos contratos na lista de clientes ainda precisam ser detalhados.
+- Esclarecimento em 20/10/2026: a confirmação verde no cliente exige resposta a todos os seus contratos e pagamento em todos. Se algum contrato recebeu “Não pagou”, apresentar a mãozinha vermelha para baixo. “Fechado” vale para todos os contratos. Esses indicadores não significam quitação integral nem processamento do lote.
 - A ocorrência Não pagou é distinta da situação financeira de atraso/vencimento: as telas exibem separadamente o indicador da visita e os totais de parcelas e valores em atraso.
 
 ## Composição da base e validação do funcionário

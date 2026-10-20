@@ -1,4 +1,4 @@
-# Aplicativo do cobrador — 1.1.0+2
+# Aplicativo do cobrador — 1.2.0+3
 
 Flutter para Android, com carteira SQLite gerada na API e movimentações locais em banco separado.
 
@@ -10,12 +10,13 @@ Flutter para Android, com carteira SQLite gerada na API e movimentações locais
 - Consulta offline de clientes, contratos, observações, comodato/negociação e parcelas com saldo em aberto, incluindo parciais e a vencer.
 - Confirmação após instalação para excluir o ZIP do servidor; confirmação pendente persistida para repetir em caso de falha.
 - Renovação do token ao receber 401 nas operações da carteira.
+- Recebimentos por parcela, ocorrências Não pagou e Fechado, ordem de visitas e GPS registrados offline como pendências de envio.
 
-A API atual ainda exige permissão `acesso_web`. A carteira considera `usuario_id_vendedor` do contrato como cobrador. Administrador sem contratos atribuídos recebe carteira vazia.
+A API atual ainda exige permissão `acesso_web`. A carteira considera o usuário responsável pelo cliente (`clientes.usuario_id`) como cobrador. Administrador sem clientes atribuídos recebe carteira vazia.
 
 ## Ainda pendente
 
-Registro de recebimentos, ocorrências, GPS de visitas, solicitações, ordenação web de rotas e envio/processamento de lotes. Esta versão permite testar login e carteira; ainda não substitui o aplicativo operacional de cobrança.
+Envio e processamento de lotes, solicitações e ordenação web de rotas. Recebimentos, ocorrências, GPS e a ordem de visitas já são registrados localmente e ficam pendentes de envio. Esta versão ainda não deve substituir o aplicativo operacional de cobrança.
 
 ## Compilar e validar
 
@@ -33,8 +34,8 @@ APK: `build/app/outputs/flutter-apk/app-release.apk`. Assinatura própria em `an
 
 ## Implantação e teste
 
-Atualizar a API conforme `../API/docs/app-carteira-sqlite.md` antes de testar o novo download. Instalar o APK sobre o anterior, entrar com usuário de teste autorizado, abrir Visitas ou Transmissão e baixar a carteira. Conferir os contratos/observações, ativar modo avião, fechar/reabrir e consultar novamente. Nenhuma baixa financeira é realizada nesta versão.
+Atualizar a API conforme `../API/docs/app-carteira-sqlite.md` antes de testar o novo download. Instalar o APK sobre o anterior, entrar com usuário de teste autorizado, abrir Visitas ou Transmissão e baixar a carteira. Conferir os contratos/observações, ativar modo avião, fechar/reabrir e consultar novamente. Os recebimentos e ocorrências ficam somente no aparelho como pendências, pois o envio de lotes ainda não foi integrado à API.
 
-Dados de carteira e confirmações são segregados por empresa e usuário. Banco SQLite de carteira: esquema 1, valores inteiros na escala 10.000. Banco de movimentações: esquema 2, com ponteiro de carteira ativa e confirmações pendentes, sem tabelas de pagamentos ainda.
+Dados de carteira e confirmações são segregados por empresa e usuário. Banco SQLite de carteira: esquema 1, valores inteiros na escala 10.000. Os bancos de movimentações e operações preservam os ponteiros de carteira, confirmações pendentes, respostas de cobrança e ordem local.
 
 Os testes incluem fixture ZIP gerada pelo serviço Python da API (somente dados fictícios), instalada em SQLite real no teste desktop. O comportamento no aparelho e com dados reais deve ser validado após a implantação.

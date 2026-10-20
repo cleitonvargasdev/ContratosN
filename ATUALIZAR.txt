@@ -59,6 +59,10 @@ docker compose logs --tail=300 -f api
 cd /var/www/apicontratos/ContratosN/FRONTEND
 git pull origin main
 
+fiz isso para atualizar no chrome
+cd /var/www/apicontratos/ContratosN/API
+docker compose up -d --build web
+
 cd /var/www/apicontratos/ContratosN/API
 docker compose up -d --build web
 docker compose logs --tail=300 -f web
