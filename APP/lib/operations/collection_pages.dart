@@ -363,61 +363,110 @@ class _ClientsPageState extends State<ClientsPage> {
     );
   }
 
-  Widget _card(ClientSummary c) => Card(
-    clipBehavior: Clip.antiAlias,
-    child: InkWell(
-      onTap: () async {
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => ClientContractsPage(service: service, client: c),
-          ),
-        );
-        if (mounted) await _load();
-      },
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${c.data['nome'] ?? 'Sem nome'}',
-                    style: Theme.of(context).textTheme.titleMedium,
+  Widget _card(ClientSummary c) {
+    final address = [
+      '${c.data['endereco'] ?? ''}'.trim(),
+      if ('${c.data['numero'] ?? ''}'.trim().isNotEmpty)
+        'N.º ${c.data['numero']}',
+    ].where((part) => part.isNotEmpty).join(' ');
+    final place = [
+      '${c.data['bairro'] ?? ''}'.trim(),
+      '${c.data['cidade'] ?? ''}'.trim(),
+    ].where((part) => part.isNotEmpty).join(' • ');
+    final phone = '${c.data['celular'] ?? c.data['telefone'] ?? ''}'.trim();
+    final alert = c.overdueCount > 0;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => ClientContractsPage(service: service, client: c),
+            ),
+          );
+          if (mounted) await _load();
+        },
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 9, 12, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${c.data['nome'] ?? 'Sem nome'}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: alert ? Colors.red.shade800 : null,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                ),
-                Icon(statusIcon(c.status), color: statusColor(c.status)),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text('${c.data['endereco'] ?? ''}, ${c.data['numero'] ?? ''}'),
-            Text('${c.data['bairro'] ?? ''} • ${c.data['cidade'] ?? ''}'),
-            const SizedBox(height: 8),
-            Text(
-              statusLabel(c.status),
-              style: TextStyle(color: statusColor(c.status)),
-            ),
-            const Divider(),
-            Wrap(
-              spacing: 16,
-              runSpacing: 4,
-              children: [
-                Text('${c.contracts.length} contratos'),
-                Text('${c.overdueCount} parcelas em atraso'),
-                Text('Turno: ${c.data['turno_cobranca'] ?? 'Não informado'}'),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Em aberto: ${moneyLabel(c.balance)}',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            Text('Em atraso: ${moneyLabel(c.overdueBalance)}'),
-          ],
+                  Icon(statusIcon(c.status), size: 18, color: statusColor(c.status)),
+                ],
+              ),
+              if (address.isNotEmpty) Text(address, maxLines: 1, overflow: TextOverflow.ellipsis),
+              if (place.isNotEmpty) Text(place, maxLines: 1, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 5),
+              _summaryRow('C:', '', 'F:', phone),
+              const SizedBox(height: 4),
+              _summaryRow('CONTRATOS:', '${c.contracts.length}', 'TURNO COB.:',
+                  '${c.data['turno_cobranca'] ?? ''}'),
+              const SizedBox(height: 4),
+              _summaryRow('PARC. ATRASO:', '${c.overdueCount}', 'VALOR',
+                  moneyLabel(c.overdueBalance),
+                  leftValueColor: alert ? Colors.red.shade800 : null,
+                  rightValueColor: Colors.blue.shade800),
+            ],
+          ),
         ),
       ),
-    ),
+    );
+  }
+
+  Widget _summaryRow(
+    String leftLabel,
+    String leftValue,
+    String rightLabel,
+    String rightValue, {
+    Color? leftValueColor,
+    Color? rightValueColor,
+  }) => Row(
+    children: [
+      Expanded(
+        child: RichText(
+          text: TextSpan(
+            style: DefaultTextStyle.of(context).style.copyWith(fontSize: 12),
+            children: [
+              TextSpan(text: '$leftLabel '),
+              TextSpan(
+                text: leftValue,
+                style: TextStyle(color: leftValueColor, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        ),
+      ),
+      Expanded(
+        child: RichText(
+          textAlign: TextAlign.right,
+          text: TextSpan(
+            style: DefaultTextStyle.of(context).style.copyWith(fontSize: 12),
+            children: [
+              TextSpan(text: '$rightLabel '),
+              TextSpan(
+                text: rightValue,
+                style: TextStyle(color: rightValueColor, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
   );
 }
 
