@@ -8,6 +8,7 @@ from app.services.mobile_batch_service import MobileBatchService
 
 router = APIRouter()
 mobile_user = require_permission("acesso_web", "read")
+unlock_read_user = require_permission("contratos", "read")
 unlock_user = require_permission("contratos", "update")
 
 
@@ -21,7 +22,7 @@ async def create_batch(payload: MobileBatchCreate, user: User = Depends(mobile_u
 
 
 @router.get("/lotes/bloqueados", response_model=list[MobileBatchRead])
-async def list_blocked_batches(admin: User = Depends(unlock_user), svc: MobileBatchService = Depends(service)):
+async def list_blocked_batches(admin: User = Depends(unlock_read_user), svc: MobileBatchService = Depends(service)):
     return await svc.list_blocked()
 
 

@@ -216,7 +216,7 @@ const routes = [
         path: 'contratos/:id/editar',
         name: 'contracts-edit',
         component: ContractsEditView,
-        meta: { resource: 'contratos', action: 'update' },
+        meta: { resource: 'contratos', action: 'read' },
       },
       {
         path: 'recebimento-lote',

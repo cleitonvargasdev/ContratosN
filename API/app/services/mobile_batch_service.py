@@ -68,26 +68,28 @@ class MobileBatchService:
                 batch.execution_requested_at > datetime.now(UTC) - timedelta(minutes=2):
             return await self._read(batch)
         now = datetime.now(UTC)
+        batch_id = batch.id
         batch.status = "processing"
         batch.execution_requested_at = batch.execution_requested_at or now
         await self.session.commit()
-        items = (await self.session.execute(select(MobileBatchItem).where(MobileBatchItem.batch_id == batch.id).order_by(MobileBatchItem.id))).scalars().all()
+        items = (await self.session.execute(select(MobileBatchItem).where(MobileBatchItem.batch_id == batch_id).order_by(MobileBatchItem.id))).scalars().all()
         for item in items:
             if item.processed or item.blocked:
                 continue
+            item_id = item.id
             try:
                 await self._process_item(batch, item, user, now)
             except Exception as exc:
                 await self.session.rollback()
-                item = await self.session.get(MobileBatchItem, item.id)
-                batch = await self.session.get(MobileBatch, batch.id)
+                item = await self.session.get(MobileBatchItem, item_id)
+                batch = await self.session.get(MobileBatch, batch_id)
                 if item is not None and batch is not None:
                     item.blocked = True
                     item.block_reason = self._reason(exc)
                     batch.blocked = True
                     batch.block_reason = batch.block_reason or item.block_reason
                     await self.session.commit()
-        batch = await self.session.get(MobileBatch, batch.id)
+        batch = await self.session.get(MobileBatch, batch_id)
         if batch is None:
             raise HTTPException(404, "Lote nao encontrado")
         blocked = await self.session.scalar(select(MobileBatchItem.id).where(MobileBatchItem.batch_id == batch.id, MobileBatchItem.blocked.is_(True)).limit(1))
