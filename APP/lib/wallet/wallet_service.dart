@@ -151,6 +151,98 @@ class WalletService {
     }
   }
 
+  /// Sends payment and occurrence operations using a persisted idempotency key.
+  /// A timeout leaves the local batch intact; the next attempt resumes it.
+  Future<String> transmitOperations() async {
+    final operations = OperationStore(session);
+    final batch = await operations.prepareBatch();
+    if (batch == null) return 'Não há recebimentos ou ocorrências para enviar.';
+    final sourceId = batch['source_id'] as String;
+    final rows = await operations.batchOperations(sourceId);
+    if (rows.isEmpty) return 'Não há itens neste lote.';
+    final client = _clientFactory();
+    try {
+      final create = await http.Response.fromStream(await _request(
+        client,
+        'POST',
+        'mobile/lotes',
+        body: {'source_id': sourceId, 'items': _batchItems(rows)},
+      ));
+      final accepted = jsonDecode(utf8.decode(create.bodyBytes)) as Map<String, dynamic>;
+      final serverId = accepted['id'];
+      if (serverId is! int) throw const WalletFailure('A API devolveu um lote inválido.');
+      await operations.acceptBatch(sourceId, serverId);
+      final execute = await http.Response.fromStream(await _request(
+        client,
+        'POST',
+        'mobile/lotes/$serverId/executar',
+      ));
+      final result = jsonDecode(utf8.decode(execute.bodyBytes)) as Map<String, dynamic>;
+      final status = result['status'];
+      if (status == 'processing' || status == 'created') {
+        return 'Lote recebido pelo servidor e ainda em processamento. Toque em enviar novamente para consultar.';
+      }
+      final items = (result['items'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map((item) => item.cast<String, Object?>())
+          .toList();
+      await operations.applyBatchResult(sourceId, items);
+      if (result['blocked'] == true) {
+        return 'Lote processado parcialmente e bloqueado para conferência no sistema web.';
+      }
+      return 'Lote processado com sucesso.';
+    } on WalletFailure {
+      rethrow;
+    } on TimeoutException {
+      throw const WalletFailure('Resposta não recebida. O lote foi preservado e será retomado no próximo envio.');
+    } on SocketException {
+      throw const WalletFailure('Sem conexão. O lote continua salvo neste aparelho.');
+    } on http.ClientException {
+      throw const WalletFailure('Falha de conexão. O lote continua salvo neste aparelho.');
+    } on FormatException {
+      throw const WalletFailure('Resposta inválida da API. O lote será retomado depois.');
+    } finally {
+      client.close();
+    }
+  }
+
+  List<Map<String, Object?>> _batchItems(List<Map<String, Object?>> rows) {
+    final items = <Map<String, Object?>>[];
+    for (final row in rows) {
+      final payload = jsonDecode(row['payload'] as String) as Map<String, dynamic>;
+      final location = (payload['location'] as Map<String, dynamic>? ?? const {});
+      final base = <String, Object?>{
+        'client_id': row['client_id'],
+        'contract_id': row['contract_id'],
+        'latitude': location['latitude'],
+        'longitude': location['longitude'],
+        'gps_status': location['status'],
+        'device_recorded_at': row['recorded_at'],
+      };
+      if (row['kind'] == 'payment') {
+        for (final rawPayment in payload['payments'] as List<dynamic>? ?? const []) {
+          final payment = rawPayment as Map<String, dynamic>;
+          final installment = payment['parcel_id'];
+          if (installment is! int || payment['amount_units'] is! int) {
+            throw const FormatException('Pagamento local inválido.');
+          }
+          items.add({...base,
+            'source_item_id': '${row['id']}:$installment',
+            'kind': 'payment',
+            'installment_id': installment,
+            'amount_units': payment['amount_units'],
+          });
+        }
+      } else {
+        items.add({...base,
+          'source_item_id': row['id'],
+          'kind': row['kind'],
+        });
+      }
+    }
+    return items;
+  }
+
   Future<int> retryCleanup() async {
     final client = _clientFactory();
     try {
@@ -179,8 +271,14 @@ class WalletService {
   }
 
   /// Retorna false quando a carteira foi instalada mas a limpeza está pendente.
-  Future<bool> download(void Function(String) progress) async {
-    if ((await OperationStore(session).pending()).isNotEmpty) {
+  Future<bool> download(
+    void Function(String) progress, {
+    Set<String> discardPendingIds = const {},
+  }) async {
+    final operations = OperationStore(session);
+    if ((await operations.pending()).any(
+      (row) => !discardPendingIds.contains(row['id']),
+    )) {
       throw const WalletFailure(
         'Há recebimentos ou ocorrências pendentes neste aparelho. '
         'A carteira será preservada até resolver essas pendências.',
@@ -284,13 +382,16 @@ class WalletService {
         session.companyCode,
         '${session.userId}',
       );
-      if ((await OperationStore(session).pending()).isNotEmpty) {
+      if ((await operations.pending()).any(
+        (row) => !discardPendingIds.contains(row['id']),
+      )) {
         throw const WalletFailure(
           'Surgiram movimentos pendentes. A carteira anterior foi preservada.',
         );
       }
       await local.activateWallet(session.companyCode, '${session.userId}', id);
       installed = true;
+      await operations.discardPending(discardPendingIds);
       if (oldId != null && validDownloadId(oldId) && oldId != id) {
         try {
           await File(path.join(dir.path, '$oldId.sqlite')).delete();

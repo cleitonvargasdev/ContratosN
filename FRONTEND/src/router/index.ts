@@ -48,6 +48,7 @@ import UsersEditView from '@/views/users/UsersEditView.vue'
 import UsersListView from '@/views/users/UsersListView.vue'
 import WhatsAppConnectionView from '@/views/whatsapp/WhatsAppConnectionView.vue'
 import WhatsAppDispatchesView from '@/views/whatsapp/WhatsAppDispatchesView.vue'
+import BlockedBatchesView from '@/views/mobile-batches/BlockedBatchesView.vue'
 
 const routes = [
   {
@@ -378,6 +379,12 @@ const routes = [
         name: 'payments-movement',
         component: PaymentsMovementView,
         meta: { resource: 'contas_pagar', action: 'read' },
+      },
+      {
+        path: 'movimentacoes/desbloqueio',
+        name: 'mobile-batches-unlock',
+        component: BlockedBatchesView,
+        meta: { resource: 'acesso_web', action: 'update' },
       },
       {
         path: 'comissoes', name: 'commissions', component: CommissionsView, meta: { resource: 'contas_pagar', action: 'read' },

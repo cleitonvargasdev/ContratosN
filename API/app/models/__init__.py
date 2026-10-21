@@ -9,6 +9,7 @@ from app.models.contract import Contrato
 from app.models.contract_commodato import ContratoComodato, ContratoComodatoItem
 from app.models.stock import MovimentoEstoque
 from app.models.location import Bairro, Cidade, Feriado, UF
+from app.models.mobile_batch import MobileBatch, MobileBatchItem, MobileOccurrence
 from app.models.negotiation import Negociacao, NegociacaoContrato
 from app.models.parameter import Parametro
 from app.models.payment_plan import PaymentPlan
@@ -51,6 +52,9 @@ __all__ = [
 	"RegraJuros",
 	"RegraComissao",
 	"WhatsAppChatbotSession",
+	"MobileBatch",
+	"MobileBatchItem",
+	"MobileOccurrence",
 	"Solicitacao",
 	"WhatsAppDispatchBatch",
 	"WhatsAppDispatchItem",

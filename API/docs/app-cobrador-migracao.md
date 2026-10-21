@@ -1,8 +1,8 @@
 # Migração do aplicativo do cobrador
 
-## Etapa atual — 20/10/2026
+## Etapa atual — 21/10/2026
 
-Ver [app operacional 1.2](app-operacional-1.2.md) para telas, regras implementadas, validação e limites da etapa local. Envio de lotes, integração de solicitações e biometria continuam pendentes.
+Ver [app operacional 1.2](app-operacional-1.2.md) para telas, regras implementadas, validação e limites da etapa local. As regras vigentes para envio, processamento, bloqueio, desbloqueio e ocorrências estão em [lotes do cobrador](lotes-cobrador-processamento.md); elas substituem as anotações anteriores sobre lote sem vínculo e processamento manual.
 
 ## Referências visuais
 

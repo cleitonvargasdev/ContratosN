@@ -16,19 +16,36 @@ class OperationStore {
     try {
       return await openDatabase(
         path.join(await getDatabasesPath(), 'operacoes.sqlite'),
-        version: 1,
+        version: 2,
         onCreate: (db, _) async {
           await db.execute('''CREATE TABLE operations (
             id TEXT PRIMARY KEY, company TEXT NOT NULL, user_id INTEGER NOT NULL,
             wallet_id TEXT NOT NULL, client_id INTEGER NOT NULL,
             contract_id INTEGER NOT NULL, kind TEXT NOT NULL,
-            recorded_at TEXT NOT NULL, payload TEXT NOT NULL
+            recorded_at TEXT NOT NULL, payload TEXT NOT NULL,
+            batch_source_id TEXT, sync_status TEXT NOT NULL DEFAULT 'pending'
           )''');
           await db.execute('''CREATE TABLE visit_order (
             company TEXT NOT NULL, user_id INTEGER NOT NULL,
             client_id INTEGER NOT NULL, position INTEGER NOT NULL,
             PRIMARY KEY(company,user_id,client_id)
           )''');
+          await db.execute('''CREATE TABLE mobile_batches (
+            source_id TEXT PRIMARY KEY, company TEXT NOT NULL,
+            user_id INTEGER NOT NULL, server_id INTEGER,
+            status TEXT NOT NULL, created_at TEXT NOT NULL
+          )''');
+        },
+        onUpgrade: (db, oldVersion, _) async {
+          if (oldVersion < 2) {
+            await db.execute('ALTER TABLE operations ADD COLUMN batch_source_id TEXT');
+            await db.execute("ALTER TABLE operations ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'pending'");
+            await db.execute('''CREATE TABLE mobile_batches (
+              source_id TEXT PRIMARY KEY, company TEXT NOT NULL,
+              user_id INTEGER NOT NULL, server_id INTEGER,
+              status TEXT NOT NULL, created_at TEXT NOT NULL
+            )''');
+          }
         },
       );
     } catch (_) {
@@ -45,6 +62,101 @@ class OperationStore {
     whereArgs: owner,
     orderBy: 'recorded_at,id',
   );
+
+  /// Creates (or recovers) the only batch that can be in flight for this user.
+  /// Its source id is persisted before the first HTTP request.
+  Future<Map<String, Object?>?> prepareBatch() async {
+    final db = await database;
+    return db.transaction((txn) async {
+      final existing = await txn.query(
+        'mobile_batches',
+        where: 'company=? AND user_id=? AND status IN (?,?)',
+        whereArgs: [...owner, 'created', 'accepted'],
+        orderBy: 'created_at',
+        limit: 1,
+      );
+      if (existing.isNotEmpty) return existing.single;
+      final rows = await txn.query(
+        'operations',
+        where: "company=? AND user_id=? AND kind IN ('payment','unpaid','closed') AND sync_status='pending' AND batch_source_id IS NULL",
+        whereArgs: owner,
+        orderBy: 'recorded_at,id',
+      );
+      if (rows.isEmpty) return null;
+      final sourceId = _newId();
+      final now = DateTime.now().toUtc().toIso8601String();
+      await txn.insert('mobile_batches', {
+        'source_id': sourceId,
+        'company': session.companyCode,
+        'user_id': session.userId,
+        'status': 'created',
+        'created_at': now,
+      });
+      await txn.update(
+        'operations',
+        {'batch_source_id': sourceId},
+        where: "company=? AND user_id=? AND kind IN ('payment','unpaid','closed') AND sync_status='pending' AND batch_source_id IS NULL",
+        whereArgs: owner,
+      );
+      return {
+        'source_id': sourceId,
+        'server_id': null,
+        'status': 'created',
+        'created_at': now,
+      };
+    });
+  }
+
+  Future<List<Map<String, Object?>>> batchOperations(String sourceId) async =>
+      (await database).query(
+        'operations',
+        where: 'company=? AND user_id=? AND batch_source_id=?',
+        whereArgs: [...owner, sourceId],
+        orderBy: 'recorded_at,id',
+      );
+
+  Future<void> acceptBatch(String sourceId, int serverId) async {
+    await (await database).update(
+      'mobile_batches',
+      {'server_id': serverId, 'status': 'accepted'},
+      where: 'source_id=? AND company=? AND user_id=?',
+      whereArgs: [sourceId, ...owner],
+    );
+  }
+
+  /// Removes only confirmed operations. Conflicted operations stay locally
+  /// marked as blocked and cannot silently enter a later batch.
+  Future<void> applyBatchResult(
+    String sourceId,
+    List<Map<String, Object?>> items,
+  ) async {
+    await (await database).transaction((txn) async {
+      final operations = await txn.query(
+        'operations',
+        where: 'company=? AND user_id=? AND batch_source_id=?',
+        whereArgs: [...owner, sourceId],
+      );
+      for (final operation in operations) {
+        final id = operation['id'] as String;
+        final relevant = (operation['kind'] == 'payment')
+            ? items.where((item) => (item['source_item_id'] as String).startsWith('$id:')).toList()
+            : items.where((item) => item['source_item_id'] == id).toList();
+        if (relevant.isEmpty || relevant.any((item) => item['blocked'] == true)) {
+          await txn.update('operations', {'sync_status': 'blocked'},
+              where: 'id=?', whereArgs: [id]);
+        } else if (relevant.every((item) => item['processed'] == true)) {
+          await txn.delete('operations', where: 'id=?', whereArgs: [id]);
+        }
+      }
+      await txn.update('mobile_batches', {'status': 'finished'},
+          where: 'source_id=?', whereArgs: [sourceId]);
+    });
+  }
+
+  static String _newId() {
+    final random = Random.secure();
+    return List.generate(16, (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
+  }
 
   Future<Map<int, String>> answers(String wallet) async {
     final rows = await (await database).query(
@@ -124,6 +236,15 @@ class OperationStore {
     }
     final now = DateTime.now().toUtc().toIso8601String();
     await (await database).transaction((txn) async {
+      // "Fechado" is a client-level occurrence replicated to each contract.
+      // A receipt for any one contract corrects that occurrence for the client.
+      if (kind == 'payment') {
+        await txn.delete(
+          'operations',
+          where: 'company=? AND user_id=? AND wallet_id=? AND client_id=? AND kind=?',
+          whereArgs: [...owner, wallet, client, 'closed'],
+        );
+      }
       for (final contract in contracts) {
         final previous = await txn.query(
           'operations',
@@ -202,6 +323,15 @@ class OperationStore {
       throw StateError('Coordenadas inv�lidas.');
     }
     await (await database).transaction((txn) async {
+      // Saving a receipt supersedes the client-wide "Fechado" occurrence,
+      // including the copies recorded for its other contracts.
+      if (payments.isNotEmpty) {
+        await txn.delete(
+          'operations',
+          where: 'company=? AND user_id=? AND wallet_id=? AND client_id=? AND kind=?',
+          whereArgs: [...owner, wallet, client, 'closed'],
+        );
+      }
       await txn.delete(
         'operations',
         where: 'company=? AND user_id=? AND wallet_id=? AND contract_id=?',
@@ -233,6 +363,19 @@ class OperationStore {
         'recorded_at': DateTime.now().toUtc().toIso8601String(),
         'payload': jsonEncode({'location': location, 'payments': items}),
       });
+    });
+  }
+
+  Future<void> discardPending(Set<String> ids) async {
+    if (ids.isEmpty) return;
+    await (await database).transaction((txn) async {
+      for (final id in ids) {
+        await txn.delete(
+          'operations',
+          where: 'company=? AND user_id=? AND id=?',
+          whereArgs: [...owner, id],
+        );
+      }
     });
   }
 

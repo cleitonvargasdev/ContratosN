@@ -41,9 +41,37 @@ class _WalletPageState extends State<WalletPage> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
+      final pending = await OperationStore(widget.session).pending();
+      if (!mounted) return;
+      if (pending.isNotEmpty) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: const Text('Apagar pendências e baixar carteira?'),
+            content: Text(
+              'Existem ${pending.length} registros ainda não enviados. '
+              'Ao substituir a carteira, os recebimentos, marcações de não pagou, '
+              'fechado e solicitações pendentes serão apagados. '
+              'Essa exclusão não pode ser desfeita. Deseja continuar?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Apagar e baixar'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true || !mounted) return;
+      }
       final cleaned = await service.download((message) {
         if (mounted) setState(() => _message = message);
-      });
+      }, discardPendingIds: pending.map((row) => row['id'] as String).toSet());
       if (mounted) {
         setState(
           () => _message = cleaned
@@ -85,6 +113,22 @@ class _WalletPageState extends State<WalletPage> {
     }
   }
 
+  Future<void> _transmit() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final message = await service.transmitOperations();
+      if (mounted) setState(() => _message = message);
+    } on WalletFailure catch (e) {
+      if (mounted) setState(() => _message = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _message = 'Não foi possível transmitir agora. O lote foi preservado.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+      await _load();
+    }
+  }
+
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
@@ -100,9 +144,7 @@ class _WalletPageState extends State<WalletPage> {
           if (_busy) const LinearProgressIndicator(),
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: _busy || _pending == null || _pending! > 0
-                ? null
-                : _download,
+            onPressed: _busy || _pending == null ? null : _download,
             icon: const Icon(Icons.download),
             label: const Text('Baixar carteira completa'),
           ),
@@ -117,9 +159,14 @@ class _WalletPageState extends State<WalletPage> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'O envio de recebimentos e ocorrências será habilitado após '
-            'a integração dos lotes com a API. Enquanto houver pendências, '
-            'o download fica bloqueado para preservar os registros.',
+            'Envie primeiro as cobranças e ocorrências. Se a conexão cair, '
+            'o mesmo lote será retomado sem duplicar recebimentos.',
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: _busy || (_pending ?? 0) == 0 ? null : _transmit,
+            icon: const Icon(Icons.upload),
+            label: const Text('Enviar lote'),
           ),
           OutlinedButton.icon(
             onPressed: _busy

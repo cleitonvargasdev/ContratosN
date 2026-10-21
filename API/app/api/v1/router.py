@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from app.controllers.mobile_wallet_controller import router as mobile_wallet_router
+from app.controllers.mobile_batch_controller import router as mobile_batch_router
 
 from app.controllers.api_config_controller import router as api_config_router
 from app.controllers.accounts_payable_controller import router as accounts_payable_router
@@ -23,6 +24,7 @@ from app.controllers.whatsapp_controller import router as whatsapp_router
 
 api_router = APIRouter()
 api_router.include_router(mobile_wallet_router, prefix="/mobile", tags=["mobile"])
+api_router.include_router(mobile_batch_router, prefix="/mobile", tags=["mobile"])
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 api_router.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(access_control_router, prefix="/acesso", tags=["acesso"])
