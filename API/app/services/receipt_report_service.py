@@ -77,7 +77,10 @@ class ReceiptReportService:
             when = moment.astimezone(UTC).strftime('%d/%m/%Y\n%H:%M') if moment else '-'
             data.append([when, f"{row['contract']}  {row['installment'] or '-'}", row['client'], row['collector'], self._money(row['value']), self._money(row['missing']) if row['missing'] else ''])
         total = sum(row['value'] for row in rows); missing = sum(row['missing'] for row in rows)
-        data += [['', '', '', '*** Valor total recebido no período:', self._money(total), ''], ['', '', '', '*** Valor da diferença das parcelas:', '', self._money(missing)]]
+        data += [
+            ['*** Valor total recebido no período:', '', '', '', '', self._money(total)],
+            ['*** Valor da diferença das parcelas:', '', '', '', '', self._money(missing)],
+        ]
         return data
 
     def _synthetic(self, rows: list[dict]) -> list:
@@ -97,7 +100,10 @@ class ReceiptReportService:
         elements = [Paragraph(title, heading), Paragraph(f'Período: {start:%d/%m/%Y} até {end:%d/%m/%Y}', normal), Paragraph(f'Funcionário: <b>{employee}</b>', normal), Spacer(1, 4*mm)]
         widths = [22*mm, 28*mm, 70*mm, 33*mm, 25*mm, 22*mm] if mode == 'analitico' else [90*mm, 45*mm, 45*mm]
         table = Table([[Paragraph(str(cell).replace('\n', '<br/>'), normal) for cell in row] for row in data], colWidths=widths, repeatRows=1)
-        table.setStyle(TableStyle([('LINEBELOW',(0,0),(-1,0),.5,colors.black),('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('ALIGN',(-2,1),(-1,-1),'RIGHT'),('LINEBELOW',(0,1),(-1,-3),.15,colors.grey),('FONTNAME',(0,-2),(-1,-1),'Helvetica-Bold'),('TEXTCOLOR',(-1,-1),(-1,-1),colors.red),('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4)]))
+        styles_table = [('LINEBELOW',(0,0),(-1,0),.5,colors.black),('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('ALIGN',(-2,1),(-1,-1),'RIGHT'),('LINEBELOW',(0,1),(-1,-3),.15,colors.grey),('FONTNAME',(0,-2),(-1,-1),'Helvetica-Bold'),('TEXTCOLOR',(-1,-1),(-1,-1),colors.red),('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4)]
+        if mode == 'analitico':
+            styles_table += [('SPAN',(0,-2),(4,-2)), ('SPAN',(0,-1),(4,-1)), ('ALIGN',(0,-2),(4,-1),'RIGHT')]
+        table.setStyle(TableStyle(styles_table))
         elements.append(table); doc.build(elements); return output.getvalue()
 
     @staticmethod
