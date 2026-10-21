@@ -127,21 +127,11 @@ class OperationStore {
           whereArgs: [...owner, wallet, contract],
         );
         if (previous.isNotEmpty) {
-          if (kind != 'payment' ||
-              previous.any((r) => r['kind'] != 'payment')) {
-            throw StateError('Contrato já possui resposta pendente.');
-          }
-          final alreadyReceived = <int>{};
-          for (final row in previous) {
-            final payload =
-                jsonDecode(row['payload'] as String) as Map<String, dynamic>;
-            for (final p in payload['payments'] as List) {
-              alreadyReceived.add(p['parcel_id'] as int);
-            }
-          }
-          if (payments.any((p) => alreadyReceived.contains(p['parcel_id']))) {
-            throw StateError('Parcela já possui recebimento pendente.');
-          }
+          await txn.delete(
+            'operations',
+            where: 'company=? AND user_id=? AND wallet_id=? AND contract_id=?',
+            whereArgs: [...owner, wallet, contract],
+          );
         }
         final random = Random.secure();
         final id = List.generate(
@@ -183,17 +173,20 @@ class OperationStore {
   }) async {
     if (wallet.isEmpty ||
         payments.map((p) => p['parcel_id']).toSet().length != payments.length ||
-        payments.any((p) =>
-            p['parcel_id'] == null ||
-            (p['amount_units'] ?? 0) <= 0 ||
-            (p['balance_units'] ?? 0) <= 0)) {
+        payments.any(
+          (p) =>
+              p['parcel_id'] == null ||
+              (p['amount_units'] ?? 0) <= 0 ||
+              (p['balance_units'] ?? 0) <= 0,
+        )) {
       throw StateError('Recebimento inválido.');
     }
     if (payments.isNotEmpty && location == null) {
       throw StateError('Localização obrigatória.');
     }
     if (location != null &&
-        location['status'] != 'captured' && location['status'] != 'timeout') {
+        location['status'] != 'captured' &&
+        location['status'] != 'timeout') {
       throw StateError('Localização obrigatória.');
     }
     if (location?['status'] == 'captured' &&
@@ -201,18 +194,10 @@ class OperationStore {
       throw StateError('Coordenadas inválidas.');
     }
     await (await database).transaction((txn) async {
-      final previous = await txn.query(
+      await txn.delete(
         'operations',
         where: 'company=? AND user_id=? AND wallet_id=? AND contract_id=?',
         whereArgs: [...owner, wallet, contract],
-      );
-      if (previous.any((row) => row['kind'] != 'payment')) {
-        throw StateError('Contrato já possui outra resposta pendente.');
-      }
-      await txn.delete(
-        'operations',
-        where: 'company=? AND user_id=? AND wallet_id=? AND contract_id=? AND kind=?',
-        whereArgs: [...owner, wallet, contract, 'payment'],
       );
       if (payments.isEmpty) return;
       final random = Random.secure();
@@ -245,17 +230,25 @@ class OperationStore {
 
   Future<void> removePending(String id) async {
     await (await database).transaction((txn) async {
-      final rows = await txn.query('operations',
-        where: 'company=? AND user_id=? AND id=?', whereArgs: [...owner, id]);
+      final rows = await txn.query(
+        'operations',
+        where: 'company=? AND user_id=? AND id=?',
+        whereArgs: [...owner, id],
+      );
       if (rows.isEmpty) return;
       final row = rows.single;
       if (row['kind'] == 'closed') {
-        await txn.delete('operations',
+        await txn.delete(
+          'operations',
           where: 'company=? AND user_id=? AND wallet_id=? AND client_id=? AND kind=?',
-          whereArgs: [...owner, row['wallet_id'], row['client_id'], 'closed']);
+          whereArgs: [...owner, row['wallet_id'], row['client_id'], 'closed'],
+        );
       } else {
-        await txn.delete('operations',
-          where: 'company=? AND user_id=? AND id=?', whereArgs: [...owner, id]);
+        await txn.delete(
+          'operations',
+          where: 'company=? AND user_id=? AND id=?',
+          whereArgs: [...owner, id],
+        );
       }
     });
   }
