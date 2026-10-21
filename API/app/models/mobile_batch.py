@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import JSON, BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -51,6 +51,8 @@ class MobileBatchItem(Base):
     blocked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
     block_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     receipt_id: Mapped[int | None] = mapped_column(ForeignKey("recebimentos.recebimento_id", ondelete="SET NULL"), nullable=True)
+    solicitation_id: Mapped[int | None] = mapped_column(ForeignKey("solicitacoes.id", ondelete="SET NULL"), nullable=True)
+    solicitation_data: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 

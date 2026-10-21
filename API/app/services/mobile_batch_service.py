@@ -8,6 +8,7 @@ from app.models.accounts_receivable import ContaReceber
 from app.models.mobile_batch import MobileBatch, MobileBatchItem, MobileOccurrence
 from app.models.receipt import Recebimento
 from app.models.user import User
+from app.models.whatsapp_chatbot import Solicitacao
 from app.schemas.mobile_batch import MobileBatchCreate, MobileBatchRead
 from app.services.accounts_receivable_service import AccountsReceivableService
 
@@ -40,6 +41,7 @@ class MobileBatchService:
                 latitude=None if source.latitude is None else str(source.latitude),
                 longitude=None if source.longitude is None else str(source.longitude),
                 gps_status=source.gps_status, device_recorded_at=source.device_recorded_at,
+                solicitation_data=None if source.solicitacao is None else source.solicitacao.model_dump(),
                 server_date=now.date(),
             )
             self.session.add(item)
@@ -120,6 +122,27 @@ class MobileBatchService:
         return [await self._read(batch) for batch in batches]
 
     async def _process_item(self, batch: MobileBatch, item: MobileBatchItem, user: User, now: datetime) -> None:
+        if item.kind == "solicitation":
+            payload = item.solicitation_data or {}
+            if item.client_id is None:
+                raise ValueError("Cliente da solicitacao nao encontrado")
+            solicitation = Solicitacao(
+                cliente_id=item.client_id,
+                valor_pretendido=payload.get("valor_pretendido"),
+                frequencia_pagamento=payload.get("frequencia_pagamento"),
+                numero_parcelas=payload.get("numero_parcelas"),
+                observacao=payload.get("observacao"),
+                tipo="Aplicativo",
+                status="PENDENTE",
+                vendedor_id=user.id,
+            )
+            self.session.add(solicitation)
+            await self.session.flush()
+            item.solicitation_id = solicitation.id
+            item.processed = True
+            item.processed_at = now
+            await self.session.commit()
+            return
         if item.kind in {"unpaid", "closed"}:
             self.session.add(MobileOccurrence(
                 batch_id=batch.id, item_id=item.id, user_id=user.id, client_id=item.client_id,
@@ -173,6 +196,7 @@ class MobileBatchService:
             "installment_id": item.installment_id,
             "installment_number": installment_numbers.get(item.installment_id),
             "amount_units": None if item.amount is None else round(float(item.amount) * 10000),
+            "solicitation_id": item.solicitation_id,
             "processed": item.processed, "blocked": item.blocked, "block_reason": item.block_reason} for item in items])
 
     @staticmethod

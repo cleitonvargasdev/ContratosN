@@ -245,10 +245,21 @@ class WalletService {
           });
         }
       } else {
-        items.add({...base,
+        final item = <String, Object?>{...base,
           'source_item_id': row['id'],
           'kind': row['kind'],
-        });
+        };
+        if (row['kind'] == 'solicitation') {
+          item
+            ..['contract_id'] = null
+            ..['solicitacao'] = {
+              'valor_pretendido': payload['valor_pretendido'],
+              'frequencia_pagamento': payload['frequencia_pagamento'],
+              'numero_parcelas': payload['numero_parcelas'],
+              'observacao': payload['observacao'],
+            };
+        }
+        items.add(item);
       }
     }
     return items;
