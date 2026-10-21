@@ -443,25 +443,17 @@ class _ClientsPageState extends State<ClientsPage> {
               if (place.isNotEmpty)
                 Text(place, maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 5),
-              _summaryRow('C:', '', 'F:', phone, rightValueColor: Colors.black),
-              const SizedBox(height: 4),
-              _summaryRow(
-                'CONTRATOS:',
-                '${c.contracts.length}',
-                'TURNO COB.:',
-                '${c.data['turno_cobranca'] ?? ''}',
-                leftValueColor: Colors.blue.shade800,
-                rightValueColor: Colors.black,
-              ),
-              const SizedBox(height: 4),
-              _summaryRow(
-                'PARC. ATRASO:',
-                '${c.overdueCount}',
-                'VALOR',
-                moneyLabel(c.overdueBalance),
-                leftValueColor: Colors.red.shade800,
-                rightValueColor: Colors.red.shade800,
-              ),
+              if (widget.consultationOnly) ...[
+                if (phone.isNotEmpty) Text('Telefone: $phone'),
+                if ('${c.data['cpf_cnpj'] ?? ''}'.trim().isNotEmpty)
+                  Text('CPF/CNPJ: ${c.data['cpf_cnpj']}'),
+              ] else ...[
+                _summaryRow('C:', '', 'F:', phone, rightValueColor: Colors.black),
+                const SizedBox(height: 4),
+                _summaryRow('CONTRATOS:', '${c.contracts.length}', 'TURNO COB.:', '${c.data['turno_cobranca'] ?? ''}', leftValueColor: Colors.blue.shade800, rightValueColor: Colors.black),
+                const SizedBox(height: 4),
+                _summaryRow('PARC. ATRASO:', '${c.overdueCount}', 'VALOR', moneyLabel(c.overdueBalance), leftValueColor: Colors.red.shade800, rightValueColor: Colors.red.shade800),
+              ],
             ],
           ),
         ),

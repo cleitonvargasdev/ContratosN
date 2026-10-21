@@ -61,6 +61,7 @@ class _LoanRequestPageState extends State<LoanRequestPage> {
         location: {'status': 'not_required'},
         payments: const [],
         extra: {
+          'cliente_nome': widget.client['nome'],
           'valor_pretendido': amount,
           'frequencia_pagamento': _frequency,
           'numero_parcelas': int.tryParse(_installments.text),
@@ -116,6 +117,7 @@ class _LoanRequestPageState extends State<LoanRequestPage> {
             ),
             items: const [
               DropdownMenuItem(value: 'Semanal', child: Text('Semanal')),
+              DropdownMenuItem(value: 'Diária', child: Text('Diária')),
               DropdownMenuItem(value: 'Quinzenal', child: Text('Quinzenal')),
               DropdownMenuItem(value: 'Mensal', child: Text('Mensal')),
             ],

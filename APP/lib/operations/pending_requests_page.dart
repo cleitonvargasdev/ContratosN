@@ -100,7 +100,7 @@ class _PendingRequestsPageState extends State<PendingRequestsPage> {
     final id = row['id'] as String;
     return Card(
       child: ListTile(
-        title: Text('Cliente ${row['client_id']}'),
+        title: Text('${payload['cliente_nome'] ?? 'Cliente ${row['client_id']}'}'),
         subtitle: Text(
           'Valor: R\$ ${payload['valor_pretendido'] ?? ''}\n${payload['frequencia_pagamento'] ?? ''} • ${payload['numero_parcelas'] ?? ''} parcelas',
         ),

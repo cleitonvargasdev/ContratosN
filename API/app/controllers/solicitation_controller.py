@@ -29,7 +29,7 @@ def get_solicitation_service(session: AsyncSession = Depends(get_db_session)) ->
 @router.post("/", response_model=SolicitationRead, status_code=status.HTTP_201_CREATED, summary="Criar solicitacao")
 async def create_solicitation(
     payload: SolicitationCreateRequest,
-    current_user: User = Depends(require_permission("solicitacoes", "update")),
+    current_user: User = Depends(get_current_active_user),
     service: SolicitationService = Depends(get_solicitation_service),
 ) -> SolicitationRead:
     return await service.create(payload, seller_id=current_user.id)
