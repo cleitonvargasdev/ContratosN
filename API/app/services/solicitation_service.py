@@ -53,15 +53,11 @@ class SolicitationService:
             return None
 
         existing_client = await self.repository.get_client_by_id(solicitation.cliente_id)
-        reference_contract = await self.repository.get_contract_by_id(solicitation.contrato_id)
-        if reference_contract is None:
-            reference_contract = await self.repository.get_latest_contract_for_client(solicitation.cliente_id)
-
         return SolicitationDetailRead(
             **SolicitationRead.model_validate(solicitation).model_dump(),
             cliente_existente=None if existing_client is None else SolicitationClientBrief.model_validate(existing_client),
             cliente_sugerido=self._build_client_draft(solicitation, existing_client),
-            contrato_sugerido=self._build_contract_draft(solicitation, reference_contract),
+            contrato_sugerido=self._build_contract_draft(solicitation),
         )
 
     async def link_client(self, solicitation_id: int, payload: SolicitationLinkClientRequest) -> SolicitationRead | None:
@@ -141,41 +137,29 @@ class SolicitationService:
         )
 
     @staticmethod
-    def _build_contract_draft(solicitation: object, reference_contract: object | None) -> SolicitationContractDraft:
+    def _build_contract_draft(solicitation: object) -> SolicitationContractDraft:
         return SolicitationContractDraft(
-            contrato_referencia_id=getattr(reference_contract, "contratos_id", None),
+            contrato_referencia_id=None,
             cliente_id=getattr(solicitation, "cliente_id", None),
-            usuario_id_vendedor=(
-                getattr(reference_contract, "usuario_id_vendedor", None)
-                if reference_contract is not None
-                else getattr(solicitation, "vendedor_id", None)
-            ),
-            regra_juros_id=getattr(reference_contract, "regra_juros_id", None),
-            plano_id=getattr(reference_contract, "plano_id", None),
-            qtde_dias=getattr(reference_contract, "qtde_dias", None),
-            percent_juros=(
-                getattr(reference_contract, "percent_juros", None)
-                if reference_contract is not None
-                else getattr(solicitation, "taxa_juros", None)
-            ),
+            usuario_id_vendedor=getattr(solicitation, "vendedor_id", None),
+            regra_juros_id=None,
+            plano_id=None,
+            qtde_dias=getattr(solicitation, "numero_parcelas", None),
+            percent_juros=getattr(solicitation, "taxa_juros", None),
             valor_empretismo=getattr(solicitation, "valor_pretendido", None),
-            valor_parcela=(
-                getattr(reference_contract, "valor_parcela", None)
-                if reference_contract is not None
-                else getattr(solicitation, "valor_parcela", None)
-            ),
-            recorrencia=getattr(reference_contract, "recorrencia", None),
-            aluguel=getattr(reference_contract, "aluguel", None),
-            cobranca_segunda=getattr(reference_contract, "cobranca_segunda", None),
-            cobranca_terca=getattr(reference_contract, "cobranca_terca", None),
-            cobranca_quarta=getattr(reference_contract, "cobranca_quarta", None),
-            cobranca_quinta=getattr(reference_contract, "cobranca_quinta", None),
-            cobranca_sexta=getattr(reference_contract, "cobranca_sexta", None),
-            cobranca_sabado=getattr(reference_contract, "cobranca_sabado", None),
-            cobranca_domingo=getattr(reference_contract, "cobranca_domingo", None),
-            cobranca_feriado=getattr(reference_contract, "cobranca_feriado", None),
-            cobranca_mensal=getattr(reference_contract, "cobranca_mensal", None),
-            cobranca_quinzenal=getattr(reference_contract, "cobranca_quinzenal", None),
+            valor_parcela=None,
+            recorrencia=None,
+            aluguel=None,
+            cobranca_segunda=None,
+            cobranca_terca=None,
+            cobranca_quarta=None,
+            cobranca_quinta=None,
+            cobranca_sexta=None,
+            cobranca_sabado=None,
+            cobranca_domingo=None,
+            cobranca_feriado=None,
+            cobranca_mensal=None,
+            cobranca_quinzenal=None,
             frequencia_pagamento=getattr(solicitation, "frequencia_pagamento", None),
             numero_parcelas=getattr(solicitation, "numero_parcelas", None),
             observacao=getattr(solicitation, "observacao", None),
