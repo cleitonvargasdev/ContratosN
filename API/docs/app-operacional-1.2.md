@@ -37,6 +37,6 @@ Resultado em 20/10/2026: 40 testes Flutter aprovados e `flutter analyze --no-pub
 
 APK release 1.2.0+3 gerado em `D:\PROJETOINI\APP\build\app\outputs\flutter-apk\app-release.apk`, com API `https://api.vstec.net/api/v1`, assinatura RSA 3072 validada pelo `apksigner` (esquema v2) e SHA-256 `9ea8b94406ff7fb073d029f2517b1e31c651cdac222ba2269aa78ad739edc4df`.
 
-A versão 1.2.9+12 compacta o formulário de recebimento. Antes do envio, uma parcela marcada mantém o valor recebido, inclusive parcial, bloqueado para edição. Desmarcar restaura o saldo aberto e libera o valor; confirmar sem parcelas marcadas remove o recebimento pendente local. A lista destaca somente os números de atraso e valores vencidos em vermelho, e o detalhe do contrato mostra a observação, comodato e negociação. O total digitado e os valores das parcelas usam a mesma largura, com o botão Dividir na coluna Marcar. A confirmação salva diretamente, os contratos e clientes atendidos exibem marcadores, e os filtros ficam ancorados dentro da margem. Uma resposta pendente de Fechado ou Não pagou pode ser alterada no próprio contrato. A lista de pendências respeita a área segura inferior e usa separadores compatíveis com UTF-8.
+A versão 1.2.10+13 reserva a barra de navegação do Android fora do conteúdo do aplicativo, inclusive no Android 15, e mantém a lista de pendências dentro da área segura inferior.
 
 Validação física necessária: permissões Android, GPS em ambiente interno/externo, navegação, encerramento/reabertura offline e atualização sobre o APK anterior.

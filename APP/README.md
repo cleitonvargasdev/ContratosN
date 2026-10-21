@@ -1,4 +1,4 @@
-# Aplicativo do cobrador — 1.2.9+12
+# Aplicativo do cobrador — 1.2.10+13
 
 Flutter para Android, com carteira SQLite gerada na API e movimentações locais em banco separado.
 
