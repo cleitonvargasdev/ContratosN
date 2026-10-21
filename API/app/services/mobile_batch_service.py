@@ -158,7 +158,10 @@ class MobileBatchService:
 
     async def _read(self, batch: MobileBatch) -> MobileBatchRead:
         items = (await self.session.execute(select(MobileBatchItem).where(MobileBatchItem.batch_id == batch.id).order_by(MobileBatchItem.id))).scalars().all()
-        return MobileBatchRead(id=batch.id, source_id=batch.source_id, user_id=batch.user_id, status=batch.status, blocked=batch.blocked,
+        collector = await self.session.get(User, batch.user_id)
+        return MobileBatchRead(id=batch.id, source_id=batch.source_id, user_id=batch.user_id,
+            collector_name=collector.nome if collector is not None else "Cobrador removido",
+            status=batch.status, blocked=batch.blocked,
             block_reason=batch.block_reason, items=[{"id": item.id, "source_item_id": item.source_item_id,
             "kind": item.kind, "client_id": item.client_id, "contract_id": item.contract_id,
             "installment_id": item.installment_id,

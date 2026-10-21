@@ -17,6 +17,7 @@ export type MobileBatch = {
   id: number
   source_id: string
   user_id: number
+  collector_name: string
   status: string
   blocked: boolean
   block_reason: string | null

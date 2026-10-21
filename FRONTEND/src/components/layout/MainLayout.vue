@@ -65,6 +65,7 @@ const standaloneLabels: Record<string, string> = {
   'whatsapp-connection': 'Contas WhatsApp',
   solicitations: 'Solicitações',
   'whatsapp-dispatches': 'Envios WhatsApp',
+  'mobile-batches-unlock': 'Desbloqueio de lotes',
 }
 
 const breadcrumbs = computed<BreadcrumbItem[]>(() => {

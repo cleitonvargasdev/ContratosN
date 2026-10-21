@@ -52,6 +52,7 @@ class MobileBatchRead(BaseModel):
     id: int
     source_id: str
     user_id: int
+    collector_name: str
     status: str
     blocked: bool
     block_reason: str | None
