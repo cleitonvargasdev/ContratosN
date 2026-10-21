@@ -66,7 +66,7 @@ class OperationStore {
   }
 
   Future<void> saveOrder(List<int> ids) async {
-    if (ids.toSet().length != ids.length) throw StateError('Ordem inválida.');
+    if (ids.toSet().length != ids.length) throw StateError('Ordem inv�lida.');
     await (await database).transaction((txn) async {
       await txn.delete(
         'visit_order',
@@ -96,7 +96,7 @@ class OperationStore {
     if (wallet.isEmpty ||
         contracts.isEmpty ||
         !['payment', 'unpaid', 'closed'].contains(kind)) {
-      throw StateError('Resposta inválida.');
+      throw StateError('Resposta inv�lida.');
     }
     if (kind == 'payment' &&
         (contracts.length != 1 ||
@@ -109,14 +109,14 @@ class OperationStore {
                   (p['amount_units'] ?? 0) <= 0 ||
                   (p['balance_units'] ?? 0) <= 0,
             ))) {
-      throw StateError('Recebimento inválido.');
+      throw StateError('Recebimento inv�lido.');
     }
     if (location['status'] != 'captured' && location['status'] != 'timeout') {
-      throw StateError('Localização obrigatória.');
+      throw StateError('Localiza��o obrigat�ria.');
     }
     if (location['status'] == 'captured' &&
         (location['latitude'] is! num || location['longitude'] is! num)) {
-      throw StateError('Coordenadas inválidas.');
+      throw StateError('Coordenadas inv�lidas.');
     }
     final now = DateTime.now().toUtc().toIso8601String();
     await (await database).transaction((txn) async {
@@ -179,19 +179,19 @@ class OperationStore {
               (p['amount_units'] ?? 0) <= 0 ||
               (p['balance_units'] ?? 0) <= 0,
         )) {
-      throw StateError('Recebimento inválido.');
+      throw StateError('Recebimento inv�lido.');
     }
     if (payments.isNotEmpty && location == null) {
-      throw StateError('Localização obrigatória.');
+      throw StateError('Localiza��o obrigat�ria.');
     }
     if (location != null &&
         location['status'] != 'captured' &&
         location['status'] != 'timeout') {
-      throw StateError('Localização obrigatória.');
+      throw StateError('Localiza��o obrigat�ria.');
     }
     if (location?['status'] == 'captured' &&
         (location!['latitude'] is! num || location['longitude'] is! num)) {
-      throw StateError('Coordenadas inválidas.');
+      throw StateError('Coordenadas inv�lidas.');
     }
     await (await database).transaction((txn) async {
       await txn.delete(

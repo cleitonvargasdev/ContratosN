@@ -194,7 +194,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
               removeOnly
                   ? 'Recebimento pendente removido deste aparelho.'
                   : location!['status'] == 'timeout'
-                  ? 'Salvo sem coordenadas apÃ³s 30 segundos. Pendente de envio.'
+                  ? 'Salvo sem coordenadas após 30 segundos. Pendente de envio.'
                   : 'Salvo no aparelho. Pendente de envio.',
             ),
           ),
@@ -208,7 +208,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
     } catch (_) {
       if (mounted) {
         setState(
-          () => _error = 'NÃ£o foi possÃ­vel salvar. Confira os registros em Recebimentos antes de tentar novamente.',
+          () => _error = 'Não foi possível salvar. Confira os registros em Recebimentos antes de tentar novamente.',
         );
       }
     } finally {
@@ -250,7 +250,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
                   child: Padding(
                     padding: EdgeInsets.all(16),
                     child: Text(
-                      'Este contrato jÃ¡ tem resposta pendente. Consulte ou remova '
+                      'Este contrato já tem resposta pendente. Consulte ou remova '
                       'o registro em Recebimentos para corrigir.',
                     ),
                   ),
@@ -287,7 +287,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
                   children: [
                     LinearProgressIndicator(),
                     Text(
-                      'Obtendo GPS e salvandoï¿½?ï¿½ Aguarde atÃ© 30 segundos pela localizaÃ§Ã£o.',
+                      'Obtendo GPS e salvando\u2026 Aguarde até 30 segundos pela localização.',
                     ),
                   ],
                 ),
@@ -300,7 +300,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
                           ? null
                           : () => _confirm('unpaid'),
                       icon: const Icon(Icons.thumb_down),
-                      label: const Text('NÃ£o pagou'),
+                      label: const Text('Não pagou'),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -316,8 +316,8 @@ class _ReceiptPageState extends State<ReceiptPage> {
                 ],
               ),
               const Text(
-                'A localizaÃ§Ã£o Ã© solicitada ao confirmar. Com GPS ligado e '
-                'autorizado, uma tentativa sem posiÃ§Ã£o por 30 segundos permite salvar sem coordenadas.',
+                'A localização é solicitada ao confirmar. Com GPS ligado e '
+                'autorizado, uma tentativa sem posição por 30 segundos permite salvar sem coordenadas.',
               ),
             ],
           ),
@@ -550,9 +550,9 @@ class _PendingOperationsPageState extends State<PendingOperationsPage> {
       builder: (context) => AlertDialog(
         title: const Text('Remover resposta pendente?'),
         content: const Text(
-          'Este registro ainda nÃ£o foi enviado. Remova somente '
-          'para corrigir uma marcaÃ§Ã£o. Se recebeu dinheiro, registre o valor correto novamente. '
-          'Ao remover Fechado, a ocorrÃªncia serÃ¡ removida de todos os contratos do cliente.',
+          'Este registro ainda não foi enviado. Remova somente '
+          'para corrigir uma marcação. Se recebeu dinheiro, registre o valor correto novamente. '
+          'Ao remover Fechado, a ocorrência será removida de todos os contratos do cliente.',
         ),
         actions: [
           TextButton(
@@ -575,7 +575,7 @@ class _PendingOperationsPageState extends State<PendingOperationsPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('NÃ£o foi possÃ­vel remover. Tente novamente.'),
+            content: Text('Não foi possível remover. Tente novamente.'),
           ),
         );
       }
@@ -586,7 +586,7 @@ class _PendingOperationsPageState extends State<PendingOperationsPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Recebimentos e ocorrÃªncias')),
+    appBar: AppBar(title: const Text('Recebimentos e ocorrências')),
     body: SafeArea(
       top: false,
       minimum: const EdgeInsets.only(bottom: 12),
@@ -609,15 +609,15 @@ class _PendingOperationsPageState extends State<PendingOperationsPage> {
                 child: Padding(
                   padding: EdgeInsets.all(16),
                   child: Text(
-                    'Registros salvos neste aparelho. O envio de lotes serÃ¡ '
-                    'habilitado apÃ³s a integraÃ§Ã£o com a API.',
+                    'Registros salvos neste aparelho. O envio de lotes será '
+                    'habilitado após a integração com a API.',
                   ),
                 ),
               ),
               if (rows.isEmpty)
                 const Padding(
                   padding: EdgeInsets.all(24),
-                  child: Text('Nenhum recebimento ou ocorrÃªncia pendente.'),
+                  child: Text('Nenhum recebimento ou ocorrência pendente.'),
                 ),
               for (final row in rows) _row(row),
             ],
@@ -638,7 +638,7 @@ class _PendingOperationsPageState extends State<PendingOperationsPage> {
     final location = payload['location'] as Map<String, dynamic>;
     final kind = switch (row['kind']) {
       'payment' => 'Recebimento',
-      'unpaid' => 'NÃ£o pagou',
+      'unpaid' => 'Não pagou',
       _ => 'Fechado',
     };
     return Card(
@@ -664,7 +664,7 @@ class _PendingOperationsPageState extends State<PendingOperationsPage> {
             ],
             Text(
               location['status'] == 'timeout'
-                  ? 'GPS: sem posiÃ§Ã£o apÃ³s 30 segundos'
+                  ? 'GPS: sem posição após 30 segundos'
                   : 'GPS registrado',
             ),
             const Text('Pendente de envio'),
