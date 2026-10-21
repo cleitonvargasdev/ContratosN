@@ -92,10 +92,11 @@ class OperationStore {
     required String kind,
     required Map<String, Object?> location,
     List<Map<String, int>> payments = const [],
+    Map<String, Object?> extra = const {},
   }) async {
     if (wallet.isEmpty ||
         contracts.isEmpty ||
-        !['payment', 'unpaid', 'closed'].contains(kind)) {
+        !['payment', 'unpaid', 'closed', 'solicitation'].contains(kind)) {
       throw StateError('Resposta inv�lida.');
     }
     if (kind == 'payment' &&
@@ -111,10 +112,13 @@ class OperationStore {
             ))) {
       throw StateError('Recebimento inv�lido.');
     }
-    if (location['status'] != 'captured' && location['status'] != 'timeout') {
+    if (kind != 'solicitation' &&
+        location['status'] != 'captured' &&
+        location['status'] != 'timeout') {
       throw StateError('Localiza��o obrigat�ria.');
     }
-    if (location['status'] == 'captured' &&
+    if (kind != 'solicitation' &&
+        location['status'] == 'captured' &&
         (location['latitude'] is! num || location['longitude'] is! num)) {
       throw StateError('Coordenadas inv�lidas.');
     }
@@ -156,7 +160,11 @@ class OperationStore {
           'contract_id': contract,
           'kind': kind,
           'recorded_at': now,
-          'payload': jsonEncode({'location': location, 'payments': items}),
+          'payload': jsonEncode({
+            'location': location,
+            'payments': items,
+            ...extra,
+          }),
         });
       }
     });

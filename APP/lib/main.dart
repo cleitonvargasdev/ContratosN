@@ -114,8 +114,11 @@ class _HomePageState extends State<HomePage> {
       page = const Scaffold(
         body: Center(child: Text('Entre para acessar sua carteira.')),
       );
-    } else if (title == 'Cobranças' || title == 'Clientes') {
-      page = ClientsPage(session: session);
+    } else if (title == 'Cobranças' || title == 'Consulta') {
+      page = ClientsPage(
+        session: session,
+        consultationOnly: title == 'Consulta',
+      );
     } else if (title == 'Transmissão') {
       page = WalletPage(session: session);
     } else if (title == 'Recebimentos') {
@@ -198,7 +201,7 @@ class _HomePageState extends State<HomePage> {
           ),
           ('Transmissão', Icons.sync, 'Atualizar sua carteira'),
           ('Configuração', Icons.settings_outlined, 'Conta e aplicativo'),
-          ('Clientes', Icons.people_outline, 'Consulta da carteira'),
+          ('Consulta', Icons.people_outline, 'Cadastro de clientes'),
           ('Encerrar', Icons.logout, 'Sair da conta'),
         ];
         return ListView(

@@ -102,6 +102,14 @@ class SolicitationLinkClientRequest(BaseModel):
     cliente_id: int
 
 
+class SolicitationCreateRequest(BaseModel):
+    cliente_id: int
+    valor_pretendido: float | None = None
+    frequencia_pagamento: str | None = None
+    numero_parcelas: int | None = None
+    observacao: str | None = None
+
+
 class SolicitationCompleteContractRequest(BaseModel):
     contrato_id: int
     status: str = "APROVADO"

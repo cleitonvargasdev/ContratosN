@@ -8,6 +8,7 @@ import 'collection_rules.dart';
 import 'operation_store.dart';
 import 'receipt_page.dart';
 import 'location_service.dart';
+import 'loan_request_page.dart';
 
 String dueLabel(Object? value) {
   final parts = '${value ?? ''}'.split('T').first.split('-');
@@ -51,8 +52,13 @@ class ClientSummary {
 }
 
 class ClientsPage extends StatefulWidget {
-  const ClientsPage({super.key, required this.session});
+  const ClientsPage({
+    super.key,
+    required this.session,
+    this.consultationOnly = false,
+  });
   final AuthSession session;
+  final bool consultationOnly;
   @override
   State<ClientsPage> createState() => _ClientsPageState();
 }
@@ -180,9 +186,15 @@ class _ClientsPageState extends State<ClientsPage> {
       canPop: !_ordering && !_saving,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(_ordering ? 'Organizar visitas' : 'Clientes'),
+          title: Text(
+            _ordering
+                ? 'Organizar visitas'
+                : widget.consultationOnly
+                ? 'Consulta'
+                : 'Clientes',
+          ),
           actions: [
-            if (!_ordering)
+            if (!_ordering && !widget.consultationOnly)
               IconButton(
                 tooltip: 'Organizar ordem completa',
                 icon: const Icon(Icons.sort),
@@ -383,7 +395,9 @@ class _ClientsPageState extends State<ClientsPage> {
         onTap: () async {
           await Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => ClientContractsPage(service: service, client: c),
+              builder: (_) => widget.consultationOnly
+                  ? LoanRequestPage(session: widget.session, client: c.data)
+                  : ClientContractsPage(service: service, client: c),
             ),
           );
           if (mounted) await _load();

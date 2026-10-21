@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.solicitation import (
+    SolicitationCreateRequest,
     SolicitationClientBrief,
     SolicitationClientDraft,
     SolicitationCompleteContractRequest,
@@ -15,12 +16,28 @@ from app.schemas.solicitation import (
     SolicitationRead,
     SolicitationContractDraft,
 )
+from app.models.whatsapp_chatbot import Solicitacao
 from app.repositories.solicitation_repository import SolicitationRepository
 
 
 class SolicitationService:
     def __init__(self, session: AsyncSession) -> None:
         self.repository = SolicitationRepository(session)
+
+    async def create(self, payload: SolicitationCreateRequest, *, seller_id: int) -> SolicitationRead:
+        solicitation = Solicitacao(
+            cliente_id=payload.cliente_id,
+            valor_pretendido=payload.valor_pretendido,
+            frequencia_pagamento=payload.frequencia_pagamento,
+            numero_parcelas=payload.numero_parcelas,
+            observacao=payload.observacao,
+            tipo="Aplicativo",
+            status="PENDENTE",
+            vendedor_id=seller_id,
+        )
+        self.repository.session.add(solicitation)
+        created = await self.repository.save(solicitation)
+        return SolicitationRead.model_validate(created)
 
     async def list_solicitations(self, params: SolicitationListParams) -> SolicitationListResponse:
         solicitations, total = await self.repository.list_all(params)

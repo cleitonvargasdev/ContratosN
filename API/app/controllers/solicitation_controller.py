@@ -7,6 +7,7 @@ from app.api.dependencies import get_current_active_user, get_db_session, get_pa
 from app.models.user import User
 from app.schemas.pagination import PaginationParams
 from app.schemas.solicitation import (
+    SolicitationCreateRequest,
     SolicitationCompleteContractRequest,
     SolicitationDetailRead,
     SolicitationLinkClientRequest,
@@ -23,6 +24,15 @@ router = APIRouter(dependencies=[Depends(get_current_active_user)])
 
 def get_solicitation_service(session: AsyncSession = Depends(get_db_session)) -> SolicitationService:
     return SolicitationService(session)
+
+
+@router.post("/", response_model=SolicitationRead, status_code=status.HTTP_201_CREATED, summary="Criar solicitacao")
+async def create_solicitation(
+    payload: SolicitationCreateRequest,
+    current_user: User = Depends(require_permission("solicitacoes", "update")),
+    service: SolicitationService = Depends(get_solicitation_service),
+) -> SolicitationRead:
+    return await service.create(payload, seller_id=current_user.id)
 
 
 @router.get("/pendentes/contagem", response_model=SolicitationPendingCountRead, summary="Contar solicitacoes pendentes")
