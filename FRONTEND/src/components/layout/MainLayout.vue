@@ -67,6 +67,7 @@ const standaloneLabels: Record<string, string> = {
   'whatsapp-dispatches': 'Envios WhatsApp',
   'mobile-batches-unlock': 'Desbloqueio de lotes',
   'receipt-report': 'Relatório de recebimentos',
+  'occurrence-report': 'Relatório de ocorrências',
 }
 
 const breadcrumbs = computed<BreadcrumbItem[]>(() => {

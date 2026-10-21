@@ -50,6 +50,7 @@ import WhatsAppConnectionView from '@/views/whatsapp/WhatsAppConnectionView.vue'
 import WhatsAppDispatchesView from '@/views/whatsapp/WhatsAppDispatchesView.vue'
 import BlockedBatchesView from '@/views/mobile-batches/BlockedBatchesView.vue'
 import ReceiptReportView from '@/views/reports/ReceiptReportView.vue'
+import OccurrenceReportView from '@/views/reports/OccurrenceReportView.vue'
 
 const routes = [
   {
@@ -388,6 +389,7 @@ const routes = [
         meta: { resource: 'contratos', action: 'update' },
       },
       { path: 'relatorios/recebimentos', name: 'receipt-report', component: ReceiptReportView, meta: { resource: 'contratos', action: 'read' } },
+      { path: 'relatorios/ocorrencias', name: 'occurrence-report', component: OccurrenceReportView, meta: { resource: 'contratos', action: 'read' } },
       {
         path: 'comissoes', name: 'commissions', component: CommissionsView, meta: { resource: 'contas_pagar', action: 'read' },
       },
