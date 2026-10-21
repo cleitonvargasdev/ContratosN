@@ -42,6 +42,7 @@
               <th>Telefone</th>
               <th>Documento</th>
               <th>Valor-Parcelas</th>
+              <th>Observação</th>
               <th>Tipo</th>
               <th>Situação</th>
               <th class="actions-column">Ações</th>
@@ -49,10 +50,10 @@
           </thead>
           <tbody>
             <tr v-if="solicitations.state.loading">
-              <td colspan="9">Carregando solicitações...</td>
+              <td colspan="10">Carregando solicitações...</td>
             </tr>
             <tr v-else-if="solicitations.state.result.items.length === 0">
-              <td colspan="9">Nenhuma solicitação encontrada.</td>
+              <td colspan="10">Nenhuma solicitação encontrada.</td>
             </tr>
             <tr v-for="item in solicitations.state.result.items" :key="item.id" class="data-table__row solicitation-row">
               <td>{{ item.id }}</td>
@@ -65,6 +66,7 @@
               <td>{{ formatPhone(item.telefone) }}</td>
               <td>{{ formatDocument(item.cpf_cnpj) }}</td>
               <td>{{ formatValueInstallments(item.valor_pretendido, item.numero_parcelas) }}</td>
+              <td class="solicitation-observation" :title="item.observacao || ''">{{ item.observacao || '-' }}</td>
               <td>{{ formatType(item.frequencia_pagamento) }}</td>
               <td>
                 <span :class="['solicitation-status-chip', `solicitation-status-chip--${normalizeStatus(item.status)}`]">
@@ -525,6 +527,13 @@ function formatPhone(value: string | null) {
 
 .solicitation-row td {
   background: transparent;
+}
+
+.solicitation-observation {
+  max-width: 15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .solicitation-name-chip {

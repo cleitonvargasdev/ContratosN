@@ -47,6 +47,7 @@ class SolicitationContractDraft(BaseModel):
     cobranca_quinzenal: bool | None = None
     frequencia_pagamento: str | None = None
     numero_parcelas: int | None = None
+    observacao: str | None = None
 
 
 class SolicitationClientDraft(BaseModel):

@@ -39,6 +39,7 @@ export interface SolicitationContractDraft {
   cobranca_quinzenal: boolean | null
   frequencia_pagamento: string | null
   numero_parcelas: number | null
+  observacao: string | null
 }
 
 export interface Solicitation {

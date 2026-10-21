@@ -1084,6 +1084,7 @@ function applyInitialContractDraft(draft?: SolicitationContractDraft | null) {
   form.percent_juros = draft.percent_juros === null ? form.percent_juros : formatDecimalValue(draft.percent_juros)
   form.valor_empretismo = draft.valor_empretismo === null ? form.valor_empretismo : formatDecimalValue(draft.valor_empretismo)
   form.valor_parcela = draft.valor_parcela === null ? form.valor_parcela : formatDecimalValue(draft.valor_parcela)
+  form.obs = draft.observacao?.trim() || form.obs
   form.recorrencia = Boolean(draft.recorrencia)
   form.aluguel = Boolean(draft.aluguel)
 

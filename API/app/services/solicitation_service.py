@@ -178,4 +178,5 @@ class SolicitationService:
             cobranca_quinzenal=getattr(reference_contract, "cobranca_quinzenal", None),
             frequencia_pagamento=getattr(solicitation, "frequencia_pagamento", None),
             numero_parcelas=getattr(solicitation, "numero_parcelas", None),
+            observacao=getattr(solicitation, "observacao", None),
         )
