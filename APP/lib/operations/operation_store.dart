@@ -16,7 +16,7 @@ class OperationStore {
     try {
       return await openDatabase(
         path.join(await getDatabasesPath(), 'operacoes.sqlite'),
-        version: 2,
+        version: 3,
         onCreate: (db, _) async {
           await db.execute('''CREATE TABLE operations (
             id TEXT PRIMARY KEY, company TEXT NOT NULL, user_id INTEGER NOT NULL,
@@ -35,6 +35,11 @@ class OperationStore {
             user_id INTEGER NOT NULL, server_id INTEGER,
             status TEXT NOT NULL, created_at TEXT NOT NULL
           )''');
+          await db.execute('''CREATE TABLE settled_installments (
+            company TEXT NOT NULL, user_id INTEGER NOT NULL, wallet_id TEXT NOT NULL,
+            contract_id INTEGER NOT NULL, installment_id INTEGER NOT NULL,
+            PRIMARY KEY(company,user_id,wallet_id,installment_id)
+          )''');
         },
         onUpgrade: (db, oldVersion, _) async {
           if (oldVersion < 2) {
@@ -44,6 +49,13 @@ class OperationStore {
               source_id TEXT PRIMARY KEY, company TEXT NOT NULL,
               user_id INTEGER NOT NULL, server_id INTEGER,
               status TEXT NOT NULL, created_at TEXT NOT NULL
+            )''');
+          }
+          if (oldVersion < 3) {
+            await db.execute('''CREATE TABLE settled_installments (
+              company TEXT NOT NULL, user_id INTEGER NOT NULL, wallet_id TEXT NOT NULL,
+              contract_id INTEGER NOT NULL, installment_id INTEGER NOT NULL,
+              PRIMARY KEY(company,user_id,wallet_id,installment_id)
             )''');
           }
         },
@@ -147,6 +159,20 @@ class OperationStore {
         } else if (relevant.every((item) => item['processed'] == true)) {
           await txn.delete('operations', where: 'id=?', whereArgs: [id]);
         }
+        if (operation['kind'] == 'payment') {
+          for (final item in relevant.where((item) => item['processed'] == true)) {
+            final installmentId = item['installment_id'];
+            if (installmentId is int) {
+              await txn.insert('settled_installments', {
+                'company': session.companyCode,
+                'user_id': session.userId,
+                'wallet_id': operation['wallet_id'],
+                'contract_id': operation['contract_id'],
+                'installment_id': installmentId,
+              }, conflictAlgorithm: ConflictAlgorithm.ignore);
+            }
+          }
+        }
       }
       await txn.update('mobile_batches', {'status': 'finished'},
           where: 'source_id=?', whereArgs: [sourceId]);
@@ -165,7 +191,28 @@ class OperationStore {
       where: 'company=? AND user_id=? AND wallet_id=?',
       whereArgs: [...owner, wallet],
     );
-    return {for (final r in rows) r['contract_id'] as int: r['kind'] as String};
+    final result = {for (final r in rows) r['contract_id'] as int: r['kind'] as String};
+    final settled = await (await database).query(
+      'settled_installments', columns: ['contract_id'],
+      where: 'company=? AND user_id=? AND wallet_id=?', whereArgs: [...owner, wallet],
+    );
+    for (final row in settled) {
+      result[row['contract_id'] as int] = 'payment';
+    }
+    return result;
+  }
+
+  Future<Map<int, Set<int>>> settledInstallments(String wallet) async {
+    final rows = await (await database).query(
+      'settled_installments', where: 'company=? AND user_id=? AND wallet_id=?',
+      whereArgs: [...owner, wallet],
+    );
+    final result = <int, Set<int>>{};
+    for (final row in rows) {
+      result.putIfAbsent(row['contract_id'] as int, () => <int>{})
+          .add(row['installment_id'] as int);
+    }
+    return result;
   }
 
   Future<Map<int, int>> order() async {

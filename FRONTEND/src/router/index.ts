@@ -384,7 +384,7 @@ const routes = [
         path: 'movimentacoes/desbloqueio',
         name: 'mobile-batches-unlock',
         component: BlockedBatchesView,
-        meta: { resource: 'acesso_web', action: 'update' },
+        meta: { resource: 'contratos', action: 'update' },
       },
       {
         path: 'comissoes', name: 'commissions', component: CommissionsView, meta: { resource: 'contas_pagar', action: 'read' },

@@ -177,10 +177,21 @@ class WalletService {
         'POST',
         'mobile/lotes/$serverId/executar',
       ));
-      final result = jsonDecode(utf8.decode(execute.bodyBytes)) as Map<String, dynamic>;
-      final status = result['status'];
-      if (status == 'processing' || status == 'created') {
-        return 'Lote recebido pelo servidor e ainda em processamento. Toque em enviar novamente para consultar.';
+      var result = jsonDecode(utf8.decode(execute.bodyBytes)) as Map<String, dynamic>;
+      // Usually processing is synchronous, but if the prior HTTP response was
+      // interrupted the server can still be finishing this same idempotent lot.
+      // Poll its status before asking the collector to do anything else.
+      for (var attempt = 0;
+          attempt < 5 && (result['status'] == 'processing' || result['status'] == 'created');
+          attempt++) {
+        await Future<void>.delayed(const Duration(seconds: 1));
+        final statusResponse = await http.Response.fromStream(await _request(
+          client, 'GET', 'mobile/lotes/$serverId',
+        ));
+        result = jsonDecode(utf8.decode(statusResponse.bodyBytes)) as Map<String, dynamic>;
+      }
+      if (result['status'] == 'processing' || result['status'] == 'created') {
+        return 'Lote ainda está processando no servidor. Ele será retomado com segurança na próxima transmissão.';
       }
       final items = (result['items'] as List<dynamic>? ?? const [])
           .whereType<Map<String, dynamic>>()

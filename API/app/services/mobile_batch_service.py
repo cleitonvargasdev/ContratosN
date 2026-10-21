@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -59,7 +59,13 @@ class MobileBatchService:
         batch = await self.session.scalar(select(MobileBatch).where(MobileBatch.id == batch_id, MobileBatch.user_id == user.id).with_for_update())
         if batch is None:
             raise HTTPException(404, "Lote nao encontrado")
-        if batch.status in {"processed", "blocked", "processing"}:
+        if batch.status in {"processed", "blocked"}:
+            return await self._read(batch)
+        # A request can die after marking the batch as processing but before
+        # returning its result. After the lease expires, a retry safely resumes
+        # the same unprocessed children; processed children are never repeated.
+        if batch.status == "processing" and batch.execution_requested_at and \
+                batch.execution_requested_at > datetime.now(UTC) - timedelta(minutes=2):
             return await self._read(batch)
         now = datetime.now(UTC)
         batch.status = "processing"

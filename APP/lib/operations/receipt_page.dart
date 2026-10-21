@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../auth/auth_api.dart';
 import '../wallet/wallet_service.dart';
@@ -15,6 +16,31 @@ String shortDueLabel(Object? value) {
   return '${parts[2]}/${parts[1]}/${parts[0].substring(2)}';
 }
 
+/// Formats digits as Brazilian currency while the collector types.
+class BrazilianCurrencyInputFormatter extends TextInputFormatter {
+  const BrazilianCurrencyInputFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return const TextEditingValue();
+    final value = int.tryParse(digits);
+    if (value == null) return oldValue;
+    final whole = (value ~/ 100).toString().replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+      (match) => '${match[1]}.',
+    );
+    final formatted = '$whole,${(value % 100).toString().padLeft(2, '0')}';
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
 class ReceiptPage extends StatefulWidget {
   const ReceiptPage({
     super.key,
@@ -25,6 +51,7 @@ class ReceiptPage extends StatefulWidget {
     required this.walletId,
     required this.installments,
     required this.blockedIds,
+    this.sentIds = const {},
     this.pendingPayments = const {},
     this.answer,
   });
@@ -36,6 +63,7 @@ class ReceiptPage extends StatefulWidget {
   final List<Map<String, Object?>> installments;
   final String? answer;
   final Set<int> blockedIds;
+  final Set<int> sentIds;
   final Map<int, int> pendingPayments;
   @override
   State<ReceiptPage> createState() => _ReceiptPageState();
@@ -55,8 +83,10 @@ class _ReceiptPageState extends State<ReceiptPage> {
   String? _error;
   bool get _locked => _saved;
   bool _blocked(int i) =>
-      widget.blockedIds.contains(widget.installments[i]['id']) &&
+      (widget.blockedIds.contains(widget.installments[i]['id']) ||
+          widget.sentIds.contains(widget.installments[i]['id'])) &&
       !widget.pendingPayments.containsKey(widget.installments[i]['id']);
+  bool _sent(int i) => widget.sentIds.contains(widget.installments[i]['id']);
   bool get _hasPendingPayment => widget.pendingPayments.isNotEmpty;
 
   @override
@@ -346,22 +376,25 @@ class _ReceiptPageState extends State<ReceiptPage> {
                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 3),
-                  TextField(
-                    controller: _total,
-                    enabled: !_busy && !_locked,
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      prefixText: 'R\$ ',
-                      hintText: 'Total',
-                      border: OutlineInputBorder(),
+                  SizedBox(
+                    height: 40,
+                    child: TextField(
+                      controller: _total,
+                      enabled: !_busy && !_locked,
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      inputFormatters: const [BrazilianCurrencyInputFormatter()],
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        prefixText: 'R\$ ',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                   ),
                 ],
@@ -516,13 +549,18 @@ class _ReceiptPageState extends State<ReceiptPage> {
               ),
               SizedBox(
                 width: _markColumnWidth,
-                child: Checkbox(
-                  value: selected,
-                  visualDensity: VisualDensity.compact,
-                  onChanged: _busy || _locked || _blocked(i)
-                      ? null
-                      : (checked) => _toggle(i, checked ?? false),
-                ),
+                child: _sent(i)
+                    ? const Tooltip(
+                        message: 'Recebimento enviado e confirmado',
+                        child: Icon(Icons.mark_email_read, color: Colors.green),
+                      )
+                    : Checkbox(
+                        value: selected,
+                        visualDensity: VisualDensity.compact,
+                        onChanged: _busy || _locked || _blocked(i)
+                            ? null
+                            : (checked) => _toggle(i, checked ?? false),
+                      ),
               ),
             ],
           );

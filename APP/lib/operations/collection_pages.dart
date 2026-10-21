@@ -561,6 +561,7 @@ class _ClientContractsPageState extends State<ClientContractsPage> {
   Map<int, List<Map<String, Object?>>> _contracts = {};
   Map<int, String> _answers = {};
   Map<int, Set<int>> _blocked = {};
+  Map<int, Set<int>> _sent = {};
   Map<int, Map<int, int>> _pendingPayments = {};
   String? _wallet;
   bool _loading = true;
@@ -588,6 +589,7 @@ class _ClientContractsPageState extends State<ClientContractsPage> {
       );
       final answers = await store.answers(_wallet ?? '');
       final pending = await store.pending();
+      final sent = await store.settledInstallments(_wallet ?? '');
       final blocked = <int, Set<int>>{};
       final pendingPayments = <int, Map<int, int>>{};
       for (final row in pending.where((r) => r['wallet_id'] == _wallet)) {
@@ -614,6 +616,7 @@ class _ClientContractsPageState extends State<ClientContractsPage> {
           _contracts = contracts;
           _answers = answers;
           _blocked = blocked;
+          _sent = sent;
           _pendingPayments = pendingPayments;
           _loading = false;
           _error = null;
@@ -812,6 +815,7 @@ class _ClientContractsPageState extends State<ClientContractsPage> {
                       installments: rows,
                       answer: answer,
                       blockedIds: _blocked[id] ?? {},
+                      sentIds: _sent[id] ?? {},
                       pendingPayments: _pendingPayments[id] ?? {},
                     ),
                   ),
