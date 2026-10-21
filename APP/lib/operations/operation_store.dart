@@ -87,7 +87,19 @@ class OperationStore {
         orderBy: 'created_at',
         limit: 1,
       );
-      if (existing.isNotEmpty) return existing.single;
+      if (existing.isNotEmpty) {
+        final batch = existing.single;
+        final linked = await txn.query(
+          'operations', columns: ['id'],
+          where: 'company=? AND user_id=? AND batch_source_id=?',
+          whereArgs: [...owner, batch['source_id']], limit: 1,
+        );
+        if (linked.isNotEmpty) return batch;
+        // Older app versions could leave a local parent after its children
+        // were removed. It has nothing to transmit and must not hold the queue.
+        await txn.update('mobile_batches', {'status': 'finished'},
+            where: 'source_id=?', whereArgs: [batch['source_id']]);
+      }
       final rows = await txn.query(
         'operations',
         where: "company=? AND user_id=? AND kind IN ('payment','unpaid','closed') AND sync_status='pending' AND batch_source_id IS NULL",
