@@ -7,6 +7,7 @@ export type MobileBatchItem = {
   client_id: number | null
   contract_id: number | null
   installment_id: number | null
+  installment_number: number | null
   amount_units: number | null
   processed: boolean
   blocked: boolean

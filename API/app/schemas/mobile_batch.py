@@ -42,6 +42,7 @@ class MobileBatchItemRead(BaseModel):
     client_id: int | None
     contract_id: int | None
     installment_id: int | None
+    installment_number: int | None
     amount_units: int | None
     processed: bool
     blocked: bool

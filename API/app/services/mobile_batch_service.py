@@ -159,12 +159,19 @@ class MobileBatchService:
     async def _read(self, batch: MobileBatch) -> MobileBatchRead:
         items = (await self.session.execute(select(MobileBatchItem).where(MobileBatchItem.batch_id == batch.id).order_by(MobileBatchItem.id))).scalars().all()
         collector = await self.session.get(User, batch.user_id)
+        installment_numbers: dict[int, int | None] = {}
+        for item in items:
+            if item.installment_id is None or item.installment_id in installment_numbers:
+                continue
+            installment = await self.session.get(ContaReceber, item.installment_id)
+            installment_numbers[item.installment_id] = None if installment is None else installment.parcela_nro
         return MobileBatchRead(id=batch.id, source_id=batch.source_id, user_id=batch.user_id,
             collector_name=collector.nome if collector is not None else "Cobrador removido",
             status=batch.status, blocked=batch.blocked,
             block_reason=batch.block_reason, items=[{"id": item.id, "source_item_id": item.source_item_id,
             "kind": item.kind, "client_id": item.client_id, "contract_id": item.contract_id,
             "installment_id": item.installment_id,
+            "installment_number": installment_numbers.get(item.installment_id),
             "amount_units": None if item.amount is None else round(float(item.amount) * 10000),
             "processed": item.processed, "blocked": item.blocked, "block_reason": item.block_reason} for item in items])
 
