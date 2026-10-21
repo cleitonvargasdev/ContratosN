@@ -6,6 +6,7 @@ import 'auth/login_page.dart';
 import 'auth/session_store.dart';
 import 'wallet/wallet_page.dart';
 import 'operations/collection_pages.dart';
+import 'operations/pending_requests_page.dart';
 import 'operations/receipt_page.dart';
 
 void main() {
@@ -119,6 +120,8 @@ class _HomePageState extends State<HomePage> {
         session: session,
         consultationOnly: title == 'Consulta',
       );
+    } else if (title == 'Solicitações') {
+      page = PendingRequestsPage(session: session);
     } else if (title == 'Transmissão') {
       page = WalletPage(session: session);
     } else if (title == 'Recebimentos') {

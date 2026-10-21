@@ -171,7 +171,16 @@ class _ClientsPageState extends State<ClientsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final visible = _ordering
+    final visible = widget.consultationOnly
+        ? _clients
+              .where(
+                (c) =>
+                    '${c.data['nome']} ${c.data['endereco']} ${c.data['bairro']}'
+                        .toLowerCase()
+                        .contains(_search),
+              )
+              .toList()
+        : _ordering
         ? _clients
         : _clients
               .where(
@@ -225,7 +234,7 @@ class _ClientsPageState extends State<ClientsPage> {
               )
             : Column(
                 children: [
-                  if (!_ordering)
+                  if (!_ordering && !widget.consultationOnly)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                       child: TextField(
