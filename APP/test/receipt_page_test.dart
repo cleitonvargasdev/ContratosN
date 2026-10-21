@@ -19,6 +19,15 @@ Widget screen({Set<int> blocked = const {}, Map<int, int> pending = const {}}) =
 ));
 
 void main() {
+  test('formata o valor digitado como moeda brasileira', () {
+    const formatter = BrazilianCurrencyInputFormatter();
+    final result = formatter.formatEditUpdate(
+      TextEditingValue.empty,
+      const TextEditingValue(text: '999999'),
+    );
+    expect(result.text, '9.999,99');
+  });
+
   testWidgets('distribui 1850 e mostra o total antes de confirmar', (tester) async {
     tester.view.physicalSize = const Size(400, 1600);
     tester.view.devicePixelRatio = 1;

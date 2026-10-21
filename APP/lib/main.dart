@@ -64,6 +64,11 @@ class _CobradorAppState extends State<CobradorApp> {
   Widget build(BuildContext context) => MaterialApp(
     title: 'Carteira de cobranças',
     debugShowCheckedModeBanner: false,
+    // Keep every route above Android system navigation controls.
+    builder: (context, child) => SafeArea(
+      top: false,
+      child: child ?? const SizedBox.shrink(),
+    ),
     theme: ThemeData(
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0755A6)),
       useMaterial3: true,
@@ -115,12 +120,12 @@ class _HomePageState extends State<HomePage> {
       page = const Scaffold(
         body: Center(child: Text('Entre para acessar sua carteira.')),
       );
-    } else if (title == 'Cobranças' || title == 'Consulta') {
+    } else if (title == 'Cobranças' || title == 'Clientes') {
       page = ClientsPage(
         session: session,
-        consultationOnly: title == 'Consulta',
+        consultationOnly: title == 'Clientes',
       );
-    } else if (title == 'Solicitações') {
+    } else if (title == 'Envio') {
       page = PendingRequestsPage(session: session);
     } else if (title == 'Transmissão') {
       page = WalletPage(session: session);
@@ -132,7 +137,7 @@ class _HomePageState extends State<HomePage> {
         body: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            title == 'Solicitações'
+            title == 'Envio'
                 ? 'O pré-cadastro será integrado ao módulo de solicitações do sistema web.'
                 : 'Empresa: ${session.companyCode.toUpperCase()}\nUsuário: ${session.name}\n'
                       'A sessão fica salva com segurança neste aparelho.\nVersão 1.2.0',
@@ -170,7 +175,13 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('Contratos'),
+      title: Row(
+        children: [
+          Image.asset('assets/branding/app_icon.png', width: 28, height: 28),
+          const SizedBox(width: 8),
+          const Text('Contratos'),
+        ],
+      ),
       actions: [
         IconButton(
           tooltip: 'Recebimentos e ocorrências',
@@ -198,58 +209,58 @@ class _HomePageState extends State<HomePage> {
         const entries = [
           ('Cobranças', Icons.payments_outlined, 'Sua rota de atendimento'),
           (
-            'Solicitações',
+            'Envio',
             Icons.request_page_outlined,
-            'Pré-cadastro e propostas',
+            'Solicitações pendentes',
           ),
           ('Transmissão', Icons.sync, 'Atualizar sua carteira'),
           ('Configuração', Icons.settings_outlined, 'Conta e aplicativo'),
-          ('Consulta', Icons.people_outline, 'Cadastro de clientes'),
+          ('Clientes', Icons.people_outline, 'Solicitações'),
           ('Encerrar', Icons.logout, 'Sair da conta'),
         ];
-        return ListView(
-          padding: const EdgeInsets.all(20),
+        return Column(
           children: [
             Container(
-              padding: const EdgeInsets.all(24),
+              height: 70,
+              width: double.infinity,
+              padding: EdgeInsets.zero,
               decoration: BoxDecoration(
                 color: const Color(0xFF0755A6),
-                borderRadius: BorderRadius.circular(20),
+                image: const DecorationImage(
+                  image: AssetImage('assets/branding/header.png'),
+                  fit: BoxFit.cover,
+                  opacity: 0.85,
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Seu dia de cobranças',
+              child: const Align(
+                alignment: Alignment.bottomLeft,
+                child: Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Text(
+                    'Ver.: 1.019',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.session?.name ?? 'Carteira do cobrador',
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  if (widget.session != null)
-                    Text(
-                      'Empresa ${widget.session!.companyCode.toUpperCase()}',
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                ],
+                ),
               ),
             ),
-            const SizedBox(height: 20),
-            LayoutBuilder(
-              builder: (context, constraints) => Wrap(
-                spacing: 12,
-                runSpacing: 12,
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+              child: LayoutBuilder(
+                builder: (context, constraints) => GridView.count(
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: ((constraints.maxWidth - 12) / 2) /
+                    ((constraints.maxHeight - 24) / 3),
                 children: [
                   for (final entry in entries)
-                    SizedBox(
-                      width: (constraints.maxWidth - 12) / 2,
-                      child: Card(
+                    Card(
                         margin: EdgeInsets.zero,
                         clipBehavior: Clip.antiAlias,
                         child: InkWell(
@@ -257,38 +268,63 @@ class _HomePageState extends State<HomePage> {
                               ? _exit()
                               : _open(entry.$1),
                           child: Padding(
-                            padding: const EdgeInsets.all(20),
+                            padding: const EdgeInsets.all(8),
                             child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Icon(
                                   entry.$2,
-                                  size: 32,
+                                  size: 28,
                                   color: const Color(0xFF0755A6),
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 4),
                                 Text(
                                   entry.$1,
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleMedium,
                                 ),
-                                const SizedBox(height: 4),
-                                Text(entry.$3),
                               ],
                             ),
                           ),
                         ),
-                      ),
                     ),
                 ],
+                ),
               ),
             ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: () => _open('Recebimentos'),
-              icon: const Icon(Icons.receipt_long),
-              label: const Text('Recebimentos e ocorrências pendentes'),
+            ),
+            SizedBox(
+              height: 55,
+              width: double.infinity,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Opacity(
+                    opacity: 0.85,
+                    child: Image.asset(
+                      'assets/branding/footer.png',
+                      fit: BoxFit.cover,
+                      alignment: Alignment.bottomCenter,
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        widget.session?.name ?? 'Cobrador',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         );

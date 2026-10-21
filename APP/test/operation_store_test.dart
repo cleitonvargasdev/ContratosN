@@ -148,4 +148,32 @@ void main() {
     expect((await store.pending()).where((r) => r['kind'] == 'closed'), isEmpty);
     expect((await store.pending()).length, 2);
   });
+
+  test('receipt removes closed from every contract for the client', () async {
+    await store.record(
+      wallet: 'wallet-fechado',
+      client: 90,
+      contracts: [901, 902],
+      kind: 'closed',
+      location: location,
+    );
+
+    await store.replacePendingPayment(
+      wallet: 'wallet-fechado',
+      client: 90,
+      contract: 901,
+      location: location,
+      payments: [
+        {'parcel_id': 9001, 'amount_units': 100, 'balance_units': 100},
+      ],
+    );
+
+    final rows = await store.pending();
+    expect(
+      rows.where((row) =>
+          row['wallet_id'] == 'wallet-fechado' && row['kind'] == 'closed'),
+      isEmpty,
+    );
+    expect(await store.answers('wallet-fechado'), {901: 'payment'});
+  });
 }

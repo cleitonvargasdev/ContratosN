@@ -58,7 +58,17 @@ class _LoginPageState extends State<LoginPage> {
         child: Form(key: _form, child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.account_balance_wallet_outlined, size: 64),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: SizedBox(
+                height: 190,
+                child: Image.asset(
+                  'assets/branding/opening.png',
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                ),
+              ),
+            ),
             const SizedBox(height: 24),
             Text('Entre na sua empresa', style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 8),
