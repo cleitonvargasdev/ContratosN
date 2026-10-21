@@ -71,7 +71,7 @@ class ReceiptReportService:
         return sorted(result, key=lambda row: (row['date'] or datetime.min.replace(tzinfo=UTC), row['collector']))
 
     def _analytic(self, rows: list[dict]) -> list:
-        data = [['Data', 'Contrato/Parcela', 'Cliente', 'Cobrador', 'Valor recebido', 'Faltou']]
+        data = [['Data', 'Contrato / Parcela', 'Cliente', 'Cobrador', 'Valor recebido', 'Faltou']]
         for row in rows:
             moment = row['date']
             when = moment.astimezone(UTC).strftime('%d/%m/%Y\n%H:%M') if moment else '-'
@@ -104,7 +104,18 @@ class ReceiptReportService:
         if mode == 'analitico':
             styles_table += [('SPAN',(0,-2),(4,-2)), ('SPAN',(0,-1),(4,-1)), ('ALIGN',(0,-2),(4,-1),'RIGHT')]
         table.setStyle(TableStyle(styles_table))
-        elements.append(table); doc.build(elements); return output.getvalue()
+        elements.append(table)
+        generated_at = datetime.now()
+        def page_header(canvas, document):
+            canvas.saveState()
+            canvas.setFont('Helvetica', 7)
+            right = A4[0] - 7 * mm
+            canvas.drawRightString(right, A4[1] - 6 * mm, generated_at.strftime('%d/%m/%Y'))
+            canvas.drawRightString(right, A4[1] - 10 * mm, generated_at.strftime('%H:%M'))
+            canvas.drawRightString(right, A4[1] - 14 * mm, f'N. Pág. {canvas.getPageNumber()}')
+            canvas.restoreState()
+        doc.build(elements, onFirstPage=page_header, onLaterPages=page_header)
+        return output.getvalue()
 
     @staticmethod
     def _money(value: float) -> str:
