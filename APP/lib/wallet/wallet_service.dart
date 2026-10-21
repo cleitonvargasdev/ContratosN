@@ -72,10 +72,15 @@ class WalletService {
     String method,
     String route, {
     bool refreshed = false,
+    Map<String, Object?>? body,
   }) async {
     final request = http.Request(method, ApiConfig.endpoint(route))
       ..followRedirects = false
       ..headers['Authorization'] = 'Bearer ${session.accessToken}';
+    if (body != null) {
+      request.headers['Content-Type'] = 'application/json';
+      request.body = jsonEncode(body);
+    }
     final result = await client
         .send(request)
         .timeout(const Duration(seconds: 90));
@@ -103,10 +108,15 @@ class WalletService {
         refreshToken: data['refresh_token'] as String,
       );
       await SessionStore.save(session);
-      return _request(client, method, route, refreshed: true);
+      return _request(client, method, route, refreshed: true, body: body);
     }
     if (result.statusCode < 200 || result.statusCode >= 300) {
       await result.stream.drain<void>();
+      if (route == 'solicitacoes/' && [404, 405].contains(result.statusCode)) {
+        throw WalletFailure(
+          'API de solicitações indisponível (HTTP ${result.statusCode}). Atualize a API no Ubuntu.',
+        );
+      }
       throw WalletFailure(switch (result.statusCode) {
         401 || 403 => 'Acesso recusado. Confira a situação do funcionário e entre novamente.',
         404 =>
@@ -116,6 +126,29 @@ class WalletService {
       });
     }
     return result;
+  }
+
+  Future<void> sendSolicitation(Map<String, Object?> body) async {
+    final client = _clientFactory();
+    try {
+      final response = await _request(
+        client,
+        'POST',
+        'solicitacoes/',
+        body: body,
+      );
+      await response.stream.drain<void>();
+    } on TimeoutException {
+      throw const WalletFailure(
+        'Tempo de envio esgotado. Confira no sistema antes de tentar novamente.',
+      );
+    } on SocketException {
+      throw const WalletFailure('Sem conexão. Verifique sua internet.');
+    } on http.ClientException {
+      throw const WalletFailure('Falha de conexão com a API. Tente novamente.');
+    } finally {
+      client.close();
+    }
   }
 
   Future<int> retryCleanup() async {

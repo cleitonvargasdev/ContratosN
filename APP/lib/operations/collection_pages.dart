@@ -93,6 +93,15 @@ class _ClientsPageState extends State<ClientsPage> {
       _error = null;
     });
     try {
+      if (widget.consultationOnly) {
+        final rows = await service.query(
+          'SELECT * FROM clientes ORDER BY nome,id',
+        );
+        if (mounted) {
+          setState(() => _clients = rows.map(ClientSummary.new).toList());
+        }
+        return;
+      }
       final rows = await service.query('''SELECT c.*, t.id AS contract_id,
         p.saldo_units,p.vencimento FROM clientes c
         JOIN contratos t ON t.cliente_id=c.id JOIN parcelas p ON p.contrato_id=t.id
@@ -234,7 +243,7 @@ class _ClientsPageState extends State<ClientsPage> {
               )
             : Column(
                 children: [
-                  if (!_ordering && !widget.consultationOnly)
+                  if (!_ordering)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                       child: TextField(
@@ -249,7 +258,7 @@ class _ClientsPageState extends State<ClientsPage> {
                         ),
                       ),
                     ),
-                  if (!_ordering)
+                  if (!_ordering && !widget.consultationOnly)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Wrap(
@@ -428,11 +437,11 @@ class _ClientsPageState extends State<ClientsPage> {
                     ),
                   ),
                   Icon(
-                    visitComplete(c.status)
+                    !widget.consultationOnly && visitComplete(c.status)
                         ? statusIcon(c.status)
                         : Icons.chevron_right,
                     size: 18,
-                    color: visitComplete(c.status)
+                    color: !widget.consultationOnly && visitComplete(c.status)
                         ? statusColor(c.status)
                         : Colors.black87,
                   ),
@@ -448,11 +457,31 @@ class _ClientsPageState extends State<ClientsPage> {
                 if ('${c.data['cpf_cnpj'] ?? ''}'.trim().isNotEmpty)
                   Text('CPF/CNPJ: ${c.data['cpf_cnpj']}'),
               ] else ...[
-                _summaryRow('C:', '', 'F:', phone, rightValueColor: Colors.black),
+                _summaryRow(
+                  'C:',
+                  '',
+                  'F:',
+                  phone,
+                  rightValueColor: Colors.black,
+                ),
                 const SizedBox(height: 4),
-                _summaryRow('CONTRATOS:', '${c.contracts.length}', 'TURNO COB.:', '${c.data['turno_cobranca'] ?? ''}', leftValueColor: Colors.blue.shade800, rightValueColor: Colors.black),
+                _summaryRow(
+                  'CONTRATOS:',
+                  '${c.contracts.length}',
+                  'TURNO COB.:',
+                  '${c.data['turno_cobranca'] ?? ''}',
+                  leftValueColor: Colors.blue.shade800,
+                  rightValueColor: Colors.black,
+                ),
                 const SizedBox(height: 4),
-                _summaryRow('PARC. ATRASO:', '${c.overdueCount}', 'VALOR', moneyLabel(c.overdueBalance), leftValueColor: Colors.red.shade800, rightValueColor: Colors.red.shade800),
+                _summaryRow(
+                  'PARC. ATRASO:',
+                  '${c.overdueCount}',
+                  'VALOR',
+                  moneyLabel(c.overdueBalance),
+                  leftValueColor: Colors.red.shade800,
+                  rightValueColor: Colors.red.shade800,
+                ),
               ],
             ],
           ),
