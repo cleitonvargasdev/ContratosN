@@ -216,6 +216,7 @@ const baseSections: SidebarSection[] = [
     icon: 'report',
     links: [
       { label: 'Contas à Receber', to: '/modulos/relatorios/contas-a-receber?titulo=Contas%20%C3%A0%20Receber&grupo=Relat%C3%B3rios', icon: 'receipt' },
+      { label: 'Recebimentos', to: '/relatorios/recebimentos', resource: 'contratos', action: 'read', icon: 'receipt' },
       { label: 'Contas à Pagar', to: '/modulos/relatorios/contas-a-pagar?titulo=Contas%20%C3%A0%20Pagar&grupo=Relat%C3%B3rios', icon: 'wallet' },
       { label: 'Ocorrências', to: '/modulos/relatorios/ocorrencias?titulo=Ocorr%C3%AAncias&grupo=Relat%C3%B3rios', icon: 'report' },
       { label: 'Contratos', to: '/modulos/relatorios/contratos?titulo=Contratos&grupo=Relat%C3%B3rios', icon: 'contract' },
