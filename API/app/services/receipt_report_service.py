@@ -22,7 +22,7 @@ class ReceiptReportService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def generate(self, start: date, end: date, user_id: int | None, portfolio: bool, mode: str) -> tuple[bytes, str]:
+    async def generate(self, start: date, end: date, user_id: int | None, client_id: int | None, portfolio: bool, mode: str) -> tuple[bytes, str]:
         if end < start:
             raise HTTPException(400, 'A data final deve ser igual ou posterior à inicial.')
         limit = 3 if mode == 'analitico' else 366
@@ -34,13 +34,15 @@ class ReceiptReportService:
         selected_user = await self.session.get(User, user_id) if user_id else None
         if user_id and selected_user is None:
             raise HTTPException(404, 'Cobrador não encontrado.')
-        rows = await self._rows(start, end, user_id, portfolio, selected_user.nome if selected_user else None)
+        if client_id and await self.session.get(Cliente, client_id) is None:
+            raise HTTPException(404, 'Cliente não encontrado.')
+        rows = await self._rows(start, end, user_id, client_id, portfolio, selected_user.nome if selected_user else None)
         title = 'RELATÓRIO DE RECEBIMENTOS POR PERÍODO'
         employee = selected_user.nome if selected_user else 'TODOS OS FUNCIONÁRIOS'
         data = self._analytic(rows) if mode == 'analitico' else self._synthetic(rows)
         return self._pdf(title, start, end, employee, data, mode), f'recebimentos-{mode}-{start:%Y%m%d}-{end:%Y%m%d}.pdf'
 
-    async def _rows(self, start: date, end: date, user_id: int | None, portfolio: bool, selected_name: str | None) -> list[dict]:
+    async def _rows(self, start: date, end: date, user_id: int | None, client_id: int | None, portfolio: bool, selected_name: str | None) -> list[dict]:
         receipt_user = aliased(User)
         portfolio_user = aliased(User)
         stmt = select(Recebimento, Contrato, Cliente, ContaReceber, receipt_user.nome, portfolio_user.nome).join(
@@ -58,6 +60,8 @@ class ReceiptReportService:
                 stmt = stmt.where((Recebimento.usuario_id == user_id) | (Cliente.usuario_id == user_id))
             else:
                 stmt = stmt.where(Recebimento.usuario_id == user_id)
+        if client_id:
+            stmt = stmt.where(Contrato.cliente_id == client_id)
         result = []
         for receipt, contract, client, installment, receipt_name, portfolio_name in (await self.session.execute(stmt)).all():
             value = float(receipt.valor_recebido or 0)
