@@ -1,11 +1,14 @@
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_active_user, get_pagination_params, require_permission
 from app.db.session import get_db_session
 from app.models.user import User
+from app.models.product import Produto
 from app.schemas.pagination import PaginationParams
 from app.schemas.product import (
     BrandCreate,
@@ -22,11 +25,38 @@ from app.schemas.product import (
 )
 from app.services.product_service import ProductService
 from app.services.stock_service import StockService
+from app.services.stock_report_service import StockReportService
 from app.schemas.stock import StockHistory, StockMovementRead, StockWrite
 
 
 brands_router = APIRouter(dependencies=[Depends(get_current_active_user)])
 products_router = APIRouter(dependencies=[Depends(get_current_active_user)])
+
+
+@products_router.get("/relatorios/estoque/filtros", summary="Opções do relatório de estoque")
+async def stock_report_filters(
+    _: User = Depends(require_permission("produtos", "read")),
+    session: AsyncSession = Depends(get_db_session),
+):
+    products = (await session.execute(select(Produto).order_by(Produto.descricao, Produto.produto_id))).scalars().all()
+    users = (await session.execute(select(User.id, User.nome).order_by(User.nome, User.id))).all()
+    return {
+        "products": [{"id": product.produto_id, "description": product.descricao} for product in products],
+        "users": [{"id": user_id, "name": name} for user_id, name in users],
+    }
+
+
+@products_router.get("/relatorios/estoque/imprimir", summary="Imprimir relatório de estoque")
+async def print_stock_report(
+    data_inicial: date,
+    data_final: date,
+    produto_id: int | None = None,
+    usuario_id: int | None = None,
+    _: User = Depends(require_permission("produtos", "read")),
+    session: AsyncSession = Depends(get_db_session),
+):
+    pdf, filename = await StockReportService(session).generate(data_inicial, data_final, produto_id, usuario_id)
+    return Response(content=pdf, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{filename}"'})
 
 
 @products_router.get("/{produto_id}/estoque", response_model=StockHistory, summary="Histórico do estoque")

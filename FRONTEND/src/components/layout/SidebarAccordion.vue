@@ -221,6 +221,7 @@ const baseSections: SidebarSection[] = [
       { label: 'Ocorrências', to: '/relatorios/ocorrencias', resource: 'contratos', action: 'read', icon: 'report' },
       { label: 'Contratos', to: '/modulos/relatorios/contratos?titulo=Contratos&grupo=Relat%C3%B3rios', icon: 'contract' },
       { label: 'Clientes', to: '/modulos/relatorios/clientes?titulo=Clientes&grupo=Relat%C3%B3rios', icon: 'contacts' },
+      { label: 'Estoque', to: '/relatorios/estoque', resource: 'produtos', action: 'read', icon: 'report' },
     ],
   },
   {

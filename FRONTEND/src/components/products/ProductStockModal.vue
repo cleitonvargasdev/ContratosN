@@ -113,8 +113,9 @@ function operationId() {
 
 <style scoped>
 .stock-backdrop { z-index: 1001; }
-.stock-modal { width: min(1150px, calc(100vw - 2rem)); max-height: calc(100vh - 3rem); overflow: auto; }
-.stock-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; border: 0; padding: 0; margin: 0; min-width: 0; }
+.stock-modal { width: min(1150px, calc(100vw - 2rem)); max-height: none; overflow: hidden; }
+.stock-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; border: 0; padding: 0; margin: 0; min-width: 0; }
+.stock-fields .field-group--span-2 { grid-column: 1 / -1; }
 .stock-history { height: 178px; overflow: hidden; }
 .stock-history__table { table-layout: fixed; }
 .stock-history__table th,
@@ -130,5 +131,6 @@ function operationId() {
 .stock-note { align-items: center; display: flex; gap: 4px; min-width: 0; overflow: hidden; }
 .stock-note__observation { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stock-note__more { background: transparent; border: 0; color: var(--primary); cursor: pointer; flex: 0 0 auto; font: inherit; font-weight: 700; padding: 0 2px; }
+@media (max-width: 900px) { .stock-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 650px) { .stock-fields { grid-template-columns: 1fr; } .stock-fields .field-group--span-2 { grid-column: auto; } }
 </style>
