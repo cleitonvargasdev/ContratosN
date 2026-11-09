@@ -73,6 +73,7 @@ class StockReportService:
     def _pdf(self, start: date, end: date, products: list[Produto], balances: dict[int, tuple[int, int]], closing_balances: dict[int, tuple[int, int]], movements: list[MovimentoEstoque], product_name: str | None, user_name: str | None) -> bytes:
         output = BytesIO()
         doc = SimpleDocTemplate(output, pagesize=landscape(A4), leftMargin=7 * mm, rightMargin=7 * mm, topMargin=12 * mm, bottomMargin=8 * mm)
+        doc.title = "Relatório de Estoque"
         styles = getSampleStyleSheet()
         normal = ParagraphStyle("stock-normal", parent=styles["Normal"], fontName="Helvetica", fontSize=7, leading=8.5)
         heading = ParagraphStyle("stock-heading", parent=styles["Heading1"], fontName="Helvetica-Bold", fontSize=14, leading=16)
@@ -100,8 +101,8 @@ class StockReportService:
                 rows.append(["", "", "", "", "", "", "Nenhuma movimentação no período.", ""])
             before_total = opening_new + opening_used
             after_total = closing_new + closing_used
-            rows.append(["", "", "", "", "", "", "Saldo antes", f"Novos: {opening_new}  Usados: {opening_used}  Total: {before_total}"])
-            rows.append(["", "", "", "", "", "", "Saldo depois", f"Novos: {closing_new}  Usados: {closing_used}  Total: {after_total}"])
+            rows.append(["", "", "", "", "", "", f"Saldo antes — Novos: {opening_new}  Usados: {opening_used}  Total: {before_total}", ""])
+            rows.append(["", "", "", "", "", "", f"Saldo depois — Novos: {closing_new}  Usados: {closing_used}  Total: {after_total}", ""])
             table_data = [[Paragraph(self._escape(str(cell)), normal) for cell in row] for row in rows]
             table = Table(table_data, colWidths=[29 * mm, 24 * mm, 20 * mm, 25 * mm, 16 * mm, 16 * mm, 94 * mm, 35 * mm], repeatRows=1)
             table.setStyle(TableStyle([
@@ -110,7 +111,9 @@ class StockReportService:
                 ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.HexColor("#8b98a5")),
                 ("LINEBELOW", (0, 1), (-1, -3), 0.2, colors.HexColor("#d7dde3")),
                 ("BACKGROUND", (0, -2), (-1, -1), colors.HexColor("#fff5ed")),
-                ("FONTNAME", (6, -2), (-1, -1), "Helvetica-Bold"),
+                ("SPAN", (0, -2), (7, -2)),
+                ("SPAN", (0, -1), (7, -1)),
+                ("FONTNAME", (0, -2), (-1, -1), "Helvetica-Bold"),
                 ("ALIGN", (3, 1), (5, -1), "RIGHT"),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("TOPPADDING", (0, 0), (-1, -1), 3),

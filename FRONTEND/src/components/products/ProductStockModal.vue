@@ -2,16 +2,13 @@
   <Teleport to="body">
     <div class="modal-backdrop stock-backdrop" @click.self="close">
       <section class="modal-card stock-modal" role="dialog" aria-modal="true" aria-labelledby="stock-title">
-        <header class="panel__header panel__header--stacked">
-          <div><h3 id="stock-title" class="panel__title">{{ returnItemId ? 'Receber devolução' : 'Estoque do produto' }}</h3><p class="modal-context">{{ product?.descricao ?? 'Carregando...' }}</p></div>
+        <header class="panel__header stock-header">
+          <div class="stock-header__content"><h3 id="stock-title" class="panel__title">{{ returnItemId ? 'Receber devolução' : 'Estoque:' }}</h3><p class="modal-context">{{ product?.descricao ?? 'Carregando...' }}</p><div v-if="product" class="summary-row stock-summary"><article v-for="entry in summary" :key="entry.label" :class="['summary-chip', `stock-summary__chip--${entry.label.toLowerCase()}`, { 'stock-summary__chip--negative': entry.label === 'Total' && entry.value < 0 }]"><strong>{{ entry.value }}</strong><span>{{ entry.label }}</span></article></div></div>
           <button class="ghost-button" :disabled="saving" type="button" @click="close">Fechar</button>
         </header>
         <div class="modal-form">
           <p v-if="loadError" class="feedback feedback--error">{{ loadError }}</p>
           <template v-if="product">
-            <div class="summary-row">
-              <article v-for="entry in summary" :key="entry.label" class="summary-chip"><strong :class="entry.value < 0 ? 'feedback--error' : ''">{{ entry.value }}</strong><span>{{ entry.label }}</span></article>
-            </div>
             <p v-if="product.permite_vender_sem_estoque" class="feedback feedback--info">Venda sem estoque permitida. Novos e usados podem apresentar saldo negativo.</p>
             <p v-if="returnItemId" class="feedback feedback--info">Confirme somente os produtos recebidos e aptos para revenda. Pendente: {{ returnRemaining }} unidade(s). A devolução não altera as parcelas do contrato.</p>
             <form class="form-grid" @submit.prevent="submit">
@@ -20,10 +17,9 @@
                 <label class="field-group"><span>Condição</span><select v-model="form.condicao" class="field"><option value="novo">Novo · {{ product.estoque_novos }}</option><option value="usado">Usado · {{ product.estoque_usados }}</option></select></label>
                 <label class="field-group"><span>{{ form.tipo === 'ajuste' ? 'Quantidade física contada' : 'Quantidade' }}</span><input v-model.number="form.quantidade" class="field" required type="number" step="1" :min="form.tipo === 'ajuste' ? 0 : 1" :max="returnItemId ? returnRemaining : 1000000000" /></label>
                 <label class="field-group"><span>Motivo</span><select v-model="form.motivo" class="field"><option v-for="reason in stockReasons[form.tipo]" :key="reason">{{ reason }}</option></select></label>
-                <label class="field-group field-group--span-2"><span>Observação / justificativa</span><textarea v-model="form.observacao" class="field" required minlength="3" maxlength="1000" rows="2"></textarea></label>
+                <label class="field-group field-group--span-2"><span>Observação / justificativa</span><textarea v-model="form.observacao" class="field" required minlength="3" maxlength="1000" rows="1"></textarea></label>
               </fieldset>
-              <p class="feedback feedback--info field-group--span-2">Saldo atual: {{ balance }} · {{ delta >= 0 ? 'Entrada' : 'Saída' }}: {{ Math.abs(delta) }} · Saldo após confirmação: {{ balance + delta }}</p>
-              <div class="form-actions field-group--span-2"><button class="secondary-button" :disabled="saving || loading" type="button" @click="reload">Atualizar saldos</button><button class="primary-button primary-button--success" :disabled="saving || loading" type="submit">{{ saving ? 'Registrando...' : 'Confirmar movimentação' }}</button></div>
+              <div class="stock-actions field-group--span-2"><button class="secondary-button" :disabled="saving || loading" type="button" @click="reload">Atualizar saldos</button><p class="stock-balance-card">Saldo atual: {{ balance }} · {{ delta >= 0 ? 'Entrada' : 'Saída' }}: {{ Math.abs(delta) }} · Saldo após confirmação: {{ balance + delta }}</p><button class="primary-button primary-button--success" :disabled="saving || loading" type="submit">{{ saving ? 'Registrando...' : 'Confirmar movimentação' }}</button></div>
             </form>
             <h4>Histórico de entradas e saídas</h4>
             <div class="table-wrap stock-history"><table class="data-table data-table--users stock-history__table">
@@ -113,9 +109,32 @@ function operationId() {
 
 <style scoped>
 .stock-backdrop { z-index: 1001; }
-.stock-modal { width: min(1150px, calc(100vw - 2rem)); max-height: none; overflow: hidden; }
-.stock-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; border: 0; padding: 0; margin: 0; min-width: 0; }
+.stock-modal { width: min(1150px, calc(100vw - 2rem)); max-height: calc(100vh - 12px); overflow: hidden; padding: 14px 18px; }
+.stock-modal .panel__header { margin-bottom: 4px; }
+.stock-modal .modal-form,
+.stock-modal .form-grid { gap: 8px; }
+.stock-header__content { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.stock-header__content .modal-context { font-size: 14px; white-space: nowrap; }
+.stock-summary { gap: 6px; margin: 0; }
+.stock-summary .summary-chip { min-height: 18px; padding: 3px 7px; }
+.stock-summary .summary-chip strong { font-size: 13px; }
+.stock-summary .summary-chip span { font-size: 8px; }
+.stock-summary__chip--novos { background: #e7f7ee; border-color: #b6e5ca; }
+.stock-summary__chip--novos strong { color: #138a51; }
+.stock-summary__chip--usados { background: #fff7df; border-color: #f0d990; }
+.stock-summary__chip--usados strong { color: #a86d00; }
+.stock-summary__chip--total { background: #eaf2ff; border-color: #bfd5fb; }
+.stock-summary__chip--total strong { color: #2563b8; }
+.stock-summary__chip--negative { background: #fff0f1; border-color: #ffc5ca; }
+.stock-summary__chip--negative strong { color: #c4384d; }
+.stock-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; border: 0; padding: 0; margin: 0; min-width: 0; }
+.stock-fields .field-group { gap: 3px; }
 .stock-fields .field-group--span-2 { grid-column: 1 / -1; }
+.stock-actions { align-items: center; display: grid; gap: 8px; grid-template-columns: auto minmax(0, 1fr) auto; }
+.stock-actions .secondary-button,
+.stock-actions .primary-button { min-height: 34px; white-space: nowrap; }
+.stock-balance-card { background: #f1eff0; border-radius: 6px; color: var(--text-muted); font-size: 12px; margin: 0; padding: 9px 12px; }
+.stock-modal h4 { margin: 4px 0 2px; }
 .stock-history { height: 178px; overflow: hidden; }
 .stock-history__table { table-layout: fixed; }
 .stock-history__table th,
@@ -131,6 +150,7 @@ function operationId() {
 .stock-note { align-items: center; display: flex; gap: 4px; min-width: 0; overflow: hidden; }
 .stock-note__observation { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stock-note__more { background: transparent; border: 0; color: var(--primary); cursor: pointer; flex: 0 0 auto; font: inherit; font-weight: 700; padding: 0 2px; }
-@media (max-width: 900px) { .stock-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 650px) { .stock-fields { grid-template-columns: 1fr; } .stock-fields .field-group--span-2 { grid-column: auto; } }
+.stock-modal .pagination-compact { margin-top: 3px; padding-top: 3px; }
+@media (max-width: 900px) { .stock-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stock-header__content { gap: 5px; } }
+@media (max-width: 650px) { .stock-modal { max-height: calc(100vh - 8px); padding: 12px; } .stock-fields { grid-template-columns: 1fr; } .stock-fields .field-group--span-2 { grid-column: auto; } .stock-actions { grid-template-columns: 1fr; } .stock-header__content .modal-context { white-space: normal; } }
 </style>
