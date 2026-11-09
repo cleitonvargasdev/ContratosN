@@ -1,13 +1,14 @@
 <template>
   <section class="report-shell">
     <div class="report-box">
-      <header><h2>Relatório de Ocorrências</h2><button class="report-close-button" type="button" @click="reset"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2"/></svg>Fechar</button></header>
+      <header><h2>Relatório de Ocorrências</h2><button class="report-close-icon-button" type="button" aria-label="Fechar" title="Fechar" @click="reset"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2"/></svg></button></header>
       <div class="fields">
         <label>Período <span><input v-model="start" class="field" type="date"><b>até</b><input v-model="end" class="field" type="date"></span></label>
         <label>Funcionário<select v-model="collector" class="field"><option value="">TODOS OS FUNCIONÁRIOS</option><option v-for="user in users" :key="user.id" :value="String(user.id)">{{ user.nome }}</option></select></label>
       </div>
       <footer class="report-actions">
         <button class="report-action-button report-action-button--print" type="button" @click="print"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v5H7V3Zm10 11H7v7h10v-7Zm2-7H5a3 3 0 0 0-3 3v6h4v-4h12v4h4v-6a3 3 0 0 0-3-3Zm-2 4.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z" fill="currentColor"/></svg>Imprimir</button>
+        <button class="report-action-button" type="button" @click="reset"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2"/></svg>Fechar</button>
       </footer>
       <p class="hint">Mostra Fechado e Não pagou; o PDF permite abrir a localização no mapa.</p>
       <p v-if="error" class="feedback feedback--error">{{ error }}</p>
