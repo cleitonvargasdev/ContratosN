@@ -1,6 +1,6 @@
 <template>
   <section class="report-shell"><div class="report-box">
-    <header><h2>Relatório de Contas Recebidas</h2></header>
+    <header><h2>Relatório de Contas Recebidas</h2><button class="report-close-button" type="button" @click="reset"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2"/></svg>Fechar</button></header>
     <div class="fields">
       <label>Período <span><input v-model="start" class="field" type="date"><b>até</b><input v-model="end" class="field" type="date"></span></label>
       <label>Funcionário<select v-model="collector" class="field"><option value="">TODOS OS FUNCIONÁRIOS</option><option v-for="user in users" :key="user.id" :value="String(user.id)">{{ user.nome }}{{ user.ativo ? '' : ' (desativado)' }}</option></select></label>
@@ -10,7 +10,9 @@
       <label class="check"><input v-model="portfolio" type="checkbox"> Todos da carteira do Cobrador</label>
       <fieldset><legend>Tipo</legend><label><input v-model="type" value="sintetico" type="radio"> Sintético</label><label><input v-model="type" value="analitico" type="radio"> Analítico</label></fieldset>
     </div>
-    <footer><button class="primary-button" @click="print">🖨 Imprimir</button><button @click="reset">✖ Cancelar</button></footer>
+    <footer class="report-actions">
+      <button class="report-action-button report-action-button--print" type="button" @click="print"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v5H7V3Zm10 11H7v7h10v-7Zm2-7H5a3 3 0 0 0-3 3v6h4v-4h12v4h4v-6a3 3 0 0 0-3-3Zm-2 4.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z" fill="currentColor"/></svg>Imprimir</button>
+    </footer>
     <p class="hint">Analítico: máximo de 3 dias. Sintético: máximo de 1 ano.</p><p v-if="error" class="feedback feedback--error">{{ error }}</p>
   </div></section>
 </template>
@@ -33,4 +35,6 @@ async function print() { error.value = ''; const query = new URLSearchParams({ d
 
 <style scoped>
 .report-shell{padding:24px}.report-box{max-width:580px;margin:auto;border-top:2px solid #f59e0b;background:#fff;box-shadow:0 1px 8px #0002}.report-box header{padding:14px 18px;background:#f8fafc}.report-box h2{margin:0;font-size:17px;color:#374151}.fields{position:relative;padding:26px 106px 18px;display:grid;gap:13px}.fields>label{display:grid;grid-template-columns:78px 1fr;align-items:center;gap:8px;font-size:13px}.fields label span{display:flex;align-items:center;gap:8px}.fields label span input{min-width:0}.check{display:block!important;margin-left:86px;font-weight:600}.check input{margin-right:5px}fieldset{margin-left:86px;border:0;padding:0}fieldset label{margin-right:10px}.suggestions{position:absolute;z-index:3;left:192px;right:106px;top:135px;margin:0;padding:0;list-style:none;border:1px solid #cbd5e1;background:#fff}.suggestions li{padding:6px 8px;cursor:pointer}.suggestions li:hover{background:#eff6ff}.suggestions small{color:#64748b}.selected-client{margin:0 0 0 86px;font-size:12px;color:#475569}.selected-client button{border:0;background:none;color:#dc2626;font-size:16px}footer{padding:14px;text-align:center;border-top:1px solid #e5e7eb;background:#f8fafc}footer button{margin:0 3px}.hint,.feedback{margin:0;padding:0 18px 14px;font-size:12px}@media(max-width:600px){.fields{padding:20px}.fields>label{grid-template-columns:1fr}.check,fieldset,.selected-client{margin-left:0}.suggestions{left:20px;right:20px;top:166px}}
+.report-box header { align-items: center; display: flex; justify-content: space-between; }
+footer { background: transparent; border-top: 0; padding: 0 14px 14px; }
 </style>

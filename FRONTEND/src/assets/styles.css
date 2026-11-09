@@ -1094,6 +1094,67 @@ select {
   cursor: default;
 }
 
+.report-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.report-action-button {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #d8dee5;
+  border-radius: 5px;
+  color: #202a35;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 8px;
+  justify-content: center;
+  min-height: 36px;
+  min-width: 126px;
+  padding: 0 18px;
+}
+
+.report-action-button svg {
+  height: 15px;
+  width: 15px;
+}
+
+.report-action-button--print {
+  background: #fff1e8;
+  border-color: #ffc49e;
+  color: #e96c2b;
+}
+
+.report-close-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: #202a35;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 7px;
+  padding: 4px;
+}
+
+.report-close-button svg {
+  height: 15px;
+  width: 15px;
+}
+
+.report-action-button:hover {
+  filter: brightness(0.98);
+}
+
+@media (max-width: 420px) {
+  .report-actions { gap: 8px; }
+  .report-action-button { min-width: 0; padding: 0 14px; }
+}
+
 .form-panel {
   width: 100%;
   max-width: none;

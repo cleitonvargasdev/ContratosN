@@ -37,7 +37,7 @@ export interface StockHistory {
   page_size: number
 }
 export function getStockHistory(productId: number, page: number) {
-  return apiFetch<StockHistory>(`/produtos/${productId}/estoque?page=${page}&page_size=10`)
+  return apiFetch<StockHistory>(`/produtos/${productId}/estoque?page=${page}&page_size=5`)
 }
 export function moveStock(productId: number, payload: StockInput) {
   return apiFetch<StockMovement>(`/produtos/${productId}/estoque`, {

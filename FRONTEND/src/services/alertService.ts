@@ -187,6 +187,18 @@ export async function infoAlert(message: string): Promise<void> {
   })
 }
 
+export async function showStockObservationAlert(message: string): Promise<void> {
+  await Swal.fire({
+    title: 'Observação',
+    text: message,
+    confirmButtonText: 'Fechar',
+    buttonsStyling: false,
+    customClass: sharedClasses,
+    background: '#fffaf9',
+    color: '#24303b',
+  })
+}
+
 export async function showClientScoreLogPopup(clientName: string, logs: readonly ClientScoreLog[]): Promise<void> {
   const title = clientName.trim() ? `Histórico do score • ${escapeHtml(clientName)}` : 'Histórico do score'
   const html = logs.length === 0

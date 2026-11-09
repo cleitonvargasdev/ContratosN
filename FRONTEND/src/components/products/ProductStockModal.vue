@@ -26,13 +26,13 @@
               <div class="form-actions field-group--span-2"><button class="secondary-button" :disabled="saving || loading" type="button" @click="reload">Atualizar saldos</button><button class="primary-button primary-button--success" :disabled="saving || loading" type="submit">{{ saving ? 'Registrando...' : 'Confirmar movimentação' }}</button></div>
             </form>
             <h4>Histórico de entradas e saídas</h4>
-            <div class="table-wrap"><table class="data-table data-table--users">
+            <div class="table-wrap stock-history"><table class="data-table data-table--users stock-history__table">
               <thead><tr><th>Data</th><th>Operação</th><th>Condição</th><th>Entrada / saída</th><th>Antes</th><th>Depois</th><th>Motivo / observação</th><th>Responsável</th></tr></thead>
               <tbody><tr v-if="!history.items.length"><td colspan="8">Nenhuma movimentação registrada.</td></tr>
-                <tr v-for="movement in history.items" :key="movement.movimento_id"><td>{{ new Date(movement.criado_em).toLocaleString('pt-BR') }}</td><td>{{ labels[movement.tipo] ?? movement.tipo }}</td><td>{{ movement.condicao === 'novo' ? 'Novo' : 'Usado' }}</td><td><span :class="['pill', movement.quantidade < 0 ? 'pill--danger' : 'pill--success']">{{ movement.quantidade > 0 ? '+' : '' }}{{ movement.quantidade }}</span></td><td>{{ movement.saldo_antes }}</td><td>{{ movement.saldo_depois }}</td><td>{{ movement.motivo }}<small class="stock-note">{{ movement.observacao }}</small></td><td>{{ movement.usuario_nome }}</td></tr>
+                <tr v-for="movement in history.items" :key="movement.movimento_id"><td>{{ new Date(movement.criado_em).toLocaleString('pt-BR') }}</td><td>{{ labels[movement.tipo] ?? movement.tipo }}</td><td>{{ movement.condicao === 'novo' ? 'Novo' : 'Usado' }}</td><td><span :class="['pill', movement.quantidade < 0 ? 'pill--danger' : 'pill--success']">{{ movement.quantidade > 0 ? '+' : '' }}{{ movement.quantidade }}</span></td><td>{{ movement.saldo_antes }}</td><td>{{ movement.saldo_depois }}</td><td><div class="stock-note"><span>{{ movement.motivo }}</span><span v-if="movement.observacao" class="stock-note__observation">{{ movement.observacao }}</span><button v-if="movement.observacao" class="stock-note__more" type="button" :aria-label="`Ver observação: ${movement.motivo}`" @click="showObservation(movement.observacao)">...</button></div></td><td>{{ movement.usuario_nome }}</td></tr>
               </tbody>
             </table></div>
-            <footer class="pagination-compact"><div class="pagination-compact__status">{{ history.total }} movimentações · Página {{ page }}</div><div class="pagination-compact__actions"><button class="pagination-compact__button" :disabled="page <= 1 || loading || saving" type="button" @click="changePage(-1)">‹</button><button class="pagination-compact__button" :disabled="page * 10 >= history.total || loading || saving" type="button" @click="changePage(1)">›</button></div></footer>
+            <footer class="pagination-compact"><div class="pagination-compact__status">{{ history.total }} movimentações · Página {{ page }}</div><div class="pagination-compact__actions"><button class="pagination-compact__button" :disabled="page <= 1 || loading || saving" type="button" @click="changePage(-1)">‹</button><button class="pagination-compact__button" :disabled="page * history.page_size >= history.total || loading || saving" type="button" @click="changePage(1)">›</button></div></footer>
           </template>
         </div>
       </section>
@@ -44,13 +44,13 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import type { Product } from '@/models/product'
 import { getProductById } from '@/services/productService'
-import { confirmActionAlert, errorAlert, successAlert } from '@/services/alertService'
+import { confirmActionAlert, errorAlert, showStockObservationAlert, successAlert } from '@/services/alertService'
 import { getStockHistory, moveStock, stockReasons, type StockHistory, type StockInput, type StockKind } from '@/services/stockService'
 
 const props = defineProps<{ productId: number; returnItemId?: number; returnRemaining?: number }>()
 const emit = defineEmits<{ close: []; changed: [] }>()
 const product = ref<Product | null>(null)
-const history = ref<StockHistory>({ items: [], total: 0, page: 1, page_size: 10 })
+const history = ref<StockHistory>({ items: [], total: 0, page: 1, page_size: 5 })
 const page = ref(1)
 const saving = ref(false)
 const loading = ref(true)
@@ -76,6 +76,9 @@ async function reload() {
   finally { loading.value = false }
 }
 async function changePage(direction: number) { page.value += direction; await reload() }
+async function showObservation(observation: string | null) {
+  if (observation) await showStockObservationAlert(observation)
+}
 async function submit() {
   if (!product.value || saving.value) return
   if (!Number.isSafeInteger(form.quantidade) || form.quantidade < (form.tipo === 'ajuste' ? 0 : 1) || form.observacao.trim().length < 3) {
@@ -112,6 +115,20 @@ function operationId() {
 .stock-backdrop { z-index: 1001; }
 .stock-modal { width: min(1150px, calc(100vw - 2rem)); max-height: calc(100vh - 3rem); overflow: auto; }
 .stock-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; border: 0; padding: 0; margin: 0; min-width: 0; }
-.stock-note { display: block; max-width: 320px; white-space: normal; overflow-wrap: anywhere; }
+.stock-history { height: 178px; overflow: hidden; }
+.stock-history__table { table-layout: fixed; }
+.stock-history__table th,
+.stock-history__table td { box-sizing: border-box; height: 30px; max-height: 30px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stock-history__table th:nth-child(1) { width: 135px; }
+.stock-history__table th:nth-child(2) { width: 76px; }
+.stock-history__table th:nth-child(3) { width: 70px; }
+.stock-history__table th:nth-child(4) { width: 110px; }
+.stock-history__table th:nth-child(5),
+.stock-history__table th:nth-child(6) { width: 44px; }
+.stock-history__table th:nth-child(7) { width: 36%; }
+.stock-history__table th:nth-child(8) { width: 95px; }
+.stock-note { align-items: center; display: flex; gap: 4px; min-width: 0; overflow: hidden; }
+.stock-note__observation { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stock-note__more { background: transparent; border: 0; color: var(--primary); cursor: pointer; flex: 0 0 auto; font: inherit; font-weight: 700; padding: 0 2px; }
 @media (max-width: 650px) { .stock-fields { grid-template-columns: 1fr; } .stock-fields .field-group--span-2 { grid-column: auto; } }
 </style>
