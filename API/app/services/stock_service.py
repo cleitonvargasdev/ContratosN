@@ -9,7 +9,7 @@ from app.models.contract_commodato import ContratoComodato, ContratoComodatoItem
 from app.models.product import Produto
 from app.models.stock import MovimentoEstoque
 from app.models.user import User
-from app.schemas.stock import StockHistory, StockMovementRead, StockWrite
+from app.schemas.stock import StockBatchRead, StockBatchWrite, StockHistory, StockMovementRead, StockWrite
 
 
 class StockService:
@@ -86,6 +86,41 @@ class StockService:
                                    signature=signature, user=user, item_id=payload.item_id)
             await self.session.flush()
             result = StockMovementRead.model_validate(movement)
+            await self.session.commit()
+            return result
+        except Exception:
+            await self.session.rollback()
+            raise
+
+    async def purchase_batch(self, payload: StockBatchWrite, user: User) -> StockBatchRead:
+        """Registers all lines and product price changes as one all-or-nothing purchase."""
+        try:
+            products = {product_id: await self.lock_product(product_id) for product_id in sorted({item.produto_id for item in payload.items})}
+            movements = []
+            for item in payload.items:
+                product = products[item.produto_id]
+                if not product.ativo:
+                    raise HTTPException(409, f"Produto inativo: {product.descricao}")
+                key = str(item.operacao_id)
+                signature = hashlib.sha256(item.model_dump_json().encode()).hexdigest()
+                previous = await self.session.scalar(select(MovimentoEstoque).where(
+                    MovimentoEstoque.produto_id == item.produto_id,
+                    MovimentoEstoque.operacao_id == key,
+                ))
+                if previous:
+                    if previous.assinatura != signature:
+                        raise HTTPException(409, "Esta operação já foi utilizada com outros dados")
+                    movements.append(previous)
+                    continue
+                product.valor_compra = item.valor_compra
+                product.valor_venda = item.valor_venda
+                movements.append(self.record(
+                    product, condition=item.condicao, delta=item.quantidade, kind="entrada",
+                    reason="Compra", note="Entrada pelo lote de estoque", key=key,
+                    signature=signature, user=user,
+                ))
+            await self.session.flush()
+            result = StockBatchRead(movements=[StockMovementRead.model_validate(movement) for movement in movements])
             await self.session.commit()
             return result
         except Exception:

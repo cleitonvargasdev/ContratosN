@@ -36,11 +36,24 @@ export interface StockHistory {
   page: number
   page_size: number
 }
+export interface StockBatchItemInput {
+  produto_id: number
+  operacao_id: string
+  quantidade: number
+  condicao: 'novo' | 'usado'
+  valor_compra: number
+  valor_venda: number
+}
 export function getStockHistory(productId: number, page: number) {
   return apiFetch<StockHistory>(`/produtos/${productId}/estoque?page=${page}&page_size=5`)
 }
 export function moveStock(productId: number, payload: StockInput) {
   return apiFetch<StockMovement>(`/produtos/${productId}/estoque`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  })
+}
+export function purchaseStockBatch(items: StockBatchItemInput[]) {
+  return apiFetch<{ movements: StockMovement[] }>('/produtos/estoque/lote', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }),
   })
 }

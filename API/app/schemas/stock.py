@@ -36,6 +36,22 @@ class StockWrite(BaseModel):
         return self
 
 
+class StockBatchItemWrite(BaseModel):
+    """One purchase-entry line, kept together until the user confirms the batch."""
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    produto_id: int = Field(gt=0)
+    operacao_id: UUID
+    quantidade: int = Field(gt=0, le=1000000000, strict=True)
+    condicao: Literal["novo", "usado"]
+    valor_compra: float = Field(ge=0)
+    valor_venda: float = Field(ge=0)
+
+
+class StockBatchWrite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    items: list[StockBatchItemWrite] = Field(min_length=1, max_length=500)
+
+
 class StockMovementRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     movimento_id: int
@@ -50,6 +66,10 @@ class StockMovementRead(BaseModel):
     saldo_depois: int
     motivo: str
     observacao: str | None
+
+
+class StockBatchRead(BaseModel):
+    movements: list[StockMovementRead]
 
 
 class StockHistory(BaseModel):

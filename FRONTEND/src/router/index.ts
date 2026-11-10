@@ -53,6 +53,7 @@ import ReceiptReportView from '@/views/reports/ReceiptReportView.vue'
 import OccurrenceReportView from '@/views/reports/OccurrenceReportView.vue'
 import AccountsReceivableReportView from '@/views/reports/AccountsReceivableReportView.vue'
 import StockReportView from '@/views/reports/StockReportView.vue'
+import StockBatchEntryView from '@/views/stock/StockBatchEntryView.vue'
 
 const routes = [
   {
@@ -383,6 +384,12 @@ const routes = [
         name: 'payments-movement',
         component: PaymentsMovementView,
         meta: { resource: 'contas_pagar', action: 'read' },
+      },
+      {
+        path: 'movimentacoes/estoque',
+        name: 'stock-batch-entry',
+        component: StockBatchEntryView,
+        meta: { resource: 'produtos', action: 'update' },
       },
       {
         path: 'movimentacoes/desbloqueio',

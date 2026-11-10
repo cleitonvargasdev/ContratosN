@@ -26,7 +26,7 @@ from app.schemas.product import (
 from app.services.product_service import ProductService
 from app.services.stock_service import StockService
 from app.services.stock_report_service import StockReportService
-from app.schemas.stock import StockHistory, StockMovementRead, StockWrite
+from app.schemas.stock import StockBatchRead, StockBatchWrite, StockHistory, StockMovementRead, StockWrite
 
 
 brands_router = APIRouter(dependencies=[Depends(get_current_active_user)])
@@ -76,6 +76,15 @@ async def stock_move(
     session: AsyncSession = Depends(get_db_session),
 ):
     return await StockService(session).move(produto_id, payload, user)
+
+
+@products_router.post("/estoque/lote", response_model=StockBatchRead, summary="Registrar entrada de estoque em lote")
+async def stock_purchase_batch(
+    payload: StockBatchWrite,
+    user: User = Depends(require_permission("produtos", "update")),
+    session: AsyncSession = Depends(get_db_session),
+):
+    return await StockService(session).purchase_batch(payload, user)
 
 
 def get_product_service(session: AsyncSession = Depends(get_db_session)) -> ProductService:

@@ -208,6 +208,7 @@ const baseSections: SidebarSection[] = [
       { label: 'Desbloqueio', to: '/movimentacoes/desbloqueio', resource: 'contratos', action: 'read', icon: 'unlock' },
       { label: 'Recebimento Lote', to: '/recebimento-lote', resource: 'contratos', action: 'update', icon: 'layers' },
       { label: 'Pagamentos', to: '/movimentacoes/pagamentos', resource: 'contas_pagar', action: 'read', icon: 'payment' },
+      { label: 'Estoque', to: '/movimentacoes/estoque', resource: 'produtos', action: 'update', icon: 'box' },
       { label: 'Comissões', to: '/comissoes', resource: 'contas_pagar', action: 'read', icon: 'wallet' },
     ],
   },
